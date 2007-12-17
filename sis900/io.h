@@ -33,28 +33,44 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SIS900_DEVICES_H_
-#define _SIS900_DEVICES_H_
+#ifndef _SIS900_IO_H_
+#define _SIS900_IO_H_
 
-#include "cdi.h"
-#include "cdi/net.h"
-#include "cdi/pci.h"
+#include <stdint.h>
+#include "cdi/io.h"
+
+static inline void reg_outb
+    (struct sis900_device* netcard, uint8_t reg, uint8_t value)
+{
+    cdi_outb(netcard->port_base + reg, value);
+}
+
+static inline void reg_outw
+    (struct sis900_device* netcard, uint8_t reg, uint16_t value) 
+{
+    cdi_outw(netcard->port_base + reg, value);
+}
+
+static inline void reg_outl
+    (struct sis900_device* netcard, uint8_t reg, uint32_t value) 
+{
+    cdi_outl(netcard->port_base + reg, value);
+}
 
 
-#define REG_COMMAND 0x00
-#define CR_RESET    0x100
+static inline uint8_t reg_inb(struct sis900_device* netcard, uint8_t reg) 
+{
+    return cdi_inb(netcard->port_base + reg);
+}
 
-struct sis900_device {
-    struct cdi_net_device       dev;
-    struct cdi_pci_device*      pci;
+static inline uint16_t reg_inw(struct sis900_device* netcard, uint8_t reg) 
+{
+    return cdi_inw(netcard->port_base + reg);
+}
 
-    uint16_t                    port_base;
-};
-
-void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device);
-void sis900_remove_device(struct cdi_driver* driver, 
-    struct cdi_device* device);
-
-void sis900_send_packet(struct cdi_device* device, void* data, size_t size);
+static inline uint32_t reg_inl(struct sis900_device* netcard, uint8_t reg) 
+{
+    return cdi_inl(netcard->port_base + reg);
+}
 
 #endif

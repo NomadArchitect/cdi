@@ -120,4 +120,6 @@ static void sis900_device_init(
     struct sis900_device* device, struct cdi_pci_device* pcidev)
 {
     device->pci = pcidev;
+
+    // TODO port_base initialisieren
 }

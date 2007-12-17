@@ -36,10 +36,22 @@
 #include <stdint.h>
 
 #include "cdi.h"
+
 #include "device.h"
+#include "io.h"
+
+static void reset_nic(struct sis900_device* device)
+{
+    reg_outl(device, REG_COMMAND, CR_RESET);
+    while (reg_inl(device, REG_COMMAND) & CR_RESET);
+}
+
 
 void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device)
 {
+    struct sis900_device* netcard = (struct sis900_device*) device;
+
+    reset_nic(netcard);
 }
 
 void sis900_remove_device(struct cdi_driver* driver, struct cdi_device* device)
