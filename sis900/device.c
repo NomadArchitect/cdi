@@ -38,11 +38,11 @@
 #include "cdi.h"
 #include "device.h"
 
-void sis900_init_device(struct cdi_device* device)
+void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device)
 {
 }
 
-void sis900_remove_device(struct cdi_device* device)
+void sis900_remove_device(struct cdi_driver* driver, struct cdi_device* device)
 {
 }
 

@@ -29,8 +29,11 @@ struct cdi_driver {
     cdi_device_type_t   type;
     list_t*             devices;
 
-    void (*init_device)(struct cdi_device* device);
-    void (*remove_device)(struct cdi_device* device);
+    void (*init_device)(struct cdi_driver* driver, struct cdi_device* device);
+    void (*remove_device)
+        (struct cdi_driver* driver, struct cdi_device* device);
+
+    void (*destroy)(struct cdi_driver* driver);
 };
 
 /**
@@ -43,8 +46,9 @@ struct cdi_driver {
 void cdi_init(void);
 
 /**
- * Fuehrt alle registrierten Treiber aus. Diese Funktion kehrt erst wieder
- * zurueck, wenn der Treiber beendet wurde.
+ * Fuehrt alle registrierten Treiber aus. Nach dem Aufruf dieser Funktion 
+ * duerfen keine weiteren Befehle ausgefuehrt werden, da nicht definiert ist,
+ * ob und wann die Funktion zurueckkehrt.
  */
 void cdi_run_drivers(void);
 
