@@ -42,8 +42,32 @@
 
 static void reset_nic(struct sis900_device* device)
 {
-    reg_outl(device, REG_COMMAND, CR_RESET);
+    // Interrupts deaktivieren
+    disable_intr();
+
+    // Soft-Reset ausfuehren
+    reg_outl(device, REG_COMMAND, CR_RESET | CR_RESET_TX | CR_RESET_RX);
     while (reg_inl(device, REG_COMMAND) & CR_RESET);
+
+    // Wir wollen alles, was an unsere MAC geht und Broadcast
+    // TODO Multicast-Hashtabelle setzen
+    reg_outl(device, REG_RX_FILT, RXFCR_PHYS | RXFCR_BROADCAST);
+    
+    // Transmitter und Receiver aktivieren
+    reg_outl(device, REG_COMMAND, CR_ENABLE_TX | CR_ENABLE_RX);
+
+    // Interrups wieder aktivieren
+    enable_intr();
+}
+
+static void enable_intr(struct sis900_device* device)
+{
+    reg_outl(device, REG_IER, 1);
+}
+
+static void disable_intr(struct sis900_device* device)
+{
+    reg_outl(device, REG_IER, 0);
 }
 
 

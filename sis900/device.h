@@ -42,7 +42,24 @@
 
 
 #define REG_COMMAND 0x00
-#define CR_RESET    0x100
+#define REG_CONFIG  0x04
+#define REG_ISR     0x10
+#define REG_IMR     0x14
+#define REG_IER     0x18
+#define REG_TX_PTR  0x20
+#define REG_TX_CFG  0x24
+#define REG_RX_PTR  0x30
+#define REG_RX_CFG  0x34
+#define REG_RX_FILT 0x48
+
+#define CR_ENABLE_TX    0x01
+#define CR_ENABLE_RX    0x04
+#define CR_RESET_TX     0x10
+#define CR_RESET_RX     0x20
+#define CR_RESET        0x100
+
+#define RXFCR_PHYS      (1 << 28)
+#define RXFCR_BROADCAST (1 << 30)
 
 struct sis900_device {
     struct cdi_net_device       dev;
