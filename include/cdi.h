@@ -12,7 +12,8 @@
 #define _CDI_H_
 
 #include <stdint.h>
-#include <collections.h> 
+
+#include "cdi/lists.h"
 
 #define CDI_STANDALONE
 
@@ -27,7 +28,7 @@ struct cdi_device {
 
 struct cdi_driver {
     cdi_device_type_t   type;
-    list_t*             devices;
+    cdi_list_t*         devices;
 
     void (*init_device)(struct cdi_driver* driver, struct cdi_device* device);
     void (*remove_device)

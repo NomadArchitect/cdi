@@ -12,9 +12,9 @@
 #define _CDI_PCI_H_
 
 #include <stdint.h>
-#include <collections.h> 
 
 #include "cdi.h"
+#include "cdi/lists.h"
 
 struct cdi_pci_device {
     uint16_t    vendor_id;
@@ -25,7 +25,7 @@ struct cdi_pci_device {
  * Gibt alle PCI-Geraete im System zurueck. Die Geraete werden dazu
  * in die uebergebene Liste eingefuegt.
  */
-void cdi_pci_get_all_devices(list_t* list);
+void cdi_pci_get_all_devices(cdi_list_t* list);
 
 /**
  * Gibt die Information zu einem PCI-Geraet frei

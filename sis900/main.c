@@ -86,12 +86,12 @@ static void sis900_driver_init(struct sis900_driver* driver)
     driver->net.send_packet         = sis900_send_packet;
 
     // Passende PCI-Geraete suchen
-    list_t* pci_devices = list_create();
+    cdi_list_t* pci_devices = cdi_list_create();
     cdi_pci_get_all_devices(pci_devices);
 
     struct cdi_pci_device* dev;
     int i;
-    for (i = 0; (dev = list_get_element_at(pci_devices, i)); i++) {
+    for (i = 0; (dev = cdi_list_get(pci_devices, i)); i++) {
         if ((dev->vendor_id == 0x1039) && (dev->device_id == 0x0900)) {
             struct sis900_device* device = malloc(sizeof(*device));
             sis900_device_init(device, dev);
@@ -100,7 +100,7 @@ static void sis900_driver_init(struct sis900_driver* driver)
         }
     }
 
-    list_destroy(pci_devices);
+    cdi_list_destroy(pci_devices);
 }
 
 /**
