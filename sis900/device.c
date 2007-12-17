@@ -40,10 +40,20 @@
 #include "device.h"
 #include "io.h"
 
+static void enable_intr(struct sis900_device* device)
+{
+    reg_outl(device, REG_IER, 1);
+}
+
+static void disable_intr(struct sis900_device* device)
+{
+    reg_outl(device, REG_IER, 0);
+}
+
 static void reset_nic(struct sis900_device* device)
 {
     // Interrupts deaktivieren
-    disable_intr();
+    disable_intr(device);
 
     // Soft-Reset ausfuehren
     reg_outl(device, REG_COMMAND, CR_RESET | CR_RESET_TX | CR_RESET_RX);
@@ -57,17 +67,7 @@ static void reset_nic(struct sis900_device* device)
     reg_outl(device, REG_COMMAND, CR_ENABLE_TX | CR_ENABLE_RX);
 
     // Interrups wieder aktivieren
-    enable_intr();
-}
-
-static void enable_intr(struct sis900_device* device)
-{
-    reg_outl(device, REG_IER, 1);
-}
-
-static void disable_intr(struct sis900_device* device)
-{
-    reg_outl(device, REG_IER, 0);
+    enable_intr(device);
 }
 
 
