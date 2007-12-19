@@ -34,81 +34,59 @@
  */
 
 #include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
 
-#include "cdi/net.h"
-#include "cdi/pci.h"
+#include "cdi.h"
 
 #include "device.h"
+#include "sis900_io.h"
 
-struct sis900_driver {
-    struct cdi_net_driver net;
-};
-
-static struct sis900_driver sis900_driver;
-
-
-static void sis900_driver_init(struct sis900_driver* driver);
-static void sis900_driver_destroy(struct cdi_driver* driver);
-
-#ifdef CDI_STANDALONE
-int main()
-#else
-int init_sis900
-#endif
+uint16_t sis900_eeprom_read(struct sis900_device* device, uint16_t offset)
 {
-    cdi_init();
+    // EEPROM-Zugriff initialisieren
+    reg_outl(device, REG_EEPROM, 0);
+    reg_inl(device, REG_EEPROM);
+    
+    reg_outl(device, REG_EEPROM, EEPROM_CLOCK);
+    reg_inl(device, REG_EEPROM);
 
-    sis900_driver_init(&sis900_driver);
-    cdi_driver_register((struct cdi_driver*) &sis900_driver);
-
-#ifdef CDI_STANDALONE
-    cdi_run_drivers();
-#endif    
-
-    return 0;
-}
-
-/**
- * Initialisiert die Datenstrukturen fuer den sis900-Treiber
- */
-static void sis900_driver_init(struct sis900_driver* driver)
-{
-    // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) driver);
-
-    // Funktionspointer initialisieren
-    driver->net.drv.destroy         = sis900_driver_destroy;
-    driver->net.drv.init_device     = sis900_init_device;
-    driver->net.drv.remove_device   = sis900_remove_device;
-    driver->net.send_packet         = sis900_send_packet;
-
-    // Passende PCI-Geraete suchen
-    cdi_list_t* pci_devices = cdi_list_create();
-    cdi_pci_get_all_devices(pci_devices);
-
-    struct cdi_pci_device* dev;
+    // Befehl bitweise verfuettern
+    uint16_t cmd = EEPROM_OP_READ | offset;
     int i;
-    for (i = 0; (dev = cdi_list_get(pci_devices, i)); i++) {
-        if ((dev->vendor_id == 0x1039) && (dev->device_id == 0x0900)) {
-            struct sis900_device* device = malloc(sizeof(*device));
-            device->pci = dev;
-            cdi_list_push(driver->net.drv.devices, device);
-        } else {
-            cdi_pci_device_destroy(dev);
+    for (i = 8; i >= 0; i--) {
+        uint32_t regvalue = EEPROM_CHIPSEL;
+        if (cmd & (1 << i)) {        
+            regvalue |= EEPROM_DATA_IN;
         }
+    
+        reg_outl(device, REG_EEPROM, regvalue);
+        reg_inl(device, REG_EEPROM);
+        
+        reg_outl(device, REG_EEPROM, EEPROM_CLOCK | regvalue);
+        reg_inl(device, REG_EEPROM);
+    }
+        
+    reg_outl(device, REG_EEPROM, EEPROM_CHIPSEL);
+    reg_inl(device, REG_EEPROM);
+
+    // Und dasselbe umgekehrt mit dem Ergebnis
+    uint16_t result = 0;
+    for (i = 15; i >= 0; i--) {
+        reg_outl(device, REG_EEPROM, EEPROM_CHIPSEL);
+        reg_inl(device, REG_EEPROM);
+        
+        reg_outl(device, REG_EEPROM, EEPROM_CLOCK | EEPROM_CHIPSEL);
+        reg_inl(device, REG_EEPROM);
+
+        result |= 
+            ((reg_inl(device, REG_EEPROM) & EEPROM_DATA_OUT) ? 1 : 0) << i;
     }
 
-    cdi_list_destroy(pci_devices);
-}
+    // EEPROM-Zugriff beenden
+    reg_outl(device, REG_EEPROM, 0);
+    reg_inl(device, REG_EEPROM);
+    
+    reg_outl(device, REG_EEPROM, EEPROM_CLOCK);
+    reg_inl(device, REG_EEPROM);
 
-/**
- * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
- */
-static void sis900_driver_destroy(struct cdi_driver* driver)
-{
-    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
-
-    // TODO Alle Karten deinitialisieren
+    return result;
 }

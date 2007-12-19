@@ -17,9 +17,30 @@
 #include "cdi/lists.h"
 
 struct cdi_pci_device {
+    uint16_t    bus;
+    uint16_t    dev;
+    uint16_t    function;
+
     uint16_t    vendor_id;
     uint16_t    device_id;
+    uint16_t    class_id;
+
+    uint8_t     irq;
+
+    cdi_list_t* resources;
 };
+
+typedef enum {
+    CDI_PCI_MEMORY,
+    CDI_PCI_IOPORTS
+} cdi_res_t;
+
+struct cdi_pci_resource {
+    cdi_res_t   type;
+    uintptr_t   start;
+    size_t      length;
+};
+
 
 /**
  * Gibt alle PCI-Geraete im System zurueck. Die Geraete werden dazu
@@ -31,6 +52,11 @@ void cdi_pci_get_all_devices(cdi_list_t* list);
  * Gibt die Information zu einem PCI-Geraet frei
  */
 void cdi_pci_device_destroy(struct cdi_pci_device* device);
+
+/**
+ * Reserviert die IO-Ports des PCI-Geraets fuer den Treiber
+ */
+void cdi_pci_alloc_ioports(struct cdi_pci_device* device);
 
 #endif
 

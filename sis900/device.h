@@ -36,6 +36,8 @@
 #ifndef _SIS900_DEVICES_H_
 #define _SIS900_DEVICES_H_
 
+#include <stdint.h>
+
 #include "cdi.h"
 #include "cdi/net.h"
 #include "cdi/pci.h"
@@ -43,6 +45,7 @@
 
 #define REG_COMMAND 0x00
 #define REG_CONFIG  0x04
+#define REG_EEPROM  0x08
 #define REG_ISR     0x10
 #define REG_IMR     0x14
 #define REG_IER     0x18
@@ -51,21 +54,59 @@
 #define REG_RX_PTR  0x30
 #define REG_RX_CFG  0x34
 #define REG_RX_FILT 0x48
+#define REG_RX_FDAT 0x4C
 
 #define CR_ENABLE_TX    0x01
+#define CR_DISABLE_TX   0x02
 #define CR_ENABLE_RX    0x04
 #define CR_RESET_TX     0x10
 #define CR_RESET_RX     0x20
 #define CR_RESET        0x100
+#define CR_RELOAD_MAC   0x400
+
+#define ISR_ROK             0x01
+#define ISR_RERR            0x04
+#define ISR_TOK             0x40
+#define ISR_TERR            0x100
+#define ISR_RX_RESET_COMP   0x01000000
+#define ISR_TX_RESET_COMP   0x02000000
 
 #define RXFCR_PHYS      (1 << 28)
 #define RXFCR_BROADCAST (1 << 30)
+#define RXFCR_ENABLE    (1 << 31)
+
+#define EEPROM_DATA_IN  0x01
+#define EEPROM_DATA_OUT 0x02
+#define EEPROM_CLOCK    0x04
+#define EEPROM_CHIPSEL  0x08
+
+#define EEPROM_OP_READ  0x180
+
+#define EEPROM_OFS_MAC  0x08
+
+
+#define TX_BUFFER_SIZE  2048
+#define RX_BUFFER_SIZE  2048
+
+#define DESC_STATUS_OWN (1 << 31)
+
+struct sis900_tx_descriptor {
+    uint32_t            link;
+    volatile uint32_t   status;
+    uint32_t            buffer;
+};
 
 struct sis900_device {
     struct cdi_net_device       dev;
     struct cdi_pci_device*      pci;
 
     uint16_t                    port_base;
+
+    struct sis900_tx_descriptor tx_desc;
+    uint8_t                     tx_buffer[TX_BUFFER_SIZE];
+    
+    struct sis900_tx_descriptor rx_desc;
+    uint8_t                     rx_buffer[RX_BUFFER_SIZE];
 };
 
 void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device);
@@ -73,5 +114,7 @@ void sis900_remove_device(struct cdi_driver* driver,
     struct cdi_device* device);
 
 void sis900_send_packet(struct cdi_device* device, void* data, size_t size);
+
+uint16_t sis900_eeprom_read(struct sis900_device* device, uint16_t offset);
 
 #endif
