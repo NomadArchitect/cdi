@@ -71,6 +71,13 @@
 #define ISR_RX_RESET_COMP   0x01000000
 #define ISR_TX_RESET_COMP   0x02000000
 
+#define TXC_DRAIN_TSH   (16 << 0)
+#define TXC_FILL_TSH    (16 << 8)
+#define TXC_PADDING     (1 << 28)
+#define TXC_LOOPBACK    (1 << 29)
+
+#define RXC_DRAIN_TSH   (16 << 1)
+
 #define RXFCR_PHYS      (1 << 28)
 #define RXFCR_BROADCAST (1 << 30)
 #define RXFCR_ENABLE    (1 << 31)

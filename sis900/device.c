@@ -70,6 +70,10 @@ static void reset_nic(struct sis900_device* netcard)
         isr |= reg_inl(netcard, REG_ISR);
     } while ((isr & complete) != complete);
 
+    // Receiver und Transmitter konfigurieren
+    reg_outl(netcard, REG_RX_CFG, RXC_DRAIN_TSH);
+    reg_outl(netcard, REG_TX_CFG, TXC_PADDING | TXC_DRAIN_TSH | TXC_FILL_TSH);
+
     // Wir wollen alles, was an unsere MAC geht und Broadcast
     // TODO Multicast-Hashtabelle setzen
     reg_outl(netcard, REG_RX_FILT, 
@@ -80,7 +84,7 @@ static void reset_nic(struct sis900_device* netcard)
     netcard->tx_desc.status = 0;
     netcard->tx_desc.buffer = 0;
     
-    netcard->rx_desc.link = 0;
+    netcard->rx_desc.link = cdi_get_phys_addr(&netcard->rx_desc);
     netcard->rx_desc.status = RX_BUFFER_SIZE;
     netcard->rx_desc.buffer = cdi_get_phys_addr(netcard->rx_buffer);
 
