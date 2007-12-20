@@ -18,12 +18,17 @@
 
 struct cdi_net_device {
     struct cdi_device   dev;
+    uint64_t            mac : 48;
+
+    void (*send_packet)
+        (struct cdi_net_device* device, void* data, size_t size);
+    
+    // LOST-spezifisch
+    uint32_t            ip;
 };
 
 struct cdi_net_driver {
     struct cdi_driver   drv;
-
-    void (*send_packet)(struct cdi_device* device, void* data, size_t size);
 };
 
 
@@ -38,5 +43,17 @@ void cdi_net_driver_init(struct cdi_net_driver* driver);
  * (gibt die devices-Liste frei)
  */
 void cdi_net_driver_destroy(struct cdi_net_driver* driver);
+
+/**
+ * Initialisiert eine neue Netzwerkkarte
+ */
+void cdi_net_device_init(struct cdi_net_device* device);
+
+/**
+ * Wird von Netzwerktreibern aufgerufen, wenn ein Netzwerkpaket
+ * empfangen wurde.
+ */
+void cdi_net_receive(
+    struct cdi_net_device* device, uint8_t* buffer, size_t size);
 
 #endif

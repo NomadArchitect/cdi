@@ -82,7 +82,6 @@ static void sis900_driver_init(struct sis900_driver* driver)
     driver->net.drv.destroy         = sis900_driver_destroy;
     driver->net.drv.init_device     = sis900_init_device;
     driver->net.drv.remove_device   = sis900_remove_device;
-    driver->net.send_packet         = sis900_send_packet;
 
     // Passende PCI-Geraete suchen
     cdi_list_t* pci_devices = cdi_list_create();

@@ -42,6 +42,8 @@
 #include "device.h"
 #include "sis900_io.h"
 
+#undef DEBUG
+
 static void sis900_handle_interrupt(struct cdi_device* device);
 
 
@@ -83,22 +85,32 @@ static void reset_nic(struct sis900_device* netcard)
     netcard->tx_desc.link = 0;
     netcard->tx_desc.status = 0;
     netcard->tx_desc.buffer = 0;
-    
-    netcard->rx_desc.link = cdi_get_phys_addr(&netcard->rx_desc);
-    netcard->rx_desc.status = RX_BUFFER_SIZE;
-    netcard->rx_desc.buffer = cdi_get_phys_addr(netcard->rx_buffer);
+   
+    int i;
+    for (i = 0; i < RX_BUFFER_NUM; i++) {
+        netcard->rx_desc[i].link = 
+            cdi_get_phys_addr(&netcard->rx_desc[(i + 1) % RX_BUFFER_NUM]);
+        netcard->rx_desc[i].status = RX_BUFFER_SIZE;
+        netcard->rx_desc[i].buffer = 
+            cdi_get_phys_addr(&netcard->rx_buffer[i * RX_BUFFER_SIZE]);
+
+#ifdef DEBUG
+        printf("sis900: [%d] Rx: Buffer @ phys %08x, Desc @ phys %08x\n",
+            i,
+            netcard->rx_desc[i].buffer, 
+            cdi_get_phys_addr(&netcard->rx_desc[i]));
+#endif
+    }
+    netcard->rx_cur_buffer = 0;
 
     reg_outl(netcard, REG_TX_PTR, cdi_get_phys_addr(&netcard->tx_desc));
-    reg_outl(netcard, REG_RX_PTR, cdi_get_phys_addr(&netcard->rx_desc));
-
-    printf("sis900: Rx: Desc @ phys %08x, Buffer @ phys %08x\n",
-        netcard->rx_desc.buffer, cdi_get_phys_addr(&netcard->rx_desc));
+    reg_outl(netcard, REG_RX_PTR, cdi_get_phys_addr(&netcard->rx_desc[0]));
     
     // Receiver aktivieren
     reg_outl(netcard, REG_COMMAND, CR_ENABLE_RX);
 
     // Interrups wieder aktivieren
-    reg_outl(netcard, REG_IMR,  ISR_ROK | ISR_TOK | ISR_RERR | ISR_TERR);
+    reg_outl(netcard, REG_IMR, 0xffffffff /*ISR_ROK | ISR_TOK | ISR_RERR | ISR_TERR*/);
     enable_intr(netcard);
 }
 
@@ -121,13 +133,13 @@ static uint64_t get_mac_address(struct sis900_device* device)
     reg_outl(device, REG_COMMAND, old_rfcr | CR_RELOAD_MAC);
     reg_outl(device, REG_COMMAND, 0);
 
-    reg_outl(device, REG_RX_FILT, old_rfcr & RXFCR_ENABLE);
+    reg_outl(device, REG_RX_FILT, old_rfcr & ~RXFCR_ENABLE);
 
     // Dreimal jeweils ein Word der MAC-Adresse, die jetzt im Register Receive
     // Filter Data vorliegt, adressieren und einlesen.
     for (i = 0; i < 3; i++) {
         reg_outl(device, REG_RX_FILT, i << 16);
-        mac |= ((uint64_t) reg_inw(device, REG_RX_FDAT)) << ((2 - i) * 16);
+        mac |= ((uint64_t) reg_inw(device, REG_RX_FDAT)) << (i * 16);
     }
 
     // Altes Filterregister wiederherstellen
@@ -139,6 +151,9 @@ static uint64_t get_mac_address(struct sis900_device* device)
 void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
+    netcard->net.send_packet = sis900_send_packet;
+
+    cdi_net_device_init((struct cdi_net_device*) device);
 
     // PCI-bezogenes Zeug initialisieren
     cdi_register_irq(netcard->pci->irq, sis900_handle_interrupt, device);
@@ -159,19 +174,30 @@ void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device)
 
     printf("sis900: Fuehre Reset der Karte durch\n");
     reset_nic(netcard);
-
-    printf("sis900: MAC-Adresse: %012llx\n", get_mac_address(netcard));
+    
+    netcard->net.mac = get_mac_address(netcard);
+    printf("sis900: MAC-Adresse: %012llx\n", netcard->net.mac);
    
     printf("sis900: CR = %08x\n", reg_inl(netcard, REG_COMMAND));
 
     reg_outl(netcard, REG_COMMAND, 0xC0);
+
+/*
+    uint32_t sendbuf[4];
+    sendbuf[0] = 0x54520012;
+    sendbuf[1] = 0x23455452;
+    sendbuf[2] = 0x00123457;
+    sendbuf[3] = 0x0006abcd;
+
+    sis900_send_packet(device, sendbuf, 16);
+*/    
 }
 
 void sis900_remove_device(struct cdi_driver* driver, struct cdi_device* device)
 {
 }
 
-void sis900_send_packet(struct cdi_device* device, void* data, size_t size)
+void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
 
@@ -208,13 +234,28 @@ static void sis900_handle_interrupt(struct cdi_device* device)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
 
-    printf("sis900: Interrupt, ISR = %08x\n", reg_inl(netcard, REG_ISR));
-
     uint32_t isr = reg_inl(netcard, REG_ISR);
+#ifdef DEBUG
+    printf("sis900: Interrupt, ISR = %08x\n", isr);
 
-    if (isr & ISR_ROK) {
+    printf("sis900: RxDesc = %08x, RxCfg = %08x, CR = %08x, cmdsts0 = %08x\n",
+        reg_inl(netcard, REG_RX_PTR), reg_inl(netcard, REG_RX_CFG),
+        reg_inl(netcard, REG_COMMAND), netcard->rx_desc[0].status);
+    
+    printf("sis900: cmdsts1 = %08x, cmdsts2 = %08x, cmdsts3 = %08x\n",
+        netcard->rx_desc[1].status,
+        netcard->rx_desc[2].status,
+        netcard->rx_desc[3].status);
+
+    if (isr & ISR_RX_OVERFLOW) {
+        printf("RxOverflow. Stop.\n");
+        disable_intr(netcard);
+    }
+#endif
+
+//    if (isr & ISR_ROK) {
         while (1) {
-            uint32_t status = netcard->rx_desc.status;
+            uint32_t status = netcard->rx_desc[netcard->rx_cur_buffer].status;
 
             if ((status & DESC_STATUS_OWN) == 0) {
                 break;
@@ -223,21 +264,29 @@ static void sis900_handle_interrupt(struct cdi_device* device)
             // 4 Bytes CRC von der Laenge abziehen
             size_t size = (status & 0xFFF) - 4;
 
-            printf("sis900: %d Bytes empfangen (status =%x)\n", size, status);
+#ifdef DEBUG
+            printf("sis900: %d Bytes empfangen (status = %x)\n", size, status);
             int i;
             for (i = 0; i < (size < 49 ? size : 49); i++) {
-                printf("%02hhx ", netcard->rx_buffer[i]);
+                printf("%02hhx ", netcard->rx_buffer[
+                    netcard->rx_cur_buffer * RX_BUFFER_SIZE + i]);
                 if (i % 25 == 0) {
                     printf("\n");
                 }
             }
             printf("\n\n");
-        
-            netcard->rx_desc.link = 0;
-            netcard->rx_desc.status = RX_BUFFER_SIZE;
-            netcard->rx_desc.buffer = cdi_get_phys_addr(netcard->rx_buffer);
+#endif
+            
+            cdi_net_receive(
+                (struct cdi_net_device*) netcard, 
+                &netcard->rx_buffer[netcard->rx_cur_buffer * RX_BUFFER_SIZE],
+                size);
+
+            netcard->rx_desc[netcard->rx_cur_buffer].status = RX_BUFFER_SIZE;
+            netcard->rx_cur_buffer++;
+            netcard->rx_cur_buffer %= RX_BUFFER_NUM;
         }
 
         reg_outl(netcard, REG_COMMAND, CR_ENABLE_RX);
-    }
+//    }
 }

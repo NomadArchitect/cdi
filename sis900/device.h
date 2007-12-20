@@ -66,6 +66,8 @@
 
 #define ISR_ROK             0x01
 #define ISR_RERR            0x04
+#define ISR_RX_IDLE         0x10
+#define ISR_RX_OVERFLOW     0x20
 #define ISR_TOK             0x40
 #define ISR_TERR            0x100
 #define ISR_RX_RESET_COMP   0x01000000
@@ -93,7 +95,9 @@
 
 
 #define TX_BUFFER_SIZE  2048
-#define RX_BUFFER_SIZE  2048
+#define RX_BUFFER_SIZE  1536
+#define RX_BUFFER_NUM   4
+
 
 #define DESC_STATUS_OWN (1 << 31)
 
@@ -104,7 +108,7 @@ struct sis900_tx_descriptor {
 };
 
 struct sis900_device {
-    struct cdi_net_device       dev;
+    struct cdi_net_device       net;
     struct cdi_pci_device*      pci;
 
     uint16_t                    port_base;
@@ -112,15 +116,17 @@ struct sis900_device {
     struct sis900_tx_descriptor tx_desc;
     uint8_t                     tx_buffer[TX_BUFFER_SIZE];
     
-    struct sis900_tx_descriptor rx_desc;
-    uint8_t                     rx_buffer[RX_BUFFER_SIZE];
+    struct sis900_tx_descriptor rx_desc[RX_BUFFER_NUM];
+    uint8_t                     rx_buffer[RX_BUFFER_NUM * RX_BUFFER_SIZE];
+    int                         rx_cur_buffer;
 };
 
 void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device);
 void sis900_remove_device(struct cdi_driver* driver, 
     struct cdi_device* device);
 
-void sis900_send_packet(struct cdi_device* device, void* data, size_t size);
+void sis900_send_packet
+    (struct cdi_net_device* device, void* data, size_t size);
 
 uint16_t sis900_eeprom_read(struct sis900_device* device, uint16_t offset);
 
