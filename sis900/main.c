@@ -47,7 +47,7 @@ struct sis900_driver {
 };
 
 static struct sis900_driver sis900_driver;
-
+static const char* driver_name = "sis900";
 
 static void sis900_driver_init(struct sis900_driver* driver);
 static void sis900_driver_destroy(struct cdi_driver* driver);
@@ -77,6 +77,9 @@ static void sis900_driver_init(struct sis900_driver* driver)
 {
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) driver);
+    
+    // Namen setzen
+    driver->net.drv.name = driver_name;
 
     // Funktionspointer initialisieren
     driver->net.drv.destroy         = sis900_driver_destroy;

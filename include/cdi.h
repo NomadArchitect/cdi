@@ -19,15 +19,20 @@
 
 typedef enum {
     CDI_UNKNOWN         = 0,
-    CDI_NETWORK         = 1
+    CDI_NETWORK         = 1,
+    CDI_STORAGE         = 2
 } cdi_device_type_t;
 
+struct cdi_driver;
 struct cdi_device {
     cdi_device_type_t   type;
+    const char*         name;
+    struct cdi_driver*  driver;
 };
 
 struct cdi_driver {
     cdi_device_type_t   type;
+    const char*         name;
     cdi_list_t*         devices;
 
     void (*init_device)(struct cdi_driver* driver, struct cdi_device* device);

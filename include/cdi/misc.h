@@ -30,5 +30,24 @@ void cdi_register_irq(uint8_t irq, void (*handler)(struct cdi_device*),
  */
 uintptr_t cdi_get_phys_addr(void* ptr);
 
+/**
+ * Reserviert IO-Ports
+ *
+ * @return 0 wenn die Ports erfolgreich reserviert wurden, -1 sonst.
+ */
+int cdi_ioports_alloc(uint16_t start, uint16_t count);
+
+/**
+ * Gibt reservierte IO-Ports frei
+ *
+ * @return 0 wenn die Ports erfolgreich freigegeben wurden, -1 sonst.
+ */
+int cdi_ioports_free(uint16_t start, uint16_t count);
+
+/**
+ * Unterbricht die Ausfuehrung fuer mehrere Millisekunden
+ */
+void cdi_sleep_ms(uint32_t ms);
+
 #endif
 
