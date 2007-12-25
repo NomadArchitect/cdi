@@ -121,9 +121,8 @@ struct sis900_device {
     int                         rx_cur_buffer;
 };
 
-void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device);
-void sis900_remove_device(struct cdi_driver* driver, 
-    struct cdi_device* device);
+void sis900_init_device(struct cdi_device* device);
+void sis900_remove_device(struct cdi_device* device);
 
 void sis900_send_packet
     (struct cdi_net_device* device, void* data, size_t size);

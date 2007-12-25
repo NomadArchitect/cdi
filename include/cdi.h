@@ -35,11 +35,10 @@ struct cdi_driver {
     const char*         name;
     cdi_list_t          devices;
 
-    void (*init_device)(struct cdi_driver* driver, struct cdi_device* device);
-    void (*remove_device)
-        (struct cdi_driver* driver, struct cdi_device* device);
+    void (*init_device)(struct cdi_device* device);
+    void (*remove_device)(struct cdi_device* device);
 
-    void (*destroy)(struct cdi_driver* driver);
+    void (*destroy)();
 };
 
 /**

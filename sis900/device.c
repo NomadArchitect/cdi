@@ -148,7 +148,7 @@ static uint64_t get_mac_address(struct sis900_device* device)
     return mac;
 }
 
-void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device)
+void sis900_init_device(struct cdi_device* device)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
     netcard->net.send_packet = sis900_send_packet;
@@ -193,7 +193,7 @@ void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device)
 */    
 }
 
-void sis900_remove_device(struct cdi_driver* driver, struct cdi_device* device)
+void sis900_remove_device(struct cdi_device* device)
 {
 }
 

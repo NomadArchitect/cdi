@@ -46,11 +46,11 @@ struct sis900_driver {
     struct cdi_net_driver net;
 };
 
-static struct sis900_driver sis900_driver;
+static struct sis900_driver driver;
 static const char* driver_name = "sis900";
 
-static void sis900_driver_init(struct sis900_driver* driver);
-static void sis900_driver_destroy(struct cdi_driver* driver);
+static void sis900_driver_init();
+static void sis900_driver_destroy();
 
 #ifdef CDI_STANDALONE
 int main()
@@ -60,8 +60,8 @@ int init_sis900
 {
     cdi_init();
 
-    sis900_driver_init(&sis900_driver);
-    cdi_driver_register((struct cdi_driver*) &sis900_driver);
+    sis900_driver_init();
+    cdi_driver_register((struct cdi_driver*) &driver);
 
 #ifdef CDI_STANDALONE
     cdi_run_drivers();
@@ -73,18 +73,18 @@ int init_sis900
 /**
  * Initialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void sis900_driver_init(struct sis900_driver* driver)
+static void sis900_driver_init()
 {
     // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) driver);
+    cdi_net_driver_init((struct cdi_net_driver*) &driver);
     
     // Namen setzen
-    driver->net.drv.name = driver_name;
+    driver.net.drv.name = driver_name;
 
     // Funktionspointer initialisieren
-    driver->net.drv.destroy         = sis900_driver_destroy;
-    driver->net.drv.init_device     = sis900_init_device;
-    driver->net.drv.remove_device   = sis900_remove_device;
+    driver.net.drv.destroy         = sis900_driver_destroy;
+    driver.net.drv.init_device     = sis900_init_device;
+    driver.net.drv.remove_device   = sis900_remove_device;
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -96,7 +96,7 @@ static void sis900_driver_init(struct sis900_driver* driver)
         if ((dev->vendor_id == 0x1039) && (dev->device_id == 0x0900)) {
             struct sis900_device* device = malloc(sizeof(*device));
             device->pci = dev;
-            cdi_list_push(driver->net.drv.devices, device);
+            cdi_list_push(driver.net.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
@@ -108,9 +108,9 @@ static void sis900_driver_init(struct sis900_driver* driver)
 /**
  * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void sis900_driver_destroy(struct cdi_driver* driver)
+static void sis900_driver_destroy(void)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
+    cdi_net_driver_destroy((struct cdi_net_driver*) &driver);
 
     // TODO Alle Karten deinitialisieren
 }
