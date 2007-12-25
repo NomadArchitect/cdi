@@ -159,7 +159,7 @@ void sis900_init_device(struct cdi_driver* driver, struct cdi_device* device)
     cdi_register_irq(netcard->pci->irq, sis900_handle_interrupt, device);
     cdi_pci_alloc_ioports(netcard->pci);
     
-    cdi_list_t* reslist = netcard->pci->resources;
+    cdi_list_t reslist = netcard->pci->resources;
     struct cdi_pci_resource* res;
     int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
@@ -234,8 +234,8 @@ static void sis900_handle_interrupt(struct cdi_device* device)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
 
-    uint32_t isr = reg_inl(netcard, REG_ISR);
 #ifdef DEBUG
+    uint32_t isr = reg_inl(netcard, REG_ISR);
     printf("sis900: Interrupt, ISR = %08x\n", isr);
 
     printf("sis900: RxDesc = %08x, RxCfg = %08x, CR = %08x, cmdsts0 = %08x\n",

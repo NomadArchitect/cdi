@@ -13,58 +13,61 @@
 
 #include <stdint.h>
 
-typedef struct {
-    struct list_node* anchor;
-    int size;
-} cdi_list_t;
+/**
+ * Repraesentiert eine Liste.
+ *
+ * Der Felder der Struktur sind implementierungsabhaengig. Zum Zugriff auf
+ * Listen muessen immer die spezifizierten Funktionen benutzt werden.
+ */
+typedef struct cdi_list_implementation* cdi_list_t;
 
 /** 
  * Erzeugt eine neue Liste 
  */
-cdi_list_t* cdi_list_create();
+cdi_list_t cdi_list_create();
 
 /** 
  * Gibt eine Liste frei (Werte der Listenglieder müssen bereits 
  * freigegeben sein) 
  */
-void cdi_list_destroy(cdi_list_t* list);
+void cdi_list_destroy(cdi_list_t list);
 
 /**
  * Fuegt ein neues Element am Anfang der Liste ein
  */
-cdi_list_t* cdi_list_push(cdi_list_t* list, void* value);
+cdi_list_t cdi_list_push(cdi_list_t list, void* value);
 
 /**
  * Entfernt ein Element am Anfang der Liste und gibt seinen Wert zurueck
  */
-void* cdi_list_pop(cdi_list_t* list);
+void* cdi_list_pop(cdi_list_t list);
 
 /**
  * Prueft, ob die Liste leer ist. Gibt 1 zurueck, wenn sie leer ist;
  * 0, wenn sie Elemente enthaelt
  */
-int cdi_list_empty(cdi_list_t* list);
+size_t cdi_list_empty(cdi_list_t list);
 
 /**
  * Gibt ein Listenelement zurueck
  */
-void* cdi_list_get(cdi_list_t* list, int index);
+void* cdi_list_get(cdi_list_t list, size_t index);
 
 /**
  * Fuegt ein neues Listenelement ein
  *
  * @param index Zukuenftiger Index des neu einzufuegenden Elements
  */
-cdi_list_t* cdi_list_insert(cdi_list_t* list, int index, void* value);
+cdi_list_t cdi_list_insert(cdi_list_t list, size_t index, void* value);
 
 /**
  * Loescht ein Listenelement
  */
-void* cdi_list_remove(cdi_list_t* list, int index);
+void* cdi_list_remove(cdi_list_t list, size_t index);
 
 /**
  * Gibt die Laenge der Liste zurueck
  */
-int cdi_list_size(cdi_list_t* list);
+size_t cdi_list_size(cdi_list_t list);
 
 #endif

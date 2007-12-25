@@ -27,7 +27,7 @@ struct cdi_pci_device {
 
     uint8_t     irq;
 
-    cdi_list_t* resources;
+    cdi_list_t resources;
 };
 
 typedef enum {
@@ -46,7 +46,7 @@ struct cdi_pci_resource {
  * Gibt alle PCI-Geraete im System zurueck. Die Geraete werden dazu
  * in die uebergebene Liste eingefuegt.
  */
-void cdi_pci_get_all_devices(cdi_list_t* list);
+void cdi_pci_get_all_devices(cdi_list_t list);
 
 /**
  * Gibt die Information zu einem PCI-Geraet frei
