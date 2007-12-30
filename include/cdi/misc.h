@@ -26,9 +26,17 @@ void cdi_register_irq(uint8_t irq, void (*handler)(struct cdi_device*),
     struct cdi_device* device);
     
 /**
- * Wandelt eine virtuelle in eine physische Adresse um
+ * Reserviert physisch zusammenhaengenden Speicher.
+ *
+ * @param size Groesse des benoetigten Speichers in Bytes
+ * @param vaddr Pointer, in den die virtuelle Adresse des reservierten
+ * Speichers geschrieben wird.
+ * @param paddr Pointer, in den die physische Adresse des reservierten
+ * Speichers geschrieben wird.
+ *
+ * @return 0 wenn der Speicher erfolgreich reserviert wurde, -1 sonst
  */
-uintptr_t cdi_get_phys_addr(void* ptr);
+int cdi_alloc_phys_mem(size_t size, void** vaddr, void** paddr);
 
 /**
  * Reserviert IO-Ports

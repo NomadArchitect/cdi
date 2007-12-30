@@ -59,6 +59,7 @@
 #define CR_ENABLE_TX    0x01
 #define CR_DISABLE_TX   0x02
 #define CR_ENABLE_RX    0x04
+#define CR_DISABLE_RX   0x08
 #define CR_RESET_TX     0x10
 #define CR_RESET_RX     0x20
 #define CR_RESET        0x100
@@ -77,8 +78,11 @@
 #define TXC_FILL_TSH    (16 << 8)
 #define TXC_PADDING     (1 << 28)
 #define TXC_LOOPBACK    (1 << 29)
+#define TXC_HBI         (1 << 30)
+#define TXC_CSI         (1 << 31)
 
 #define RXC_DRAIN_TSH   (16 << 1)
+#define RXC_ACCEPT_TP   (1 << 28)
 
 #define RXFCR_PHYS      (1 << 28)
 #define RXFCR_BROADCAST (1 << 30)
@@ -96,7 +100,7 @@
 
 #define TX_BUFFER_SIZE  2048
 #define RX_BUFFER_SIZE  1536
-#define RX_BUFFER_NUM   4
+#define RX_BUFFER_NUM   8
 
 
 #define DESC_STATUS_OWN (1 << 31)
@@ -110,6 +114,8 @@ struct sis900_tx_descriptor {
 struct sis900_device {
     struct cdi_net_device       net;
     struct cdi_pci_device*      pci;
+
+    void*                       phys;
 
     uint16_t                    port_base;
 

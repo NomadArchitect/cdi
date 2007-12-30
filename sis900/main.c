@@ -39,6 +39,7 @@
 
 #include "cdi/net.h"
 #include "cdi/pci.h"
+#include "cdi/misc.h"
 
 #include "device.h"
 
@@ -75,6 +76,9 @@ int init_sis900
  */
 static void sis900_driver_init()
 {
+    // Debugausgaben auf VT2
+    stdout = fopen("vterm:/vterm1/out", "w");
+
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &driver);
     
@@ -94,13 +98,22 @@ static void sis900_driver_init()
     int i;
     for (i = 0; (dev = cdi_list_get(pci_devices, i)); i++) {
         if ((dev->vendor_id == 0x1039) && (dev->device_id == 0x0900)) {
-            struct sis900_device* device = malloc(sizeof(*device));
+            void* phys_device;
+            struct sis900_device* device;
+            
+            cdi_alloc_phys_mem(sizeof(*device), 
+                (void**) &device, &phys_device);
+
+            device->phys = phys_device;
             device->pci = dev;
             cdi_list_push(driver.net.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
     }
+
+    printf("sis900: %d Karten gefunden.\n", 
+        cdi_list_size(driver.net.drv.devices));
 
     cdi_list_destroy(pci_devices);
 }
