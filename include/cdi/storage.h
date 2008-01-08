@@ -18,7 +18,7 @@
 struct cdi_storage_device {
     struct cdi_device   dev;
     size_t              block_size;
-    size_t              block_count;
+    uint64_t            block_count;
 };
 
 struct cdi_storage_driver {
