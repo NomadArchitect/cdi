@@ -208,7 +208,6 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
 
-retry:
     // Transmitter stoppen
     reg_outl(netcard, REG_COMMAND, CR_DISABLE_TX);
     

@@ -284,7 +284,7 @@ static void floppy_drive_specify(struct floppy_device* device)
     // Der optimale Wert kann nach OSdev-Wiki folgendermassen errechnet werden:
     //      head_load_time = seconds * data_rate / 1000
     // Die vorgeschlagene Zeit liegt bei 10 Millisekunden.
-    head_unload_time = 20 * FLOPPY_DATA_RATE(device) / 1000 / 1000;
+    head_load_time = 20 * FLOPPY_DATA_RATE(device) / 1000 / 1000;
 
     // Mit der step rate time wird die Zeit bestimmt, die der Kontroller warten
     // soll, wenn der den Kopf zwischen den einzelnen Spuren bewegt. Wozu das
