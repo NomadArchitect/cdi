@@ -36,6 +36,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <syscall.h>
 
 #include "cdi.h"
 #include "cdi/misc.h"
@@ -234,6 +235,7 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
     reg_outl(netcard, REG_COMMAND, CR_ENABLE_TX);
 
     // Warten, bis das Paket gesendet ist
+    // FIXME: Nicht portabel
     qword timeout = get_tick_count() + 500000;
     while ((netcard->tx_desc.status & DESC_STATUS_OWN) 
         && (get_tick_count() < timeout));

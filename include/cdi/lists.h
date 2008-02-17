@@ -10,7 +10,7 @@
 
 #ifndef _CDI_LISTS_
 #define _CDI_LISTS_
-
+#include <stddef.h>
 #include <stdint.h>
 
 /**

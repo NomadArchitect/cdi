@@ -79,7 +79,7 @@ static int ata_bus_floating(struct ata_controller* controller)
  *
  * @return 1 wenn ein Geraet vorhanden ist, 0 sonst
  */
-static bool ata_bus_responsive_drv(struct ata_controller* controller)
+static int ata_bus_responsive_drv(struct ata_controller* controller)
 {
     // Slave auswaehlen, da so sicher jemand reagiert, da der Master antworten
     // muss, wenn kein Slave existiert. So sieht es zumindest in der Theorie
