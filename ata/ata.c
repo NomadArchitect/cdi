@@ -249,9 +249,7 @@ int ata_drv_identify(struct ata_device* dev)
     }
     if (id.capabilities.lba) {
         dev->lba28 = 1;
-        if (!dev->lba48) {
-            dev->storage.block_count = id.lba_sector_count;
-        }
+        dev->storage.block_count = id.lba_sector_count;
     }
 
     // Wenn keiner der LBA-Modi unterstuetzt wird, muss abgebrochen werden, da
