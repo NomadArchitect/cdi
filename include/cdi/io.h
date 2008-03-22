@@ -16,21 +16,21 @@
 static inline uint16_t cdi_inw(uint16_t _port)
 {
 	uint16_t result;
-	__asm__ ("inw %1, %0" : "=a" (result) : "Nd" (_port));
+	asm volatile ("inw %1, %0" : "=a" (result) : "Nd" (_port));
 	return result;
 }
 
 static inline uint8_t cdi_inb(uint16_t _port)
 {
 	uint8_t result;
-	__asm__ ("inb %1, %0" : "=a" (result) : "Nd" (_port));
+	asm volatile ("inb %1, %0" : "=a" (result) : "Nd" (_port));
 	return result;
 }
 
 static inline uint32_t cdi_inl(uint16_t _port)
 {
 	uint32_t result;
-	__asm__ ("inl %1, %0" : "=a" (result) : "Nd" (_port));
+	asm volatile("inl %1, %0" : "=a" (result) : "Nd" (_port));
 	return result;
 }
 
@@ -38,17 +38,17 @@ static inline uint32_t cdi_inl(uint16_t _port)
 
 static inline void cdi_outw(uint16_t _port, uint16_t _data)
 {
-	__asm__ ("outw %0, %1" : : "a" (_data), "Nd" (_port));
+	asm volatile ("outw %0, %1" : : "a" (_data), "Nd" (_port));
 }
 
 static inline void cdi_outb(uint16_t _port, uint8_t _data)
 {
-	__asm__ ("outb %0, %1" : : "a" (_data), "Nd" (_port));
+	asm volatile ("outb %0, %1" : : "a" (_data), "Nd" (_port));
 }
 
 static inline void cdi_outl(uint16_t _port, uint32_t _data)
 {
-	__asm__ ("outl %0, %1" : : "a"(_data), "Nd" (_port));
+	asm volatile ("outl %0, %1" : : "a"(_data), "Nd" (_port));
 }
 
 #endif
