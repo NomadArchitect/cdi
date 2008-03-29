@@ -90,11 +90,15 @@ static void reset_nic(struct sis900_device* netcard)
         RXFCR_ENABLE | RXFCR_PHYS | RXFCR_BROADCAST);
     
     // Deskriptoren initialisieren
-    netcard->tx_desc.link = 0;
-    netcard->tx_desc.status = 0;
-    netcard->tx_desc.buffer = 0;
-   
     int i;
+    
+    for (i = 0; i < TX_BUFFER_NUM; i++) {
+        netcard->tx_desc[i].link =
+            PHYS(netcard, tx_desc[(i + 1) % TX_BUFFER_NUM]);
+        netcard->tx_desc[i].status = 0;
+        netcard->tx_desc[i].buffer = 0;
+    }
+   
     for (i = 0; i < RX_BUFFER_NUM; i++) {
         netcard->rx_desc[i].link = 
             PHYS(netcard, rx_desc[(i + 1) % RX_BUFFER_NUM]);
@@ -109,9 +113,11 @@ static void reset_nic(struct sis900_device* netcard)
             PHYS(netcard, rx_desc[i]));
 #endif
     }
+
+    netcard->tx_cur_buffer = 0;
     netcard->rx_cur_buffer = 0;
 
-    reg_outl(netcard, REG_TX_PTR, PHYS(netcard, tx_desc));
+    reg_outl(netcard, REG_TX_PTR, PHYS(netcard, tx_desc[0]));
     reg_outl(netcard, REG_RX_PTR, PHYS(netcard, rx_desc[0]));
     
     // Receiver aktivieren
@@ -209,6 +215,14 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
 
+    printf("sis900: sis900_send_packet\n");
+
+    // Aktuellen Deskriptor erhoehen
+    int cur = netcard->tx_cur_buffer;
+    netcard->tx_cur_buffer++;
+    netcard->tx_cur_buffer %= TX_BUFFER_NUM;
+    printf("send: cur == %d\n", cur);
+
     // Transmitter stoppen
     reg_outl(netcard, REG_COMMAND, CR_DISABLE_TX);
     
@@ -216,20 +230,21 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
     if (size > TX_BUFFER_SIZE) {
         size = TX_BUFFER_SIZE;
     }
-    memcpy(netcard->tx_buffer, data, size);
+    memcpy(netcard->tx_buffer + cur * TX_BUFFER_SIZE, data, size);
     
     // Padding (Eigentlich soll die Karte das auch selber koennen)
     if (size < 60) {
-        memset(netcard->tx_buffer + size, 0, 60 - size);
+        memset(netcard->tx_buffer + cur * TX_BUFFER_SIZE + size, 0, 60 - size);
         size = 60;
     }
 
     // TX-Deskriptor setzen und laden
-    netcard->tx_desc.link = 0;
-    netcard->tx_desc.status = size | DESC_STATUS_OWN;
-    netcard->tx_desc.buffer = PHYS(netcard, tx_buffer);
+    netcard->tx_desc[cur].link = 0;
+    netcard->tx_desc[cur].status = size | DESC_STATUS_OWN;
+    netcard->tx_desc[cur].buffer = 
+        PHYS(netcard, tx_buffer) + (cur * TX_BUFFER_SIZE);
 
-    reg_outl(netcard, REG_TX_PTR, PHYS(netcard, tx_desc));
+    reg_outl(netcard, REG_TX_PTR, PHYS(netcard, tx_desc[cur]));
 
     // Transmitter wieder starten
     reg_outl(netcard, REG_COMMAND, CR_ENABLE_TX);
@@ -237,14 +252,21 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
     // Warten, bis das Paket gesendet ist
     // FIXME: Nicht portabel
     qword timeout = get_tick_count() + 500000;
-    while ((netcard->tx_desc.status & DESC_STATUS_OWN) 
+    while ((netcard->tx_desc[cur].status & DESC_STATUS_OWN) 
         && (get_tick_count() < timeout));
 
-    if (netcard->tx_desc.status & DESC_STATUS_OWN) {        
+    if (netcard->tx_desc[cur].status & DESC_STATUS_OWN) {        
         printf("sis900: Fehler beim Senden eines Pakets (%d Bytes)\n", size);
+        printf("sis900: tx_desc[%d] = %08x; buffer = %08x\n", 
+            cur, 
+            (uintptr_t) &netcard->tx_desc[cur],
+            (uintptr_t) &netcard->tx_desc[cur].buffer);
         printf("sis900: Status: %08x, CR = %08x, ISR = %08x\n", 
-            netcard->tx_desc.status, reg_inl(netcard, REG_COMMAND),
+            netcard->tx_desc[cur].status, reg_inl(netcard, REG_COMMAND),
             reg_inl(netcard, REG_ISR));
+        
+//    reg_outl(netcard, REG_COMMAND, CR_DISABLE_TX | CR_ENABLE_RX);
+//    reg_outl(netcard, REG_COMMAND, CR_ENABLE_RX);
 
 /*
         reg_outl(netcard, REG_COMMAND, CR_RESET_TX);
@@ -262,6 +284,10 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
     } else {
         printf("sis900: Paket gesendet (%d Bytes)\n", size);
     }
+    
+    // Transmitter stoppen
+    reg_outl(netcard, REG_COMMAND, CR_DISABLE_TX | CR_ENABLE_RX);
+    printf("sis900: Transmitter gestoppt.\n");
 }
 
 static void sis900_handle_interrupt(struct cdi_device* device)
@@ -289,6 +315,10 @@ static void sis900_handle_interrupt(struct cdi_device* device)
         }
         //disable_intr(netcard);
         printf("\n");
+
+        reg_outl(netcard, REG_COMMAND, CR_DISABLE_RX);
+        reg_inl(netcard, REG_COMMAND);
+        reg_outl(netcard, REG_COMMAND, CR_ENABLE_RX);
     }
 #endif
 
@@ -328,6 +358,12 @@ static void sis900_handle_interrupt(struct cdi_device* device)
             netcard->rx_cur_buffer %= RX_BUFFER_NUM;
         }
 
+        if (isr & ISR_RX_IDLE) {
+            reg_outl(netcard, REG_RX_PTR, 
+                PHYS(netcard, rx_desc[netcard->rx_cur_buffer]));
+        }
+
         reg_outl(netcard, REG_COMMAND, CR_ENABLE_RX);
 //    }
+    printf("sis900: Receiver wieder gestartet\n");
 }

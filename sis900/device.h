@@ -74,8 +74,8 @@
 #define ISR_RX_RESET_COMP   0x01000000
 #define ISR_TX_RESET_COMP   0x02000000
 
-#define TXC_DRAIN_TSH   (16 << 0)
-#define TXC_FILL_TSH    (16 << 8)
+#define TXC_DRAIN_TSH   (48 << 0)
+#define TXC_FILL_TSH    (48 << 8)
 #define TXC_PADDING     (1 << 28)
 #define TXC_LOOPBACK    (1 << 29)
 #define TXC_HBI         (1 << 30)
@@ -99,6 +99,8 @@
 
 
 #define TX_BUFFER_SIZE  2048
+#define TX_BUFFER_NUM   8
+
 #define RX_BUFFER_SIZE  1536
 #define RX_BUFFER_NUM   8
 
@@ -109,7 +111,7 @@ struct sis900_tx_descriptor {
     uint32_t            link;
     volatile uint32_t   status;
     uint32_t            buffer;
-};
+} __attribute__((packed)) __attribute__((aligned (4)));
 
 struct sis900_device {
     struct cdi_net_device       net;
@@ -117,14 +119,15 @@ struct sis900_device {
 
     void*                       phys;
 
-    uint16_t                    port_base;
-
-    struct sis900_tx_descriptor tx_desc;
-    uint8_t                     tx_buffer[TX_BUFFER_SIZE];
+    struct sis900_tx_descriptor tx_desc[TX_BUFFER_NUM];
+    uint8_t                     tx_buffer[TX_BUFFER_NUM * TX_BUFFER_SIZE];
+    int                         tx_cur_buffer;
     
     struct sis900_tx_descriptor rx_desc[RX_BUFFER_NUM];
     uint8_t                     rx_buffer[RX_BUFFER_NUM * RX_BUFFER_SIZE];
     int                         rx_cur_buffer;
+
+    uint16_t                    port_base;
 };
 
 void sis900_init_device(struct cdi_device* device);
