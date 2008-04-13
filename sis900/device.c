@@ -77,6 +77,24 @@ static void reset_nic(struct sis900_device* netcard)
         isr |= reg_inl(netcard, REG_ISR);
     } while ((isr & complete) != complete);
 
+    // PHY aktivieren
+    {
+        int i;
+        uint16_t status;
+
+        for (i = 0; i < 32; i++) {
+            status = sis900_mii_read(netcard, i, MII_STATUS);
+            if ((status != 0x0000) && (status != 0xffff)) {
+                printf("PHY at %d: %04x:%04x\n", i,
+                    sis900_mii_read(netcard, i, MII_PHY_ID1),
+                    sis900_mii_read(netcard, i, MII_PHY_ID2));
+            }
+        }
+
+        status = sis900_mii_read(netcard, 1, MII_CONTROL);
+        sis900_mii_write(netcard, 1, MII_CONTROL, status & ~0x400);
+    }
+
     // Receiver und Transmitter konfigurieren
     reg_outl(netcard, REG_RX_CFG, 
         RXC_DRAIN_TSH | RXC_ACCEPT_TP);
@@ -264,6 +282,20 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
         printf("sis900: Status: %08x, CR = %08x, ISR = %08x\n", 
             netcard->tx_desc[cur].status, reg_inl(netcard, REG_COMMAND),
             reg_inl(netcard, REG_ISR));
+        printf("sis900: MII status (0) = %04x/%04x/%04x/%04x %04x/%04x\n",
+            sis900_mii_read(netcard, 0, MII_CONTROL),
+            sis900_mii_read(netcard, 0, MII_STATUS),
+            sis900_mii_read(netcard, 0, MII_PHY_ID1),
+            sis900_mii_read(netcard, 0, MII_PHY_ID2),
+            sis900_mii_read(netcard, 0, MII_CFG1),
+            sis900_mii_read(netcard, 0, MII_STATUS_OUT));
+        printf("sis900: MII status (1) = %04x/%04x/%04x/%04x %04x/%04x\n",
+            sis900_mii_read(netcard, 1, MII_CONTROL),
+            sis900_mii_read(netcard, 1, MII_STATUS),
+            sis900_mii_read(netcard, 1, MII_PHY_ID1),
+            sis900_mii_read(netcard, 1, MII_PHY_ID2),
+            sis900_mii_read(netcard, 1, MII_CFG1),
+            sis900_mii_read(netcard, 1, MII_STATUS_OUT));
         
 //    reg_outl(netcard, REG_COMMAND, CR_DISABLE_TX | CR_ENABLE_RX);
 //    reg_outl(netcard, REG_COMMAND, CR_ENABLE_RX);

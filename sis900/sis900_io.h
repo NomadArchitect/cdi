@@ -39,6 +39,8 @@
 #include <stdint.h>
 #include "cdi/io.h"
 
+#include "device.h"
+
 static inline void reg_outb
     (struct sis900_device* netcard, uint8_t reg, uint8_t value)
 {
@@ -72,5 +74,8 @@ static inline uint32_t reg_inl(struct sis900_device* netcard, uint8_t reg)
 {
     return cdi_inl(netcard->port_base + reg);
 }
+
+uint16_t sis900_mii_read(struct sis900_device* netcard, int phy, int reg);
+void sis900_mii_write(struct sis900_device* netcard, int phy, int reg, uint16_t value);
 
 #endif

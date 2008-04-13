@@ -49,6 +49,7 @@
 #define REG_ISR     0x10
 #define REG_IMR     0x14
 #define REG_IER     0x18
+#define REG_MII_ACC 0x1C
 #define REG_TX_PTR  0x20
 #define REG_TX_CFG  0x24
 #define REG_RX_PTR  0x30
@@ -75,7 +76,7 @@
 #define ISR_TX_RESET_COMP   0x02000000
 
 #define TXC_DRAIN_TSH   (48 << 0)
-#define TXC_FILL_TSH    (48 << 8)
+#define TXC_FILL_TSH    (16 << 8)
 #define TXC_PADDING     (1 << 28)
 #define TXC_LOOPBACK    (1 << 29)
 #define TXC_HBI         (1 << 30)
@@ -88,10 +89,29 @@
 #define RXFCR_BROADCAST (1 << 30)
 #define RXFCR_ENABLE    (1 << 31)
 
+#define MII_ACC_REG_SHIFT 6
+#define MII_ACC_READ    (1 << 5)
+#define MII_ACC_WRITE   (0 << 5)
+#define MII_ACC_ACCESS  (1 << 4)
+
+#define MII_CONTROL     0x00
+#define MII_STATUS      0x01
+#define MII_PHY_ID1     0x02
+#define MII_PHY_ID2     0x03
+#define MII_CFG1        0x10
+#define MII_STATUS_OUT  0x12
+
 #define EEPROM_DATA_IN  0x01
 #define EEPROM_DATA_OUT 0x02
 #define EEPROM_CLOCK    0x04
 #define EEPROM_CHIPSEL  0x08
+
+#define EEPROM_MII_MDIO     0x10
+#define EEPROM_MII_MDDIR    0x20
+#define EEPROM_MII_MDC      0x40
+#define EEPROM_MII_READ     0x6000
+#define EEPROM_MII_WRITE    0x5002
+
 
 #define EEPROM_OP_READ  0x180
 
