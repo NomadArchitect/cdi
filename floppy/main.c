@@ -104,7 +104,9 @@ static int floppy_driver_init(struct floppy_driver* driver)
         device = malloc(sizeof(*device));   
         device->id = i;
 
-        asprintf((char**) &device->dev.dev.name, "fd%d", device->id);
+        // Die Nummer eines Floppylaufwerks ist immer einstellig
+        device->dev.dev.name = malloc(4);
+        snprintf((char*) device->dev.dev.name, 4, "fd%d", device->id);
         device->controller = &floppy_controller;
 
         // Geraet nur eintragen wenn es existiert
