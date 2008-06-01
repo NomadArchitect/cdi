@@ -24,6 +24,7 @@ struct cdi_pci_device {
     uint16_t    vendor_id;
     uint16_t    device_id;
     uint16_t    class_id;
+    uint8_t     rev_id;
 
     uint8_t     irq;
 

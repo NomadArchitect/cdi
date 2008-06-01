@@ -148,6 +148,7 @@ struct sis900_device {
     int                         rx_cur_buffer;
 
     uint16_t                    port_base;
+    uint8_t                     revision;
 };
 
 void sis900_init_device(struct cdi_device* device);

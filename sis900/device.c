@@ -152,14 +152,11 @@ static uint64_t get_mac_address(struct sis900_device* device)
     uint64_t mac = 0;
     int i;
     
-    /* Das hier ist fuer aeltere Revisionen
+    if (device->revision < 0x82) {
     for (i = 0; i < 3; i++) {
         mac |= sis900_eeprom_read(device, EEPROM_OFS_MAC + i) << (i * 16); 
     }
-    */
-
-    // Revision 0x82 bis 0x90
-    
+    } else if ((device->revision >= 0x82) && (device->revision <= 0x90)) {
     // CR_RELOAD_MAC laedt die MAC-Adresse in den Filter
     uint32_t old_rfcr = reg_inl(device, REG_RX_FILT);
     reg_outl(device, REG_COMMAND, old_rfcr | CR_RELOAD_MAC);
@@ -167,8 +164,8 @@ static uint64_t get_mac_address(struct sis900_device* device)
 
     reg_outl(device, REG_RX_FILT, old_rfcr & ~RXFCR_ENABLE);
 
-    // Dreimal jeweils ein Word der MAC-Adresse, die jetzt im Register Receive
-    // Filter Data vorliegt, adressieren und einlesen.
+        // Dreimal jeweils ein Word der MAC-Adresse, die jetzt im Register
+        // Receive Filter Data vorliegt, adressieren und einlesen.
     for (i = 0; i < 3; i++) {
         reg_outl(device, REG_RX_FILT, i << 16);
         mac |= ((uint64_t) reg_inw(device, REG_RX_FDAT)) << (i * 16);
@@ -176,7 +173,10 @@ static uint64_t get_mac_address(struct sis900_device* device)
 
     // Altes Filterregister wiederherstellen
     reg_outl(device, REG_RX_FILT, old_rfcr | RXFCR_ENABLE);
-
+    } else {
+        printf("sis900: Auslesen der Netzwerkkarte mit Revision %d nicht "
+            "unterstuetzt.", device->revision);
+    }
     return mac;
 }
 
@@ -184,10 +184,10 @@ void sis900_init_device(struct cdi_device* device)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
     netcard->net.send_packet = sis900_send_packet;
-
     cdi_net_device_init((struct cdi_net_device*) device);
 
     // PCI-bezogenes Zeug initialisieren
+    netcard->revision = netcard->pci->rev_id;
     cdi_register_irq(netcard->pci->irq, sis900_handle_interrupt, device);
     cdi_pci_alloc_ioports(netcard->pci);
     
@@ -201,8 +201,8 @@ void sis900_init_device(struct cdi_device* device)
     }
 
     // Karte initialisieren
-    printf("sis900: IRQ %d, Ports an %x\n", 
-        netcard->pci->irq, netcard->port_base);
+    printf("sis900: IRQ %d, Ports an %x  Revision:%d\n",
+        netcard->pci->irq, netcard->port_base, netcard->revision);
 
     printf("sis900: Fuehre Reset der Karte durch\n");
     reset_nic(netcard);
