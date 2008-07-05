@@ -47,31 +47,40 @@ struct cdi_fs_driver {
 
 struct cdi_fs_res;
 /**
-* Diese Struktur wird fuer jedes eingebundene Dateisystem einmal erstellt.
-*/
+ * Diese Struktur wird fuer jedes eingebundene Dateisystem einmal erstellt.
+ */
 struct cdi_fs_filesystem {
-    // Treiber dem das Dateisystem gehoert
+
+    /** Treiber, dem das Dateisystem gehoert */
     struct cdi_fs_driver*   driver;
 
-    // Wurzelobjekt fuer die Baumstruktur
-    struct cdi_fs_res*      root_object;
+    /** Wurzelverzeichnis des Dateisystems */
+    struct cdi_fs_res*      root_res;
 
-    // Falls ein gravierender Fehler auftritt, wird diese Fehlernummer gesetzt.
-    // Wenn sie != 0 ist wird das Dateisystem fuer Schreibzugriffe gesperrt.
+    /** 
+     * Falls ein gravierender Fehler auftritt, wird diese Fehlernummer gesetzt.
+     * Wenn sie != 0 ist wird das Dateisystem fuer Schreibzugriffe gesperrt.
+     */
     int                     error;
 
-    // Das Dateisystem darf nicht geschrieben werden. Damit schlaegt unter
-    // anderem cdi_fs_write_data fehl.
+    /** 
+     * Das Dateisystem darf nicht geschrieben werden. Damit schlaegt unter
+     * anderem cdi_fs_write_data fehl.
+     */
     int                     read_only;
 
-    // Hier sollte man wohl noch ein paar allgemeine Mount-Optionen oder
-    // sonstige Flags die das ganze Dateisystem betreffen.
+    /* 
+     * Hier sollte man wohl noch ein paar allgemeine Mount-Optionen oder
+     * sonstige Flags die das ganze Dateisystem betreffen.
+     */
 
 
-    // OS-spezifisch: Deskriptor fuer den Datentraeger
+    /** OS-spezifisch: Deskriptor fuer den Datentraeger */
     FILE*                   device;
 
-    // Zeiger den der Treiber fuer eigene Daten zum Dateisystem benutzen kann
+    /** 
+     * Zeiger den der Treiber fuer eigene Daten zum Dateisystem benutzen kann
+     */
     void*                   opaque;
 };
 
