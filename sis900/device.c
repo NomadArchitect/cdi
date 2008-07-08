@@ -154,7 +154,7 @@ static uint64_t get_mac_address(struct sis900_device* device)
     
     if (device->revision < 0x82) {
     for (i = 0; i < 3; i++) {
-        mac |= sis900_eeprom_read(device, EEPROM_OFS_MAC + i) << (i * 16); 
+        mac |= (uint64_t) sis900_eeprom_read(device, EEPROM_OFS_MAC + i) << (i * 16); 
     }
     } else if ((device->revision >= 0x82) && (device->revision <= 0x90)) {
     // CR_RELOAD_MAC laedt die MAC-Adresse in den Filter
