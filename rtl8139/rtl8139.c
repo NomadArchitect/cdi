@@ -145,8 +145,6 @@ void rtl8139_init_device(struct cdi_device* device)
         PHYS(netcard, rx_buffer));
 
     netcard->rx_buffer_offset = 0;
-
-    netcard->receive_handler = cdi_list_create();
     netcard->pending_sends = cdi_list_create();
 
     DEBUG_MSG("Fertig initialisiert");

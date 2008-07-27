@@ -101,7 +101,6 @@ struct rtl8139_device {
     uint8_t                     rx_buffer[RX_BUFFER_SIZE];
     uint32_t                    rx_buffer_offset;
 
-    cdi_list_t                  receive_handler;
     cdi_list_t                  pending_sends;
 };
 
