@@ -138,7 +138,7 @@ void rtl8139_init_device(struct cdi_device* device)
 
     // Sende- und Empfangspuffer
     DEBUG_MSG("Initialisiere Buffer");
-    netcard->buffer_used = FALSE;
+    netcard->buffer_used = 0;
     netcard->cur_buffer = 0;
 
     write_register_dword(netcard, REG_RECEIVE_BUFFER,
@@ -160,6 +160,7 @@ void rtl8139_send_packet
     (struct cdi_net_device* device, void* data, size_t size)
 {
     struct rtl8139_device* netcard = (struct rtl8139_device*) device;
+    int cur_buffer;
 
     if (size > 0x700) {
         // Spezialfall - keine Lust
@@ -167,9 +168,9 @@ void rtl8139_send_packet
         return;
     }
 
-    //DEBUG_MSG("Vor dem p()...");
-
-    if (netcard->buffer_used) {
+    if (!__sync_lock_test_and_set(&netcard->buffer_used, 1)) {
+        netcard->buffer_used = 1;
+    } else {
         DEBUG_MSG("Tx-Buffer ist schon besetzt");
 
         void* pending = malloc(size + sizeof(dword));
@@ -181,10 +182,10 @@ void rtl8139_send_packet
 
         return;
     }
+
     //DEBUG_MSG("Tx-Buffer reserviert");
     // Kopiere das Packet in den Puffer. Wichtig: Der Speicherbereich
     // muß physisch zusammenhängend sein.
-    netcard->buffer_used = TRUE;
     memcpy(netcard->buffer, data, size);
 
     // Falls weniger als 60 Bytes gesendet werden sollen, muss mit Nullen
@@ -195,22 +196,25 @@ void rtl8139_send_packet
     }
     //printf("Phys Buffer = %08x\n", netcard->buffer.phys);
 
-    // Adresse und Größe des Buffers setzen
-    // In TASD (REG_TRANSMIT_STATUS) wird das OWN-Bit gelöscht, was die
-    // tatsächliche Übertragung anstößt.
-    write_register_dword(netcard, 
-        REG_TRANSMIT_ADDR0 + (4 * netcard->cur_buffer), 
-        PHYS(netcard, buffer));
-
-    write_register_dword(netcard, 
-        REG_TRANSMIT_STATUS0 + (4 * netcard->cur_buffer), 
-        size);
-
     // Die vier Deskriptoren müssen der Reihe nach verwendet werden,
     // auch wenn wir momentan nur einen einzigen Puffer verwenden
     // und immer warten.
+    cur_buffer = netcard->cur_buffer;
     netcard->cur_buffer++;
     netcard->cur_buffer %= 4;
+
+    asm volatile("");
+
+    // Adresse und Größe des Buffers setzen
+    // In TASD (REG_TRANSMIT_STATUS) wird das OWN-Bit gelöscht, was die
+    // tatsächliche Übertragung anstößt.
+    write_register_dword(netcard,
+        REG_TRANSMIT_ADDR0 + (4 * cur_buffer),
+        PHYS(netcard, buffer));
+
+    write_register_dword(netcard,
+        REG_TRANSMIT_STATUS0 + (4 * cur_buffer),
+        size);
 
     DEBUG_MSG("Gesendet");
 
@@ -292,7 +296,7 @@ static void receive_ok_handler(struct rtl8139_device* netcard)
 static void transmit_ok_handler(struct rtl8139_device* netcard)
 {
     DEBUG_MSG("TOK");
-    netcard->buffer_used = FALSE;
+    netcard->buffer_used = 0;
 }
 
 static void rtl8139_handle_interrupt(struct cdi_device* device)
@@ -325,6 +329,7 @@ static void rtl8139_handle_interrupt(struct cdi_device* device)
     if (pending) {
         dword size = *((dword*) pending);
         pending += sizeof(dword);
+        DEBUG_MSG("Sende Paket aus der pending-Queue");
         rtl8139_send_packet((struct cdi_net_device*) device, pending, size);
         free(pending - sizeof(dword));
     }

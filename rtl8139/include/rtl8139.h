@@ -95,7 +95,7 @@ struct rtl8139_device {
     uint16_t                    port_base;
 
     uint8_t                     buffer[TX_BUFFER_SIZE];
-    bool                        buffer_used;
+    int                         buffer_used;
     uint8_t                     cur_buffer;
 
     uint8_t                     rx_buffer[RX_BUFFER_SIZE];
