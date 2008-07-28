@@ -63,8 +63,6 @@ void pcnet_init_device(struct cdi_device* device)
     struct pcnet_device* netcard = (struct pcnet_device*) device;
     netcard->net.send_packet = pcnet_send_packet;
 
-    cdi_net_device_init((struct cdi_net_device*) device);
-
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");
     cdi_register_irq(netcard->pci->irq, pcnet_handle_interrupt, device);
@@ -104,6 +102,9 @@ void pcnet_init_device(struct cdi_device* device)
 
     // Starten!
     pcnet_start(netcard);
+
+    // Netzwerkkarte registrieren
+    cdi_net_device_init((struct cdi_net_device*) device);
 
     DEBUG_MSG("Fertig initialisiert");
 }

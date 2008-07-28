@@ -184,7 +184,6 @@ void sis900_init_device(struct cdi_device* device)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
     netcard->net.send_packet = sis900_send_packet;
-    cdi_net_device_init((struct cdi_net_device*) device);
 
     // PCI-bezogenes Zeug initialisieren
     netcard->revision = netcard->pci->rev_id;
@@ -223,6 +222,7 @@ void sis900_init_device(struct cdi_device* device)
 
     sis900_send_packet(device, sendbuf, 16);
 */    
+    cdi_net_device_init((struct cdi_net_device*) device);
 }
 
 void sis900_remove_device(struct cdi_device* device)

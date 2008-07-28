@@ -87,8 +87,6 @@ void rtl8139_init_device(struct cdi_device* device)
     struct rtl8139_device* netcard = (struct rtl8139_device*) device;
     netcard->net.send_packet = rtl8139_send_packet;
 
-    cdi_net_device_init((struct cdi_net_device*) device);
-
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");
     cdi_register_irq(netcard->pci->irq, rtl8139_handle_interrupt, device);
@@ -103,7 +101,7 @@ void rtl8139_init_device(struct cdi_device* device)
         }
     }
 
-    // Einen Reset der Karte durchführen
+    // Einen Reset der Karte durchfï¿½hren
     DEBUG_MSG("Reset der Karte");
     write_register_byte(netcard, REG_COMMAND, CR_RESET);
 
@@ -147,6 +145,7 @@ void rtl8139_init_device(struct cdi_device* device)
     netcard->rx_buffer_offset = 0;
     netcard->pending_sends = cdi_list_create();
 
+    cdi_net_device_init((struct cdi_net_device*) device);
     DEBUG_MSG("Fertig initialisiert");
 }
 
@@ -183,7 +182,7 @@ void rtl8139_send_packet
 
     //DEBUG_MSG("Tx-Buffer reserviert");
     // Kopiere das Packet in den Puffer. Wichtig: Der Speicherbereich
-    // muß physisch zusammenhängend sein.
+    // muï¿½ physisch zusammenhï¿½ngend sein.
     memcpy(netcard->buffer, data, size);
 
     // Falls weniger als 60 Bytes gesendet werden sollen, muss mit Nullen
@@ -194,7 +193,7 @@ void rtl8139_send_packet
     }
     //printf("Phys Buffer = %08x\n", netcard->buffer.phys);
 
-    // Die vier Deskriptoren müssen der Reihe nach verwendet werden,
+    // Die vier Deskriptoren mï¿½ssen der Reihe nach verwendet werden,
     // auch wenn wir momentan nur einen einzigen Puffer verwenden
     // und immer warten.
     cur_buffer = netcard->cur_buffer;
@@ -203,9 +202,9 @@ void rtl8139_send_packet
 
     asm volatile("");
 
-    // Adresse und Größe des Buffers setzen
-    // In TASD (REG_TRANSMIT_STATUS) wird das OWN-Bit gelöscht, was die
-    // tatsächliche Übertragung anstößt.
+    // Adresse und Grï¿½ï¿½e des Buffers setzen
+    // In TASD (REG_TRANSMIT_STATUS) wird das OWN-Bit gelï¿½scht, was die
+    // tatsï¿½chliche ï¿½bertragung anstï¿½ï¿½t.
     write_register_dword(netcard,
         REG_TRANSMIT_ADDR0 + (4 * cur_buffer),
         PHYS(netcard, buffer));
@@ -241,7 +240,7 @@ static void receive_ok_handler(struct rtl8139_device* netcard)
             break;
         }
 
-        // Die Länge enthält die CRC-Prüfsumme, nicht aber den Paketheader
+        // Die Lï¿½nge enthï¿½lt die CRC-Prï¿½fsumme, nicht aber den Paketheader
         word length = *((word*) buffer);
         buffer += 2;
 
@@ -279,11 +278,11 @@ static void receive_ok_handler(struct rtl8139_device* netcard)
         }
 
         // Den aktuellen Offset im Lesepuffer anpassen. Jedes Paket ist
-        // dword-aligned, daher anschließend Aufrundung.
+        // dword-aligned, daher anschlieï¿½end Aufrundung.
         netcard->rx_buffer_offset += length;
         netcard->rx_buffer_offset = (netcard->rx_buffer_offset + 3) & ~0x3;
 
-        // Überläufe abfangen
+        // ï¿½berlï¿½ufe abfangen
         netcard->rx_buffer_offset %= RX_BUFFER_SIZE;
 
         write_register_word(netcard, REG_CUR_READ_ADDR,
@@ -316,9 +315,9 @@ static void rtl8139_handle_interrupt(struct cdi_device* device)
     }
 
     // Achtung Stolperfalle: Bits, die beim Schreiben auf den Port
-    // gesetzt sind, werden im Register gelöscht. Es ist also nicht
-    // der neue Wert des Registers zu übergeben, sondern die
-    // verarbeiteten und somit zu löschenden Bits.
+    // gesetzt sind, werden im Register gelï¿½scht. Es ist also nicht
+    // der neue Wert des Registers zu ï¿½bergeben, sondern die
+    // verarbeiteten und somit zu lï¿½schenden Bits.
     write_register_word(netcard, REG_INTERRUPT_STATUS, clear_isr);
 
     // Falls noch Pakete zu senden waren, die nicht gesendet werden

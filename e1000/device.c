@@ -154,7 +154,6 @@ void e1000_init_device(struct cdi_device* device)
 {
     struct e1000_device* netcard = (struct e1000_device*) device;
     netcard->net.send_packet = e1000_send_packet;
-    cdi_net_device_init((struct cdi_net_device*) device);
 
     // PCI-bezogenes Zeug initialisieren
     netcard->revision = netcard->pci->rev_id;
@@ -181,6 +180,8 @@ void e1000_init_device(struct cdi_device* device)
 
     netcard->net.mac = get_mac_address(netcard);
     printf("e1000: MAC-Adresse: %012llx\n", netcard->net.mac);
+
+    cdi_net_device_init((struct cdi_net_device*) device);
 }
 
 void e1000_remove_device(struct cdi_device* device)
