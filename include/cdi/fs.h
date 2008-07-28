@@ -15,6 +15,7 @@
 
 #include "cdi.h"
 #include "cdi/lists.h"
+#include "cdi/cache.h"
 
 #include <sys/types.h>
 
@@ -57,7 +58,7 @@ struct cdi_fs_filesystem {
     /** Wurzelverzeichnis des Dateisystems */
     struct cdi_fs_res*      root_res;
 
-    /** 
+    /**
      * Falls ein gravierender Fehler auftritt, wird diese Fehlernummer gesetzt.
      * Wenn sie != 0 ist wird das Dateisystem fuer Schreibzugriffe gesperrt.
      */
@@ -78,6 +79,8 @@ struct cdi_fs_filesystem {
     /** OS-spezifisch: Deskriptor fuer den Datentraeger */
     FILE*                   device;
 
+    /** Cache fuer dieses Dateisystem */
+    struct cdi_cache*       cache;
     /** 
      * Zeiger den der Treiber fuer eigene Daten zum Dateisystem benutzen kann
      */
@@ -97,8 +100,12 @@ typedef enum {
     CDI_FS_ERROR_RNF,
     // Beim lesen einer Datei wurde das Ende erreicht
     CDI_FS_ERROR_EOF,
+    //n 
+    CDI_FS_ERROR_RO,
     // Interner Fehler
     CDI_FS_ERROR_INTERNAL,
+    // Funktion noch nicht implementiert
+    CDI_FS_ERROR_NOT_IMPLEMENTED,
     // Unbekannter Fehler
     CDI_FS_ERROR_UNKNOWN
 } cdi_fs_error_t;
@@ -129,6 +136,8 @@ typedef enum {
     CDI_FS_META_USEDBLOCKS,
     // R  Optimale Blockgroesse mit der man auf die Datei zugreiffen sollte
     CDI_FS_META_BESTBLOCKSZ,
+    // R  Interne Blockgroesse fuer USEDBLOCKS
+    CDI_FS_META_BLOCKSZ,
     // R  Zeitpunkt an dem die Ressource erstellt wurde
     CDI_FS_META_CREATETIME,
     // RW Letzter Zugriff auf die Ressource, auch lesend
@@ -219,7 +228,8 @@ struct cdi_fs_res {
     cdi_fs_lock_t           lock;
 
     // Flag ob die Ressource geladen ist(1) oder nicht(0). Ist sie danicht,
-    // muss nur name und res definiert sein.
+    // muss nur name und res definiert sein. In res darf nur load aufgerufen
+    // werden.
     int                     loaded;
 
     // Referenzzaehler fuer Implementation. Muss beim erstellen der Ressource
@@ -290,8 +300,8 @@ struct cdi_fs_res_res {
     int (*load)(struct cdi_fs_stream* stream);
 
     /**
-     * Ressource entladen; Darv von der Implementation nur aufgerufen werden,
-     * wenn keine geladenen Kind-Ressourcen existieren. Das gilt aber nur Fuer
+     * Ressource entladen; Darf von der Implementation nur aufgerufen werden,
+     * wenn keine geladenen Kind-Ressourcen existieren. Das gilt aber nur fuer
      * Verzeichnisse. Wenn andere Kind-Eintraege existieren, werden die nicht
      * beruecksichtigt.
      *
@@ -441,9 +451,6 @@ struct cdi_fs_res_file {
 };
 
 struct cdi_fs_res_dir {
-    // XXX Ein browsable Flag koennen wir vermutlich hier eindeutig welgassen,
-    // waere ja irgenwie witzlos. ;-)
-
     /**
      * Diese Funktion gibt einen Pointer auf die Liste mit den Eintraegen
      * zurueck. Hier wird nicht einfach fix der Pointer in fs_res genommen,
@@ -457,8 +464,8 @@ struct cdi_fs_res_dir {
      *
      * @param stream Stream
      *
-     * @return Pointer auf eine Liste mit den Untereintraegen.
-     * (TODO Welcher Datentyp?)
+     * @return Pointer auf eine Liste mit den Untereintraegen vom Typ
+     * cdi_fs_res.
      */
      cdi_list_t (*list)(struct cdi_fs_stream* stream);
 
@@ -481,14 +488,12 @@ struct cdi_fs_res_dir {
 };
 
 struct cdi_fs_res_link {
-    // XXX Ich glaube auch hier brauchen wir kein resolvable-Flag
-
     /**
      * Diese Funktion liest den Pfad aus, auf den der Link zeigt
      *
      * @param stream Stream
      *
-     * @return Pointer auf einen Ouffer der den Pfad beinhaltet. Dieses Puffer
+     * @return Pointer auf einen Buffer der den Pfad beinhaltet. Dieses Puffer
      *         darf vom Aufrufer nicht veraendert werden.
      */
     const char* (*read_link)(struct cdi_fs_stream* stream);
@@ -499,15 +504,12 @@ struct cdi_fs_res_link {
      * @param stream Stream
      * @param path Neuer Pfad
      *
-     * XXX Hm ist diese Funktion so vielleicht noch ein bisschen zu
-     * optimistisch?
+     * @return Wenn der Link erfolgreich geschrieben wurde 1, 0 sonst
      */
-    void (*write_link)(struct cdi_fs_stream* stream);
+    int (*write_link)(struct cdi_fs_stream* stream, const char* path);
 };
 
 struct cdi_fs_res_special {
-    // XXX Reicht das so?
-
     /**
      * Geraeteadresse der Spezialdatei Lesen
      *
