@@ -35,7 +35,7 @@
 
 #include "ext2.h"
 
-int ext2_file_create(ext2_inode_t* parent, const char* name, 
+int ext2_file_create(ext2_inode_t* parent, const char* name,
     ext2_inode_t* newi)
 {
     // Neuen Inode alloziern

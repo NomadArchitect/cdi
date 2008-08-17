@@ -51,9 +51,10 @@ int ext2_fs_link_write(struct cdi_fs_stream* stream, const char* path)
     if (result) {
         if (res->res.link_path) {
             free(res->res.link_path);
-        } else {
-            res->res.link_path = strdup(path);
         }
+        res->res.link_path = strdup(path);
+
+        ext2_inode_update(res->inode);
     }
 
     return result;

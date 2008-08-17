@@ -42,6 +42,7 @@
  *
  * @return 1 wenn das Dateisystem in Ordung ist, 0 sonst.
  */
+#if 0
 static int fs_check_fast(ext2_fs_t* fs)
 {
     int count = ext2_sb_copy_count(fs->sb);
@@ -60,6 +61,7 @@ static int fs_check_fast(ext2_fs_t* fs)
     }
     return 1;
 }
+#endif
 
 int ext2_fs_mount(ext2_fs_t* fs)
 {
@@ -74,7 +76,6 @@ int ext2_fs_mount(ext2_fs_t* fs)
     // Blockgroesse, da der offset fix 1024 ist.
     fs->sb_block = (ext2_sb_blocksize(fs->sb) > 1024 ? 0 : 1);
 
-    fs_check_fast(fs);
 #if 0
     if (!fs_check_fast(fs)) {
         free(fs->sb);

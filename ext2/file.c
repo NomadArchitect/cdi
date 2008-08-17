@@ -56,6 +56,7 @@ size_t ext2_fs_file_write(struct cdi_fs_stream* stream, uint64_t start,
 
     //TODO: data muesste in writedata const werden
     if (ext2_inode_writedata(res->inode, start, size, (void*) data)) {
+        ext2_inode_update(res->inode);
         return size;
     }
 

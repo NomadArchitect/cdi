@@ -209,7 +209,7 @@ int ext2_fs_res_assign_class(struct cdi_fs_stream* stream,
 {
     struct ext2_fs_res* res = (struct ext2_fs_res*) stream->res;
     struct ext2_fs_res* parent_res = (struct ext2_fs_res*) res->res.parent;
-    ext2_fs_t* fs = (ext2_fs_t*) stream->fs->opaque;
+    //ext2_fs_t* fs = (ext2_fs_t*) stream->fs->opaque;
 
     // In ext2 koennen die Ressource nur zu maximal einer Klasse gleichzeitig
     // gehoeren
@@ -245,7 +245,6 @@ int ext2_fs_res_assign_class(struct cdi_fs_stream* stream,
             break;
 
         case CDI_FS_CLASS_LINK:
-            ext2_inode_alloc(fs, res->inode);
             if (!ext2_symlink_create(((struct ext2_fs_res*)
                 res->res.parent)->inode, res->res.name, "", res->inode))
             {
