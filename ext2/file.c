@@ -66,7 +66,13 @@ size_t ext2_fs_file_write(struct cdi_fs_stream* stream, uint64_t start,
 
 int ext2_fs_file_truncate(struct cdi_fs_stream* stream, uint64_t size)
 {
-    //TODO
-    return 0;
+    struct ext2_fs_res* res = (struct ext2_fs_res*) stream->res;
+
+    if (res->inode->raw.size == 0) {
+        return 1;
+    }
+
+    // TODO: Vergroessern tut damit nicht
+    return ext2_inode_truncate(res->inode, size);
 }
 

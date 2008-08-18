@@ -477,7 +477,7 @@ static uint64_t get_block_offset(
         block -= 12 + (block_size / 4);
         block_nr = get_indirect_block_nr(block % (block_size / 4),
             get_indirect_block_nr(block / (block_size / 4),
-            inode->raw.blocks[13], alloc), alloc == 1 ? 1 : 0);
+            inode->raw.blocks[13], alloc == 1 ? 1 : 0), alloc);
 
         // FIXME Beim Loeschen werden "Vaterknoten" nicht mitgeloescht
     }
