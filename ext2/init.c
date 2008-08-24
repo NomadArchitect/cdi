@@ -39,26 +39,15 @@
 static int dev_read(uint64_t start, size_t size, void* data, void* prv)
 {
     struct cdi_fs_filesystem* fs = (struct cdi_fs_filesystem*) prv;
-    struct cdi_cache_entry* e = cdi_cache_entry_new(fs->cache, start, size);
-    int result;
 
-    result = cdi_cache_entry_read(e, 0, size, data);
-
-    cdi_cache_entry_release(e);
-
-    return result;
+    return cdi_fs_data_read(fs, start, size, data) == size;
 }
 
 static int dev_write(uint64_t start, size_t size, const void* data, void* prv)
 {
     struct cdi_fs_filesystem* fs = (struct cdi_fs_filesystem*) prv;
-    struct cdi_cache_entry* e = cdi_cache_entry_new(fs->cache, start, size);
-    int result;
 
-    result = cdi_cache_entry_write(e, 0, size, data);
-
-    cdi_cache_entry_release(e);
-    return result;
+    return cdi_fs_data_write(fs, start, size, data);
 }
 
 int ext2_fs_init(struct cdi_fs_filesystem* cdi_fs)
@@ -67,10 +56,18 @@ int ext2_fs_init(struct cdi_fs_filesystem* cdi_fs)
     ext2_fs_t* fs = malloc(sizeof(*fs));
 
     cdi_fs->opaque = fs;
+    fs->opaque = cdi_fs;
+
 
     fs->dev_read = dev_read;
     fs->dev_write = dev_write;
     fs->dev_private = cdi_fs;
+
+    fs->cache_create = cache_create;
+    fs->cache_destroy = cache_destroy;
+    fs->cache_block = cache_block;
+    fs->cache_block_dirty = cache_block_dirty;
+    fs->cache_block_free = cache_block_free;
 
     if (!ext2_fs_mount(fs)) {
         free(fs);

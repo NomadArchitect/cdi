@@ -211,15 +211,17 @@ int ext2_dir_link(ext2_inode_t* dir, ext2_inode_t* inode, const char* name)
     // TODO: Hier koennten eventuell noch ein paar Bytes vom vorherigen Eintrag
     // genommen werden.
     {
+        newentry_len = ext2_sb_blocksize(inode->fs->sb);
         char newbuf[newentry_len];
+        memset(newbuf, 0, newentry_len);
         newentry = (ext2_dirent_t*) newbuf;
 
         newentry->name_len = strlen(name);
         memcpy(newentry->name, name, newentry->name_len + 1);
         newentry->inode = inode->number;
-        newentry->record_len = ext2_sb_blocksize(dir->fs->sb);
+        newentry->record_len = newentry_len;
         newentry->type = type;
-        ext2_inode_writedata(dir, pos, newentry->record_len, newbuf);
+        ext2_inode_writedata(dir, pos, newentry_len, newbuf);
         inode->raw.link_count++;
         return 1;
     }

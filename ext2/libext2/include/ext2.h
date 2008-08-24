@@ -44,7 +44,7 @@ struct ext2_superblock_t;
 /**
  * Zentrale Struktur zur Verwaltung eines eingebundenen Dateisystemes
  */
-typedef struct {
+typedef struct ext2_fs {
     /**
      * Funktionspointer der von Aufrufer gesetzt werden muss. Diese Funktion
      * liest Daten vom Datentraeger ein, auf dem sich das Dateisystem befindet.
@@ -77,15 +77,102 @@ typedef struct {
     int (*dev_write)(uint64_t start, size_t size, const void* source,
         void* prv);
 
+    /**
+     * Funktionspointer der vom Aufrufer gesetzt werden muss. Diese Funktion
+     * erstellt einen neuen Cache und gibt ein Handle darauf zurueck.
+     *
+     * @param fs            Pointer auf das Dateisystem fuer das der Cache
+     *                      erstellt werden soll.
+     * @param block_size    Blockgroesse im Cache
+     *
+     * @return Handle oder NULL im Fehlerfall
+     */
+    void* (*cache_create)(struct ext2_fs* fs, size_t block_size);
+
+    /**
+     * Funktionspointer der vom Aufrufer gesetzt werden muss. Diese Funktion
+     * zerstoert einen mit cache_create erstellten Cache
+     *
+     * @param cache Handle
+     */
+    void (*cache_destroy)(void* handle);
+
+    /**
+     * Funktionspointer der vom Aufrufer gesetzt werden muss. Diese Funktion
+     * schreibt alle veraenderten Cache-Blocks auf die Platte
+     *
+     * @param cache Handle
+     */
+    void (*cache_sync)(void* handle);
+
+    /**
+     * Funktionspointer der vom Aufrufer gesetzt werden muss. Diese Funktion
+     * holt einen Block aus dem Cache und gibt einen Pointer auf ein
+     * Block-Handle zrueck. Dieser Pointer ist mindestens solange gueltig, wie
+     * das Handle nicht freigegeben wird.
+     *
+     * @param cache     Cache-Handle
+     * @param block     Blocknummer
+     * @param noread    Wenn dieser Parameter != 0 ist, wird der Block nicht
+     *                  eingelesen. Das kann benutzt werden, wenn er eh
+     *                  vollstaendig ueberschrieben wird.
+     *
+     * @return Block-Handle
+     */
+    struct ext2_cache_block* (*cache_block)(void* cache, uint64_t block,
+        int noread);
+
+    /**
+     * Funktionspointer der vom Aufrufer gesetzt werden muss. Diese Funktion
+     * markiert den angegebenen Block als veraendert, damit er geschrieben wird,
+     * bevor er aus dem Cache entfernt wird.
+     *
+     * @param handle Block-Handle
+     */
+    void (*cache_block_dirty)(struct ext2_cache_block* handle);
+
+    /**
+     * Funktionspointer der vom Aufrufer gesetzt werden muss. Diese Funktion
+     * gibt einen mit cache_block alloziierten Block wieder frei.
+     *
+     * @param handle    Block-Handle
+     * @param dirty     Wenn != 0 wird der Block auch als Dirty markiert
+     */
+    void (*cache_block_free)(struct ext2_cache_block* handle, int dirty);
+
+
     /// Private Daten zum Zugriff auf den Datentraeger
     void* dev_private;
+
+    /// Handle fuer Blockcache
+    void* cache_handle;
 
     /// Superblock des Dateisystems
     struct ext2_superblock_t* sb;
 
     /// Blocknummer in der der erste Superblock liegt
     uint64_t sb_block;
+
+    /// Darf vom Aufrufer benutzt werden
+    void* opaque;
 } ext2_fs_t;
+
+/**
+ * Cache-Block-Handle
+ */
+typedef struct ext2_cache_block {
+    /// Blocknummer
+    uint64_t number;
+
+    /// Daten
+    void* data;
+
+    /// Cache-Handle
+    void* cache;
+
+    /// Daten fuer die Implementierung
+    void* opaque;
+} ext2_cache_block_t;
 
 /**
  * ext2-Dateisystem einbinden. Dafuer muessen dev_read, dev_write und
@@ -94,6 +181,20 @@ typedef struct {
  * @return 1 bei Erfolg, im Fehlerfall 0
  */
 int ext2_fs_mount(ext2_fs_t* fs);
+
+/**
+ * ext2-Dateisystem aushaengen. Dabei werden saemtliche gecachten Daten auf die
+ * Platte geschrieben. Die Member sb und cache_handle in der fs-Struktur sind
+ * danach NULL.
+ *
+ * @return 1 bei Erfolg, im Fehlerfall 0
+ */
+int ext2_fs_unmount(ext2_fs_t* fs);
+
+/**
+ * Saetmliche gecachten Daten auf die Platte schreiben
+ */
+void ext2_fs_sync(ext2_fs_t* fs);
 
 
 #include "superblock.h"

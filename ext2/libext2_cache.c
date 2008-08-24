@@ -32,79 +32,86 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <ext2.h>
-#include <stdlib.h>
+
+#include "ext2_cdi.h"
+
+/** Verbindung zwischen dem CDI-Cache-Eintrag und dem libext2-Cacheblock */
+typedef struct cache_block {
+    /** Libext2-Cacheblock */
+    ext2_cache_block_t      libext2;
+
+    /** Cache-Entry von CDI */
+    struct cdi_cache_entry* cdi;
+} cache_block_t;
 
 
-/**
- * Prueft ob das Dateisystem konsistent aussieht, ohne Bitmap-Checks und co.
- * Dazu muss die Superblockkopie in der FS-Struktur geladen sein.
- *
- * @return 1 wenn das Dateisystem in Ordung ist, 0 sonst.
- */
-#if 0
-static int fs_check_fast(ext2_fs_t* fs)
+static int read_block(struct cdi_cache* cache, uint64_t block, size_t count,
+    void* dest, void* prv_data)
 {
-    int count = ext2_sb_copy_count(fs->sb);
-    int i;
-    ext2_superblock_t sb;
+    struct ext2_fs* fs = prv_data;
+    struct cdi_fs_filesystem* cdi_fs = fs->opaque;
+    size_t bs = cache->block_size;
 
-    // Superblockkopien vergleichen
-    for (i = 0; i < count; i++) {
-        if (!ext2_sb_read_copy(fs, &sb, i)) {
-            return 0;
-        }
-
-        if (!ext2_sb_compare(fs->sb, &sb)) {
-            return 0;
-        }
-    }
-    return 1;
-}
-#endif
-
-int ext2_fs_mount(ext2_fs_t* fs)
-{
-    fs->sb = malloc(sizeof(ext2_superblock_t));
-
-    if (!ext2_sb_read(fs, fs->sb)) {
-        free(fs->sb);
-        fs->sb = NULL;
-        return 0;
-    }
-
-    fs->cache_handle = fs->cache_create(fs, ext2_sb_blocksize(fs->sb));
-
-
-    // Die Blocknummer in der der Superblock liegt, variiert je nach
-    // Blockgroesse, da der offset fix 1024 ist.
-    fs->sb_block = (ext2_sb_blocksize(fs->sb) > 1024 ? 0 : 1);
-
-#if 0
-    if (!fs_check_fast(fs)) {
-        free(fs->sb);
-        fs->sb = NULL;
-        return 0;
-    }
-#endif
-    return 1;
+    return cdi_fs_data_read(cdi_fs, bs * block, count * bs, dest) / bs;
 }
 
-int ext2_fs_unmount(ext2_fs_t* fs)
+static int write_block(struct cdi_cache* cache, uint64_t block, size_t count,
+    const void* src, void* prv_data)
 {
-    // Sicherstellen, dass alle Aenderungen am Superblock geschrieben sind
-    if (!ext2_sb_update(fs, fs->sb)) {
-        return 0;
-    }
+    struct ext2_fs* fs = prv_data;
+    struct cdi_fs_filesystem* cdi_fs = fs->opaque;
+    size_t bs = cache->block_size;
 
-    free(fs->sb);
-    fs->cache_destroy(fs->cache_handle);
-    fs->sb = fs->cache_handle = NULL;
-    return 1;
+    return cdi_fs_data_write(cdi_fs, bs * block, count * bs, src) / bs;
 }
 
-void ext2_fs_sync(ext2_fs_t* fs)
+void* cache_create(struct ext2_fs* fs, size_t block_size)
 {
-    fs->cache_sync(fs->cache_handle);
+    return cdi_cache_create(block_size, sizeof(ext2_cache_block_t),
+        read_block, write_block, fs);
+}
+
+void cache_destroy(void* handle)
+{
+    /** FIXME: TODO */
+    //cdi_cache_destroy(
+}
+
+ext2_cache_block_t* cache_block(void* handle, uint64_t block, int noread)
+{
+    struct cdi_cache* c = handle;
+    struct cdi_cache_block* cdi_b;
+    ext2_cache_block_t* b;
+
+    if (!(cdi_b = cdi_cache_block_get(c, block))) {
+        return NULL;
+    }
+
+    b = cdi_b->private;
+    b->opaque = cdi_b;
+    b->data = cdi_b->data;
+    b->cache = handle;
+    b->number = block;
+    return b;
+}
+
+void cache_block_dirty(ext2_cache_block_t* b)
+{
+    struct cdi_cache* c = b->cache;
+    struct cdi_cache_block* cdi_b = b->opaque;
+
+    cdi_cache_block_dirty(c, cdi_b);
+}
+
+void cache_block_free(ext2_cache_block_t* b, int dirty)
+{
+    struct cdi_cache* c = b->cache;
+    struct cdi_cache_block* cdi_b = b->opaque;
+
+    if (dirty) {
+        cache_block_dirty(b);
+    }
+
+    cdi_cache_block_release(c, cdi_b);
 }
 

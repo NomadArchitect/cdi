@@ -39,80 +39,123 @@
 
 static uint64_t block_free(ext2_fs_t* fs, uint64_t num);
 
+static inline ext2_cache_block_t* get_bg_block(ext2_fs_t* fs, int group_nr)
+{
+    uint64_t num;
+    size_t bs = ext2_sb_blocksize(fs->sb);
+
+    num = fs->sb_block + 1 + (group_nr * sizeof(ext2_blockgroup_t)) / bs; 
+    return fs->cache_block(fs->cache_handle, num, 0);
+}
+
 int ext2_bg_read(ext2_fs_t* fs, int group_nr, ext2_blockgroup_t* bg)
 {
-    if (!fs->dev_read(
-        ((fs->sb_block + 1) * ext2_sb_blocksize(fs->sb)) + group_nr *
-        sizeof(ext2_blockgroup_t), sizeof(ext2_blockgroup_t), bg,
-        fs->dev_private))
-    {
+    ext2_cache_block_t* b = get_bg_block(fs, group_nr);
+
+    if (!b) {
         return 0;
     }
 
+    memcpy(bg, b->data + (group_nr * sizeof(ext2_blockgroup_t)) %
+        ext2_sb_blocksize(fs->sb), sizeof(ext2_blockgroup_t));
+    fs->cache_block_free(b, 0);
     return 1;
 }
 
 int ext2_bg_update(ext2_fs_t* fs, int group_nr, ext2_blockgroup_t* bg)
 {
-    if (!fs->dev_write(
-        ((fs->sb_block + 1) * ext2_sb_blocksize(fs->sb)) + group_nr *
-        sizeof(ext2_blockgroup_t), sizeof(ext2_blockgroup_t), bg,
-        fs->dev_private))
-    {
+    ext2_cache_block_t* b = get_bg_block(fs, group_nr);
+
+    if (!b) {
         return 0;
     }
 
+    memcpy(b->data + (group_nr * sizeof(ext2_blockgroup_t)) %
+        ext2_sb_blocksize(fs->sb), bg, sizeof(ext2_blockgroup_t));
+    fs->cache_block_free(b, 1);
     return 1;
+}
+
+/**
+ * Pointer auf den Cache-Block in dem sich der Inode befindet holen.
+ *
+ * @param fs        Dateisystem zu dem der Inode gehoert
+ * @param inode_nr  Inodenummer
+ * @param offset    Wenn != 0 wird an dieser Speicherstelle der Offset vom
+ *                  Anfang dieses Blocks aus zum Inode abgelegt.
+ *
+ * @return Pointer auf das Handle fuer diesen Block
+ */
+static inline ext2_cache_block_t* inode_get_block(
+    ext2_fs_t* fs, uint64_t inode_nr, size_t* offset)
+{
+    uint64_t    inode_offset;
+    uint64_t    inode_internal = ext2_inode_to_internal(fs, inode_nr);
+    size_t      inode_size = ext2_sb_inodesize(fs->sb);
+    size_t      bs = ext2_sb_blocksize(fs->sb);
+    ext2_blockgroup_t bg;
+
+    ext2_bg_read(fs, inode_internal / fs->sb->inodes_per_group, &bg);
+
+    // Offset des Inodes zum Anfang der Tabelle
+    inode_offset = inode_size * (inode_internal % fs->sb->inodes_per_group);
+
+    // Offset zum Anfang des Blocks
+    if (offset) {
+        *offset = inode_offset % bs;
+    }
+
+    return fs->cache_block(fs->cache_handle, bg.inode_table +
+        inode_offset / bs, 0);
 }
 
 int ext2_inode_read(ext2_fs_t* fs, uint64_t inode_nr, ext2_inode_t* inode)
 {
-    size_t inode_size;
-    uint64_t inode_offset;
-    uint64_t inode_int;
-    ext2_blockgroup_t bg;
+    size_t offset;
+    ext2_cache_block_t* b;
 
-    inode_int = ext2_inode_to_internal(fs, inode_nr);
-    ext2_bg_read(fs, inode_int / fs->sb->inodes_per_group, &bg);
-
-    inode_size = ext2_sb_inodesize(fs->sb);
-    inode_offset = ext2_sb_blocksize(fs->sb) * bg.inode_table
-        + inode_size * (inode_int % fs->sb->inodes_per_group);
-
-    if (!fs->dev_read(inode_offset, sizeof(inode->raw), &inode->raw,
-        fs->dev_private))
-    {
+    if (!(b = inode_get_block(fs, inode_nr, &offset))) {
         return 0;
     }
 
+    memcpy(&inode->raw, b->data + offset, sizeof(inode->raw));
+
+    fs->cache_block_free(b, 0);
+
     inode->fs = fs;
     inode->number = inode_nr;
-
     return 1;
 }
 
 int ext2_inode_update(ext2_inode_t* inode)
 {
-    size_t inode_size;
-    uint64_t inode_offset;
-    uint64_t inode_int;
-    ext2_blockgroup_t bg;
     ext2_fs_t* fs = inode->fs;
+    size_t offset;
+    ext2_cache_block_t* b;
 
-    inode_int = ext2_inode_to_internal(fs, inode->number);
-    ext2_bg_read(fs, inode_int / fs->sb->inodes_per_group, &bg);
-
-    inode_size = ext2_sb_inodesize(fs->sb);
-    inode_offset = ext2_sb_blocksize(fs->sb) * bg.inode_table
-        + inode_size * (inode_int % fs->sb->inodes_per_group);
-
-    if (!fs->dev_write(inode_offset, sizeof(inode->raw), &inode->raw,
-        fs->dev_private))
-    {
+    if (!(b = inode_get_block(fs, inode->number, &offset))) {
         return 0;
     }
 
+    memcpy(b->data + offset, &inode->raw, sizeof(inode->raw));
+
+    fs->cache_block_free(b, 1);
+
     return 1;
+}
+
+/**
+ * Block mit der Inode-Bitmap holen
+ *
+ * @param fs    Das Dateisystem
+ * @param bg    Blockgruppendeskriptor
+ *
+ * @return Blockhandle
+ */
+static inline ext2_cache_block_t* ibitmap_get_block(
+    ext2_fs_t* fs, ext2_blockgroup_t* bg)
+{
+    return fs->cache_block(fs->cache_handle, bg->inode_bitmap, 0);
 }
 
 /**
@@ -122,20 +165,16 @@ int ext2_inode_update(ext2_inode_t* inode)
  */
 static uint64_t inode_alloc(ext2_fs_t* fs, uint32_t bgnum)
 {
-    uint32_t bitmap[fs->sb->inodes_per_group / 32];
-    uint64_t bitmap_offset;
+    uint32_t* bitmap;
+    ext2_cache_block_t* block;
     uint32_t i, j;
 
     ext2_blockgroup_t bg;
     ext2_bg_read(fs, bgnum, &bg);
 
     // Bitmap laden
-    bitmap_offset = ext2_sb_blocksize(fs->sb) * bg.inode_bitmap;
-    if (!fs->dev_read(bitmap_offset, fs->sb->inodes_per_group / 8, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    block = ibitmap_get_block(fs, &bg);
+    bitmap = block->data;
 
     // Freies Bit suchen
     for (i = 0; i < (fs->sb->inodes_per_group + 31) / 32; i++) {
@@ -150,17 +189,14 @@ static uint64_t inode_alloc(ext2_fs_t* fs, uint32_t bgnum)
         }
     }
 
+    fs->cache_block_free(block, 0);
     return 0;
 
 found:
 
     // Als besetzt markieren
     bitmap[i] |= (1 << j);
-    if (!fs->dev_write(bitmap_offset, fs->sb->blocks_per_group / 8, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    fs->cache_block_free(block, 1);
 
     fs->sb->free_inodes--;
     ext2_sb_update(fs, fs->sb);
@@ -207,28 +243,20 @@ int ext2_inode_free(ext2_inode_t* inode)
     inode->raw.deletion_time = inode->fs->sb->inode_count; // FIXME
 
     // Inodebitmap anpassen
-    uint64_t bitmap_offset;
     uint32_t bgnum = inode_int / fs->sb->inodes_per_group;
     uint32_t num = inode_int % fs->sb->inodes_per_group;
-    uint32_t bitmap[fs->sb->inodes_per_group / 32];
+    uint32_t* bitmap;
     size_t   block_size = ext2_sb_blocksize(fs->sb);
+    ext2_cache_block_t* block;
     ext2_blockgroup_t bg;
     ext2_bg_read(fs, bgnum, &bg);
 
-    bitmap_offset = ext2_sb_blocksize(fs->sb) * bg.inode_bitmap;
-    if (!fs->dev_read(bitmap_offset, fs->sb->inodes_per_group / 8, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    block = ibitmap_get_block(fs, &bg);
+    bitmap = block->data;
 
     bitmap[num / 32] &= ~(1 << (num % 32));
 
-    if (!fs->dev_write(bitmap_offset, fs->sb->blocks_per_group / 8, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    fs->cache_block_free(block, 1);
 
     fs->sb->free_inodes++;
     ext2_sb_update(fs, fs->sb);
@@ -285,14 +313,29 @@ static int block_alloc_bg(ext2_fs_t* fs)
     return -1;
 }
 
+/**
+ * Block mit der Block-Bitmap holen
+ *
+ * @param fs    Das Dateisystem
+ * @param bg    Blockgruppendeskriptor
+ *
+ * @return Blockhandle
+ */
+static inline ext2_cache_block_t* bbitmap_get_block(
+    ext2_fs_t* fs, ext2_blockgroup_t* bg)
+{
+    return fs->cache_block(fs->cache_handle, bg->block_bitmap, 0);
+}
+
+
 static uint64_t block_alloc(ext2_fs_t* fs)
 {
-    uint32_t bitmap[fs->sb->blocks_per_group];
-    uint64_t bitmap_offset;
+    uint32_t* bitmap;
     uint64_t block_num;
     uint32_t i, j;
     size_t   block_size = ext2_sb_blocksize(fs->sb);
     uint8_t  buf[block_size];
+    ext2_cache_block_t* block;
     int bgnum;
 
     bgnum = block_alloc_bg(fs);
@@ -304,12 +347,8 @@ static uint64_t block_alloc(ext2_fs_t* fs)
     ext2_bg_read(fs, bgnum, &bg);
 
     // Bitmap laden
-    bitmap_offset = ext2_sb_blocksize(fs->sb) * bg.block_bitmap;
-    if (!fs->dev_read(bitmap_offset, fs->sb->blocks_per_group / 8, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    block = bbitmap_get_block(fs, &bg);
+    bitmap = block->data;
 
     // Freies Bit suchen
     for (i = 0; i < fs->sb->blocks_per_group / 32; i++) {
@@ -322,6 +361,7 @@ static uint64_t block_alloc(ext2_fs_t* fs)
         }
     }
 
+    fs->cache_block_free(block, 0);
     return 0;
 
 found:
@@ -338,11 +378,7 @@ found:
 
     // Als besetzt markieren
     bitmap[i] |= (1 << j);
-    if (!fs->dev_write(bitmap_offset, fs->sb->blocks_per_group / 8, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    fs->cache_block_free(block, 1);
 
     fs->sb->free_blocks--;
     ext2_sb_update(fs, fs->sb);
@@ -355,9 +391,9 @@ found:
 
 static uint64_t block_free(ext2_fs_t* fs, uint64_t num)
 {
-    uint32_t bitmap[fs->sb->blocks_per_group];
-    uint64_t bitmap_offset;
+    uint32_t* bitmap;
     uint32_t bgnum;
+    ext2_cache_block_t* block;
 
     num -= fs->sb->first_data_block;
     bgnum = num / fs->sb->blocks_per_group;
@@ -367,20 +403,12 @@ static uint64_t block_free(ext2_fs_t* fs, uint64_t num)
     ext2_bg_read(fs, bgnum, &bg);
 
     // Bitmap laden
-    bitmap_offset = ext2_sb_blocksize(fs->sb) * bg.block_bitmap;
-    if (!fs->dev_read(bitmap_offset, 4 * fs->sb->blocks_per_group, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    block = bbitmap_get_block(fs, &bg);
+    bitmap = block->data;
 
     // Als frei markieren
     bitmap[num / 32] &= ~(1 << (num % 32));
-    if (!fs->dev_write(bitmap_offset, 4 * fs->sb->blocks_per_group, bitmap,
-        fs->dev_private))
-    {
-        return 0;
-    }
+    fs->cache_block_free(block, 1);
 
     fs->sb->free_blocks++;
     ext2_sb_update(fs, fs->sb);
@@ -404,45 +432,44 @@ static uint64_t get_block_offset(
     uint64_t get_indirect_block_nr(uint64_t index, uint64_t table_block, 
         int alloc)
     {
-        uint32_t table[block_size / 4];
+        ext2_cache_block_t* b = fs->cache_block(fs->cache_handle, table_block,
+            0);
+        uint64_t result = 0;
+        int table_modified = 0;
+        uint32_t* table;
 
-        // TODO table_block == 0 => return 0
-
-        if (!fs->dev_read(table_block * block_size, block_size, table,
-            fs->dev_private))
-        {
+        if (!b) {
             return 0;
         }
+        table = b->data;
 
         if ((table[index] == 0) && (alloc == 1)) {
             table[index] = block_alloc(fs);
             inode->raw.block_count += block_size / 512;
-            if (!fs->dev_write(table_block * block_size, block_size, table,
-                fs->dev_private))
-            {
-                return 0;
-            }
+            fs->cache_block_dirty(b);
         }
 
         if (alloc == 2) {
             block_free(fs, table[index]);
             table[index] = 0;
+            table_modified = 1;
             inode->raw.block_count -= block_size / 512;
-            if (fs->dev_write(table_block * block_size, block_size, table,
-                fs->dev_private))
-            {
-                size_t i;
-                for (i = 0; i < block_size / 4; i++) {
-                    if (table[i]) {
-                        return 1;
-                    }
-                }
 
-                return 2;
+            size_t i;
+            for (i = 0; i < block_size / 4; i++) {
+                if (table[i]) {
+                    result = 1;
+                    goto out;
+                }
             }
+            result = 2;
+        } else {
+            result = table[index];
         }
 
-        return table[index];
+    out:
+        fs->cache_block_free(b, table_modified);
+        return result;;
     }
 
     if ((block < 12) && (block < ((block_size / 4) + 12))) {
@@ -528,7 +555,7 @@ int ext2_inode_readblk(ext2_inode_t* inode, uint64_t block, void* buf,
     return read_cnt;
 }
 
-static int writeblk(ext2_inode_t* inode, uint64_t block, void* buf)
+static int writeblk(ext2_inode_t* inode, uint64_t block, const void* buf)
 {
     ext2_fs_t* fs = inode->fs;
 
@@ -565,12 +592,57 @@ int ext2_inode_readdata(
     uint64_t start_block = start / block_size;
     uint64_t end_block = (start + len - 1) / block_size;
     size_t block_count = end_block - start_block + 1;
-    char localbuf[block_count * block_size];
+    char localbuf[block_size];
     int i, ret;
 
+    if (len == 0) {
+        return 1;
+    }
+
+    // Wenn der erste Block nicht ganz gelesen werden soll, wird er zuerst in
+    // einen Lokalen Puffer gelesen.
+    if (start % block_size) {
+        size_t bytes;
+        size_t offset = start % block_size;
+
+        if (!ext2_inode_readblk(inode, start_block, localbuf, 1)) {
+            return 0;
+        }
+
+        bytes = block_size - offset;
+        if (len < bytes) {
+            bytes = len;
+        }
+        memcpy(buf, localbuf + offset, bytes);
+
+        if (--block_count == 0) {
+            return 1;
+        }
+        len -= bytes;
+        buf += bytes;
+        start_block++;
+    }
+
+    // Wenn der letzte Block nicht mehr ganz gelesen werden soll, muss er
+    // separat eingelesen werden.
+    if (len % block_size) {
+        size_t bytes = len % block_size;
+
+        if (!ext2_inode_readblk(inode, end_block, localbuf, 1)) {
+            return 0;
+        }
+        memcpy(buf + len - bytes, localbuf, bytes);
+
+        if (--block_count == 0) {
+            return 1;
+        }
+        len -= bytes;
+        end_block--;
+    }
+
     for (i = 0; i < block_count; i++) {
-        ret = ext2_inode_readblk(inode, start_block + i,
-            localbuf + i * block_size, block_count - i);
+        ret = ext2_inode_readblk(inode, start_block + i, buf + i * block_size,
+            block_count - i);
 
         if (!ret) {
             return 0;
@@ -580,7 +652,6 @@ int ext2_inode_readdata(
         // uebersprungen werden.
         i += ret - 1;
     }
-    memcpy(buf, localbuf + (start % block_size), len);
 
     return 1;
 }
@@ -592,28 +663,67 @@ int ext2_inode_writedata(
     uint64_t start_block = start / block_size;
     uint64_t end_block = (start + len - 1) / block_size;
     size_t block_count = end_block - start_block + 1;
-    char localbuf[block_count * block_size];
+    char localbuf[block_size];
     int i, ret;
 
+    // Wenn der erste Block nicht ganz geschrieben werden soll, wird er zuerst
+    // in einen Lokalen Puffer gelesen werden, damit nichts ueberschrieben wird.
+    if (start % block_size) {
+        size_t bytes;
+        size_t offset = start % block_size;
+
+        if (!ext2_inode_readblk(inode, start_block, localbuf, 1)) {
+            return 0;
+        }
+
+        bytes = block_size - offset;
+        if (len < bytes) {
+            bytes = len;
+        }
+        memcpy(localbuf + offset, buf, bytes);
+
+        if (!writeblk(inode, start_block, localbuf)) {
+            return 0;
+        }
+
+        if (--block_count == 0) {
+            goto out;
+        }
+        len -= bytes;
+        buf += bytes;
+        start_block++;
+    }
+
+    // Wenn der letzte Block nicht mehr ganz geschrieben werden soll, muss er
+    // zuerst eingelesen werden, damit nichts ueberschrieben wird.
+    if (len % block_size) {
+        size_t bytes = len % block_size;
+
+        if (!ext2_inode_readblk(inode, end_block, localbuf, 1)) {
+            return 0;
+        }
+        memcpy(localbuf, buf + len - bytes, bytes);
+
+        if (!writeblk(inode, end_block, localbuf)) {
+            return 0;
+        }
+
+        if (--block_count == 0) {
+            goto out;
+        }
+        len -= bytes;
+        end_block--;
+    }
+
     for (i = 0; i < block_count; i++) {
-        ret = ext2_inode_readblk(inode, start_block + i,
-            localbuf + i * block_size, 1);
+        ret = writeblk(inode, start_block + i, buf + i * block_size);
 
         if (!ret) {
             return 0;
         }
     }
 
-    memcpy(localbuf + (start % block_size), buf, len);
-
-    for (i = 0; i < block_count; i++) {
-        ret = writeblk(inode, start_block + i, localbuf + i * block_size);
-
-        if (!ret) {
-            return 0;
-        }
-    }
-
+out:
     if (start + len > inode->raw.size) {
         inode->raw.size = start + len;
     }

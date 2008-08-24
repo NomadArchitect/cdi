@@ -79,8 +79,6 @@ struct cdi_fs_filesystem {
     /** OS-spezifisch: Deskriptor fuer den Datentraeger */
     FILE*                   device;
 
-    /** Cache fuer dieses Dateisystem */
-    struct cdi_cache*       cache;
     /** 
      * Zeiger den der Treiber fuer eigene Daten zum Dateisystem benutzen kann
      */
