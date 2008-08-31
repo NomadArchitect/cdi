@@ -50,13 +50,13 @@ struct sis900_driver {
 static struct sis900_driver driver;
 static const char* driver_name = "sis900";
 
-static void sis900_driver_init();
-static void sis900_driver_destroy();
+static void sis900_driver_init(void);
+static void sis900_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
-int main()
+int main(void)
 #else
-int init_sis900()
+int init_sis900(void)
 #endif
 {
     cdi_init();
@@ -122,9 +122,9 @@ static void sis900_driver_init()
 /**
  * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void sis900_driver_destroy(void)
+static void sis900_driver_destroy(struct cdi_driver* driver)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) &driver);
+    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
 
     // TODO Alle Karten deinitialisieren
 }

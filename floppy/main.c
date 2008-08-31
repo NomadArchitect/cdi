@@ -58,9 +58,9 @@ static int floppy_driver_init(struct floppy_driver* driver);
 static void floppy_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
-int main()
+int main(void)
 #else
-int init_floppy
+int init_floppy(void)
 #endif
 {
     cdi_init();

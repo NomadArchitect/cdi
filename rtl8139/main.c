@@ -56,7 +56,7 @@ uint32_t string_to_ip(char* ip);
 
 static void process_parameter(struct module_options* options, char* param);
 static int rtl8139_driver_init(int argc, char* argv[]);
-static void rtl8139_driver_destroy(void);
+static void rtl8139_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
 int main(int argc, char* argv[])
@@ -149,9 +149,9 @@ static void process_parameter(struct module_options* options, char* param)
 /**
  * Deinitialisiert die Datenstrukturen fuer den rtl8139-Treiber
  */
-static void rtl8139_driver_destroy(void)
+static void rtl8139_driver_destroy(struct cdi_driver* driver)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) &driver);
+    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
 
     // TODO Alle Karten deinitialisieren
 }

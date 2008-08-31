@@ -50,13 +50,13 @@ struct e1000_driver {
 static struct e1000_driver driver;
 static const char* driver_name = "e1000";
 
-static void e1000_driver_init();
-static void e1000_driver_destroy();
+static void e1000_driver_init(void);
+static void e1000_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
-int main()
+int main(void)
 #else
-int init_e1000()
+int init_e1000(void)
 #endif
 {
     cdi_init();
@@ -122,9 +122,9 @@ static void e1000_driver_init()
 /**
  * Deinitialisiert die Datenstrukturen fuer den e1000-Treiber
  */
-static void e1000_driver_destroy(void)
+static void e1000_driver_destroy(struct cdi_driver* driver)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) &driver);
+    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
 
     // TODO Alle Karten deinitialisieren
 }

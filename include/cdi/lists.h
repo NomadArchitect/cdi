@@ -27,7 +27,7 @@ typedef struct cdi_list_implementation* cdi_list_t;
  * @return Neu erzeugte Liste oder NULL, falls kein Speicher reserviert werden
  * konnte
  */
-cdi_list_t cdi_list_create();
+cdi_list_t cdi_list_create(void);
 
 /** 
  * Gibt eine Liste frei (Werte der Listenglieder müssen bereits 

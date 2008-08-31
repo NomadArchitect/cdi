@@ -50,7 +50,7 @@
 //#define DEBUG_MSG(s) printf("[RTL8139] debug: %s() '%s'\n", __FUNCTION__, s)
 #define DEBUG_MSG(s) //
 
-static void rtl8139_handle_interrupt();
+static void rtl8139_handle_interrupt(struct cdi_device* device);
 
 static inline void write_register_byte(struct rtl8139_device* netcard, uint8_t reg, uint8_t value)
 {

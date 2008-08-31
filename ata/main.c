@@ -51,13 +51,13 @@ static struct ata_driver driver;
 static const char* driver_name = "ata";
 static cdi_list_t controller_list = NULL;
 
-static void ata_driver_init();
-static void ata_driver_destroy();
+static void ata_driver_init(void);
+static void ata_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
-int main()
+int main(void)
 #else
-int init_ata
+int init_ata(void)
 #endif
 {
     cdi_init();
@@ -117,11 +117,11 @@ static void ata_driver_init()
 }
 
 /**
- * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
+ * Deinitialisiert die Datenstrukturen fuer den ata-Treiber
  */
-static void ata_driver_destroy(void)
+static void ata_driver_destroy(struct cdi_driver* driver)
 {
-    cdi_storage_driver_destroy((struct cdi_storage_driver*) &driver);
+    cdi_storage_driver_destroy((struct cdi_storage_driver*) driver);
 
     // TODO Alle Karten deinitialisieren
 }

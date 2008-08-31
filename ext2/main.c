@@ -53,9 +53,9 @@ static int ext2_driver_init(struct ext2_driver* driver);
 static void ext2_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
-int main()
+int main(void)
 #else
-int init_ext2
+int init_ext2(void)
 #endif
 {
     cdi_init();
