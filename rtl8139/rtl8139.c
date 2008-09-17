@@ -113,7 +113,7 @@ void rtl8139_init_device(struct cdi_device* device)
     DEBUG_MSG("MAC-Adresse auslesen");
     netcard->net.mac = 
         read_register_dword(netcard, REG_ID0)
-        | (((qword) read_register_dword(netcard, REG_ID4) & 0xFFFF) << 32);
+        | (((uint64_t) read_register_dword(netcard, REG_ID4) & 0xFFFF) << 32);
 
     // Receive/Transmit (Rx/Tx) aktivieren
     DEBUG_MSG("Aktiviere Rx/Tx");
@@ -170,11 +170,11 @@ void rtl8139_send_packet
     } else {
         DEBUG_MSG("Tx-Buffer ist schon besetzt");
 
-        void* pending = malloc(size + sizeof(dword));
+        void* pending = malloc(size + sizeof(uint32_t));
         cdi_list_insert(netcard->pending_sends,
             cdi_list_size(netcard->pending_sends), pending);
-        *((dword*) pending) = size;
-        pending += sizeof(dword);
+        *((uint32_t*) pending) = size;
+        pending += sizeof(uint32_t);
         memcpy(pending, data, size);
 
         return;
@@ -224,7 +224,7 @@ static void receive_ok_handler(struct rtl8139_device* netcard)
 
     while (1)
     {
-        dword cr = read_register_byte(netcard, REG_COMMAND);
+        uint32_t cr = read_register_byte(netcard, REG_COMMAND);
         if (cr & CR_BUFFER_IS_EMPTY) {
             DEBUG_MSG("Rx-Puffer ist leer.\n");
             break;
@@ -232,7 +232,7 @@ static void receive_ok_handler(struct rtl8139_device* netcard)
 
         void* buffer = netcard->rx_buffer + netcard->rx_buffer_offset;
 
-        word packet_header = *((word*) buffer);
+        uint16_t packet_header = *((uint16_t*) buffer);
         buffer += 2;
 
         if ((packet_header & 1) == 0) {
@@ -241,7 +241,7 @@ static void receive_ok_handler(struct rtl8139_device* netcard)
         }
 
         // Die L�nge enth�lt die CRC-Pr�fsumme, nicht aber den Paketheader
-        word length = *((word*) buffer);
+        uint16_t length = *((uint16_t*) buffer);
         buffer += 2;
 
         /*
@@ -278,7 +278,7 @@ static void receive_ok_handler(struct rtl8139_device* netcard)
         }
 
         // Den aktuellen Offset im Lesepuffer anpassen. Jedes Paket ist
-        // dword-aligned, daher anschlie�end Aufrundung.
+        // uint32_t-aligned, daher anschlie�end Aufrundung.
         netcard->rx_buffer_offset += length;
         netcard->rx_buffer_offset = (netcard->rx_buffer_offset + 3) & ~0x3;
 
@@ -301,8 +301,8 @@ static void rtl8139_handle_interrupt(struct cdi_device* device)
     DEBUG_MSG("<RTL8139 Interrupt>");
 
     struct rtl8139_device* netcard = (struct rtl8139_device*) device;
-    dword isr = read_register_word(netcard, REG_INTERRUPT_STATUS);
-    dword clear_isr = 0;
+    uint32_t isr = read_register_word(netcard, REG_INTERRUPT_STATUS);
+    uint32_t clear_isr = 0;
 
     if (isr & ISR_RECEIVE_OK) {
         receive_ok_handler(netcard);
@@ -324,10 +324,10 @@ static void rtl8139_handle_interrupt(struct cdi_device* device)
     // konnten, weil die Karte beschaeftigt war, das jetzt nachholen
     void* pending = cdi_list_pop(netcard->pending_sends);
     if (pending) {
-        dword size = *((dword*) pending);
-        pending += sizeof(dword);
+        uint32_t size = *((uint32_t*) pending);
+        pending += sizeof(uint32_t);
         DEBUG_MSG("Sende Paket aus der pending-Queue");
         rtl8139_send_packet((struct cdi_net_device*) device, pending, size);
-        free(pending - sizeof(dword));
+        free(pending - sizeof(uint32_t));
     }
 }

@@ -36,13 +36,15 @@
 #ifndef _ETHERNET_H_
 #define _ETHERNET_H_
 
+#include <stdint.h>
+
 #define ETH_TYPE_IP 0x0008
 #define ETH_TYPE_ARP 0x0608
 
 struct eth_packet_header {
-    qword dest   : 48;
-    qword src  : 48;
-    word  type;
+    uint64_t    dest    : 48;
+    uint64_t    src     : 48;
+    uint16_t    type;
 } __attribute__ ((packed));
 
 #endif

@@ -12,7 +12,7 @@
 #define _CDI_NET_H_
 
 #include <stdint.h>
-#include <collections.h> 
+#include <stddef.h>
 
 #include "cdi.h"
 
@@ -23,7 +23,7 @@ struct cdi_net_device {
 
     void (*send_packet)
         (struct cdi_net_device* device, void* data, size_t size);
-    
+
     // LOST-spezifisch
     uint32_t            ip;
 };
@@ -55,6 +55,6 @@ void cdi_net_device_init(struct cdi_net_device* device);
  * empfangen wurde.
  */
 void cdi_net_receive(
-    struct cdi_net_device* device, uint8_t* buffer, size_t size);
+    struct cdi_net_device* device, void* buffer, size_t size);
 
 #endif
