@@ -59,7 +59,7 @@ struct sis900_driver {
 static struct sis900_driver driver;
 static const char* driver_name = "sis900";
 
-static void sis900_driver_init(void);
+static void sis900_driver_init(int argc, char* argv[]);
 static void sis900_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
