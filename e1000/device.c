@@ -36,7 +36,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
-#include <syscall.h>
 
 #include "cdi.h"
 #include "cdi/misc.h"
@@ -165,9 +164,8 @@ void e1000_init_device(struct cdi_device* device)
     int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
         if (res->type == CDI_PCI_MEMORY) {
-            // FIXME LOST-spezifisch
             netcard->mem_base =
-                mem_allocate_physical(res->length, res->start, 0);
+                cdi_alloc_phys_addr(res->length, res->start);
         }
     }
 
