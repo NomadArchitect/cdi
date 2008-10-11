@@ -37,9 +37,11 @@ typedef enum {
 } cdi_res_t;
 
 struct cdi_pci_resource {
-    cdi_res_t   type;
-    uintptr_t   start;
-    size_t      length;
+    cdi_res_t    type;
+    uintptr_t    start;
+    size_t       length;
+    unsigned int index;
+    void*        address;
 };
 
 
@@ -58,6 +60,21 @@ void cdi_pci_device_destroy(struct cdi_pci_device* device);
  * Reserviert die IO-Ports des PCI-Geraets fuer den Treiber
  */
 void cdi_pci_alloc_ioports(struct cdi_pci_device* device);
+
+/**
+ * Gibt die IO-Ports des PCI-Geraets frei
+ */
+void cdi_pci_free_ioports(struct cdi_pci_device* device);
+
+/**
+ * Reserviert den MMIO-Speicher des PCI-Geraets fuer den Treiber
+ */
+void cdi_pci_alloc_memory(struct cdi_pci_device* device);
+
+/**
+ * Gibt den MMIO-Speicher des PCI-Geraets frei
+ */
+void cdi_pci_free_memory(struct cdi_pci_device* device);
 
 #endif
 
