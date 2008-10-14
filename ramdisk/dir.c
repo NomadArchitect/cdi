@@ -33,8 +33,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <string.h>
-// FIXME CDI kennt eigentlich keine POSIX-Funktionen
-#include <time.h>
+
 #include "cdi/lists.h"
 
 #include "ramdisk_cdi.h"
@@ -57,7 +56,8 @@ int ramdisk_fs_dir_create_child(struct cdi_fs_stream* stream, const char* name,
     res->res.name = strdup(name);
     res->res.res = &ramdisk_fs_res;
     res->res.children = cdi_list_create();
-    res->creation_time = time(NULL);
+    res->res.link_path = NULL;
+    res->creation_time = 0;
 
     cdi_list_push(parent_res->res.children, res);
     res->res.parent = parent;

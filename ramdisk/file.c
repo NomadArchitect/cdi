@@ -63,7 +63,6 @@ size_t ramdisk_fs_file_write(struct cdi_fs_stream* stream, uint64_t start,
             stream->error = CDI_FS_ERROR_INTERNAL;
             return 0;
         }
-        memset(new_buffer + res->size, 0, new_size - res->size);
         res->buffer = new_buffer;
         res->size = new_size;
     }

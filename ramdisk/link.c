@@ -39,14 +39,14 @@ const char *ramdisk_fs_link_read(struct cdi_fs_stream *stream)
 {
     struct ramdisk_fs_res* res = (struct ramdisk_fs_res*) stream->res;
 
-    return res->buffer;
+    return res->res.link_path;
 }
 
 int ramdisk_fs_link_write(struct cdi_fs_stream *stream, const char *path) {
     struct ramdisk_fs_res* res = (struct ramdisk_fs_res*) stream->res;
 
-    free(res->buffer);
-    res->buffer = strdup(path);
+    free(res->res.link_path);
+    res->res.link_path = strdup(path);
 
     return 1;
 }
