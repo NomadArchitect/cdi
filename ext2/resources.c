@@ -38,11 +38,13 @@
 struct cdi_fs_res_res   ext2_fs_res = {
     .load = ext2_fs_res_load,
     .unload = ext2_fs_res_unload,
+    .remove = ext2_fs_res_remove,
 
     .meta_read = ext2_fs_res_meta_read,
     .meta_write = ext2_fs_res_meta_write,
 
-    .assign_class = ext2_fs_res_assign_class
+    .assign_class = ext2_fs_res_assign_class,
+    .remove_class = ext2_fs_res_remove_class,
 };
 
 struct cdi_fs_res_file  ext2_fs_file = {

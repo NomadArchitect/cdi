@@ -271,3 +271,67 @@ error_out:
     return 0;
 }
 
+int ext2_fs_res_remove_class(struct cdi_fs_stream* stream,
+    cdi_fs_res_class_t class)
+{
+    struct ext2_fs_res* res = (struct ext2_fs_res*) stream->res;
+    struct ext2_fs_res* parent_res = (struct ext2_fs_res*) res->res.parent;
+
+    // Bei Verzeichnissen muessen noch ein paar Interne Daten freigegeben werden
+    if (class == CDI_FS_CLASS_DIR) {
+        dir_clear(stream);
+    }
+
+    if (!ext2_dir_unlink(parent_res->inode, res->res.name)) {
+        stream->error = CDI_FS_ERROR_IO;
+        goto error_out;
+    }
+
+    free(res->inode);
+    res->inode = NULL;
+
+    switch (class) {
+        case CDI_FS_CLASS_FILE:
+            res->res.file = NULL;
+            break;
+
+        case CDI_FS_CLASS_DIR:
+            res->res.dir = NULL;
+            break;
+
+        case CDI_FS_CLASS_LINK:
+            res->res.link = NULL;
+            break;
+
+        case CDI_FS_CLASS_SPECIAL:
+            res->res.special = NULL;
+            break;
+
+    };
+
+    return 1;
+error_out:
+    return 0;
+}
+
+int ext2_fs_res_remove(struct cdi_fs_stream* stream)
+{
+    struct ext2_fs_res* res = (struct ext2_fs_res*) stream->res;
+    struct ext2_fs_res* parent_res = (struct ext2_fs_res*) res->res.parent;
+    struct ext2_fs_res* child_res;
+    int i;
+
+    // Eintrag aus dem Elternverzeichnis loeschen
+    for (i = 0; parent_res->res.children &&
+        (child_res = cdi_list_get(parent_res->res.children, i)); i++)
+    {
+        if (!strcmp(child_res->res.name, res->res.name)) {
+            cdi_list_remove(parent_res->res.children, i);
+            break;
+        }
+    }
+
+    free(res->res.name);
+    free(res);
+    return 1;
+}
