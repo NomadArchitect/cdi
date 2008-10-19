@@ -74,7 +74,7 @@ int ext2_fs_mount(ext2_fs_t* fs)
     }
 
     fs->cache_handle = fs->cache_create(fs, ext2_sb_blocksize(fs->sb));
-
+    fs->block_prev_alloc = 0;
 
     // Die Blocknummer in der der Superblock liegt, variiert je nach
     // Blockgroesse, da der offset fix 1024 ist.

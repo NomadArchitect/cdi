@@ -236,6 +236,8 @@ int ext2_dir_unlink(ext2_inode_t* dir, const char* name)
     char buf[dir->raw.size];
     uint64_t pos = 0;
     int ret = 0;
+    ext2_blockgroup_t bg;
+    uint32_t bgnum;
 
     ext2_inode_readdata(dir, 0, dir->raw.size, buf);
     while (pos < dir->raw.size) {
@@ -249,6 +251,15 @@ int ext2_dir_unlink(ext2_inode_t* dir, const char* name)
                 return 0;
             }
             if (--inode.raw.link_count == 0) {
+                if (EXT2_INODE_IS_DIR(&inode)) {
+                    // Bei Verzeichnissen den Zaehler im Blockgrunppen
+                    // deskriptor aktualisieren
+                    bgnum = ext2_inode_to_internal(inode.fs, inode.number) /
+                        inode.fs->sb->inodes_per_group;
+                    ext2_bg_read(inode.fs, bgnum, &bg);
+                    bg.used_directories--;
+                    ext2_bg_update(inode.fs, bgnum, &bg);
+                }
                 ext2_inode_free(&inode);
             }
             if (!ext2_inode_update(&inode)) {

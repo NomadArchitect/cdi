@@ -155,6 +155,9 @@ typedef struct ext2_fs {
 
     /// Darf vom Aufrufer benutzt werden
     void* opaque;
+
+    /// Letzte allozierte Blocknummer
+    uint64_t block_prev_alloc;
 } ext2_fs_t;
 
 /**

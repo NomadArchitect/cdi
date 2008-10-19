@@ -280,6 +280,13 @@ int ext2_fs_res_remove_class(struct cdi_fs_stream* stream,
     // Bei Verzeichnissen muessen noch ein paar Interne Daten freigegeben werden
     if (class == CDI_FS_CLASS_DIR) {
         dir_clear(stream);
+
+        if (!ext2_dir_unlink(res->inode, ".") ||
+            !ext2_dir_unlink(res->inode, ".."))
+        {
+            stream->error = CDI_FS_ERROR_IO;
+            goto error_out;
+        }
     }
 
     if (!ext2_dir_unlink(parent_res->inode, res->res.name)) {

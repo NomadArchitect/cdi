@@ -350,6 +350,24 @@ static uint64_t block_alloc(ext2_fs_t* fs)
     block = bbitmap_get_block(fs, &bg);
     bitmap = block->data;
 
+    // Zuerst Blocks nach dem vorherigen alloziierten pruefen
+    if (fs->block_prev_alloc &&
+        (fs->block_prev_alloc /fs->sb->blocks_per_group == bgnum))
+    {
+        int first_j = fs->block_prev_alloc % 32;
+        int first_i = fs->block_prev_alloc / 32;
+        for (i = first_i;i < fs->sb->blocks_per_group / 32; i++) {
+            if (bitmap[i] != ~0) {
+                j = (i == first_i) ? first_j : 0;
+                for (; j < 32; j++) {
+                    if ((bitmap[i] & (1 << j)) == 0) {
+                        goto found;
+                    }
+                }
+            }
+        }
+    }
+
     // Freies Bit suchen
     for (i = 0; i < fs->sb->blocks_per_group / 32; i++) {
         if (bitmap[i] != ~0) {
@@ -386,6 +404,7 @@ found:
     bg.free_blocks--;
     ext2_bg_update(fs, bgnum, &bg);
 
+    fs->block_prev_alloc = block_num;
     return block_num;
 }
 
@@ -529,7 +548,7 @@ int ext2_inode_readblk(ext2_inode_t* inode, uint64_t block, void* buf,
     // Ein paar Nullen fuer Sparse Files
     if (block_offset == 0) {
         // TODO: Mehrere Sparse-Blocks
-        memset(buf, 0, block_size * count);
+        memset(buf, 0, block_size);
         return 1;
     }
 
