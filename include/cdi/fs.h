@@ -361,6 +361,10 @@ struct cdi_fs_res_res {
      * Diese Ressource aus einer Klasse entfernen. Diese Funktion wird nur
      * aufgerufen, wenn die Ressource zu dieser Klasse gehoert.
      *
+     * Bei Verzeichnissen muss von der Implementierung garantiert werden, dass
+     * diese Funktion nicht aufgerufen wird, solange das Verzeichnis noch
+     * Kindressourcen hat.
+     *
      * @param class Konstante fuer den Typ der klasse, aus der die Ressource
      *              entfernt werden soll.
      *
