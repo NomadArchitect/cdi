@@ -44,12 +44,19 @@ static int dir_fill_handler(ext2_dirent_t* dirent, void* priv)
     struct ext2_fs_res* parent_res = (struct ext2_fs_res*) priv;
 
     memset(res, 0, sizeof(*res));
-    cdi_list_push(parent_res->res.children, res);
     res->res.parent = (struct cdi_fs_res*) parent_res;
 
     res->res.name = ext2_dir_alloc_name(dirent);
     res->res.res = &ext2_fs_res;
     res->inode_num = dirent->inode;
+
+    // Dot- und Dotdot-Eintraege wollen wir nicht
+    if (!strcmp(res->res.name, ".") || !strcmp(res->res.name, "..")) {
+        free(res->res.name);
+        free(res);
+    } else {
+        cdi_list_push(parent_res->res.children, res);
+    }
     return 0;
 }
 
