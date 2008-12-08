@@ -83,7 +83,7 @@ ext2_cache_block_t* cache_block(void* handle, uint64_t block, int noread)
     struct cdi_cache_block* cdi_b;
     ext2_cache_block_t* b;
 
-    if (!(cdi_b = cdi_cache_block_get(c, block))) {
+    if (!(cdi_b = cdi_cache_block_get(c, block, noread))) {
         return NULL;
     }
 
