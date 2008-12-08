@@ -8,6 +8,12 @@
  * http://sam.zoy.org/projects/COPYING.WTFPL for more details.
  */  
 
+/**
+ * Treiber fuer Massenspeichergeraete
+ * \defgroup storage
+ */
+/*\@{*/
+
 #ifndef _CDI_STORAGE_H_
 #define _CDI_STORAGE_H_
 
@@ -70,3 +76,6 @@ void cdi_storage_driver_destroy(struct cdi_storage_driver* driver);
 void cdi_storage_driver_register(struct cdi_storage_driver* driver);
 
 #endif
+
+/*\@}*/
+

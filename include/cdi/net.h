@@ -8,6 +8,12 @@
  * http://sam.zoy.org/projects/COPYING.WTFPL for more details.
  */  
 
+/**
+ * Treiber fuer Netzwerkkarten
+ * \defgroup net
+ */
+/*\@{*/
+
 #ifndef _CDI_NET_H_
 #define _CDI_NET_H_
 
@@ -58,3 +64,6 @@ void cdi_net_receive(
     struct cdi_net_device* device, void* buffer, size_t size);
 
 #endif
+
+/*\@}*/
+

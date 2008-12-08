@@ -8,6 +8,9 @@
  * http://sam.zoy.org/projects/COPYING.WTFPL for more details.
  */  
 
+/** \addtogroup core */
+/*\@{*/
+
 #ifndef _CDI_H_
 #define _CDI_H_
 
@@ -77,3 +80,6 @@ void cdi_driver_destroy(struct cdi_driver* driver);
 void cdi_driver_register(struct cdi_driver* driver);
 
 #endif
+
+/*\@}*/
+

@@ -8,6 +8,12 @@
  * http://sam.zoy.org/projects/COPYING.WTFPL for more details.
  */
 
+/**
+ * Dateisystemtreiber in CDI
+ * \defgroup fs
+ */
+/*\@{*/
+
 #ifndef _CDI_FS_
 #define _CDI_FS_
 
@@ -64,13 +70,13 @@ struct cdi_fs_filesystem {
      */
     int                     error;
 
-    /** 
+    /**
      * Das Dateisystem darf nicht geschrieben werden. Damit schlaegt unter
      * anderem cdi_fs_write_data fehl.
      */
     int                     read_only;
 
-    /* 
+    /*
      * Hier sollte man wohl noch ein paar allgemeine Mount-Optionen oder
      * sonstige Flags die das ganze Dateisystem betreffen.
      */
@@ -79,7 +85,7 @@ struct cdi_fs_filesystem {
     /** OS-spezifisch: Deskriptor fuer den Datentraeger */
     FILE*                   device;
 
-    /** 
+    /**
      * Zeiger den der Treiber fuer eigene Daten zum Dateisystem benutzen kann
      */
     void*                   opaque;
@@ -89,22 +95,23 @@ struct cdi_fs_filesystem {
 // XXX Bei den Fehlernummern weiss ich noch nicht wirklich, was da notwendig
 // ist, deshalb lasse ich das mal so stehen.
 typedef enum {
+    /** Kein Fehler aufgetreten */
     CDI_FS_ERROR_NONE = 0,
-    // Fehler bei Eingabe/Ausgabeoperationen
+    /** Fehler bei Eingabe/Ausgabeoperationen */
     CDI_FS_ERROR_IO,
-    // Operation nicht unterstuetzt
+    /** Operation nicht unterstuetzt */
     CDI_FS_ERROR_ONS,
-    // Ressource nicht gefunden
+    /** Ressource nicht gefunden */
     CDI_FS_ERROR_RNF,
-    // Beim lesen einer Datei wurde das Ende erreicht
+    /** Beim lesen einer Datei wurde das Ende erreicht */
     CDI_FS_ERROR_EOF,
-    //n 
+    /** Dateisystem ist nur lesbar und es wurde versucht zu schreiben */
     CDI_FS_ERROR_RO,
-    // Interner Fehler
+    /** Interner Fehler */
     CDI_FS_ERROR_INTERNAL,
-    // Funktion noch nicht implementiert
+    /** Funktion noch nicht implementiert */
     CDI_FS_ERROR_NOT_IMPLEMENTED,
-    // Unbekannter Fehler
+    /** Unbekannter Fehler */
     CDI_FS_ERROR_UNKNOWN
 } cdi_fs_error_t;
 
@@ -112,13 +119,13 @@ typedef enum {
 * Der Stream stellt die Verbindung zwischen Aufrufer und Ressource dar.
 */
 struct cdi_fs_stream {
-    // Dateisystem
+    /** Dateisystem */
     struct cdi_fs_filesystem* fs;
 
-    // Betroffene Ressource
+    /** Betroffene Ressource */
     struct cdi_fs_res*      res;
 
-    // Fehlernummer
+    /** Fehlernummer */
     cdi_fs_error_t          error;
 };
 
@@ -127,20 +134,20 @@ struct cdi_fs_stream {
 * Metaeigenschaften, die Ressourcen haben koennen
 */
 typedef enum {
-    // R  Groesse der Datei auslesen
+    /** R  Groesse der Datei auslesen */
     CDI_FS_META_SIZE,
-    // R  Anzahl der Benutzten Dateisystemblocks (Irgendwo muesste man dann
-    //    auch auf diese Blockgroesse zurgreiffen koennen)
+    /** R  Anzahl der Benutzten Dateisystemblocks (Irgendwo muesste man dann
+     *  auch auf diese Blockgroesse zurgreiffen koennen) */
     CDI_FS_META_USEDBLOCKS,
-    // R  Optimale Blockgroesse mit der man auf die Datei zugreiffen sollte
+    /** R  Optimale Blockgroesse mit der man auf die Datei zugreiffen sollte */
     CDI_FS_META_BESTBLOCKSZ,
-    // R  Interne Blockgroesse fuer USEDBLOCKS
+    /** R  Interne Blockgroesse fuer USEDBLOCKS */
     CDI_FS_META_BLOCKSZ,
-    // R  Zeitpunkt an dem die Ressource erstellt wurde
+    /** R  Zeitpunkt an dem die Ressource erstellt wurde */
     CDI_FS_META_CREATETIME,
-    // RW Letzter Zugriff auf die Ressource, auch lesend
+    /** RW Letzter Zugriff auf die Ressource, auch lesend */
     CDI_FS_META_ACCESSTIME,
-    // RW Letzte Veraenderung der Ressource
+    /** RW Letzte Veraenderung der Ressource */
     CDI_FS_META_CHANGETIME
 } cdi_fs_meta_t;
 
@@ -150,25 +157,25 @@ typedef enum {
 * Verfuegung stehen, dar.
 */
 struct cdi_fs_res_flags {
-    // Ressource loeschen
+    /** Ressource loeschen */
     int                 remove;
-    // Ressource umbenennen
+    /** Ressource umbenennen */
     int                 rename;
-    // Ressource verschieben
+    /** Ressource verschieben */
     int                 move;
-    // Lesender Zugriff gestattet
+    /** Lesender Zugriff gestattet */
     int                 read;
-    // Schreibender Zugriff gestattet
+    /** Schreibender Zugriff gestattet */
     int                 write;
-    // Ausfuehren gestattet
+    /** Ausfuehren gestattet */
     int                 execute;
-    // Auflisten der Verzeichniseintraege gestattet
+    /** Auflisten der Verzeichniseintraege gestattet */
     int                 browse;
-    // Aufloesen des Links
+    /** Aufloesen des Links */
     int                 read_link;
-    // Aendern des Links
+    /** Aendern des Links */
     int                 write_link;
-    // Anlegen eines Untereintrags
+    /** Anlegen eines Untereintrags */
     int                 create_child;
 };
 
@@ -219,50 +226,63 @@ typedef enum {
 * persistent sind.
 */
 struct cdi_fs_res {
-    // Name der Ressource
+    /** Name der Ressource */
     char*                   name;
 
-    // Lock fuer diese Ressource
+    /** Lock fuer diese Ressource */
     cdi_fs_lock_t           lock;
 
-    // Flag ob die Ressource geladen ist(1) oder nicht(0). Ist sie danicht,
-    // muss nur name und res definiert sein. In res darf nur load aufgerufen
-    // werden.
+    /**
+     * Flag ob die Ressource geladen ist(1) oder nicht(0). Ist sie danicht,
+     * muss nur name und res definiert sein. In res darf nur load aufgerufen
+     * werden.
+     */
     int                     loaded;
 
-    // Referenzzaehler fuer Implementation. Muss beim erstellen der Ressource
-    // mit 0 initialisiert werden
+    /**
+     * Referenzzaehler fuer Implementation. Muss beim erstellen der Ressource
+     * mit 0 initialisiert werden
+     */
     int                     stream_cnt;
 
 
-    // Verweis auf das Elternobjekt
+    /** Verweis auf das Elternobjekt */
     struct cdi_fs_res*      parent;
 
-    // Liste mit allfaelligen Kindobjekten
+    /** Liste mit allfaelligen Kindobjekten */
     cdi_list_t              children;
 
 
-    // Link-Pfad
+    /** Link-Pfad */
     char*                   link_path;
 
 
-    // ACL; siehe Unten
+    /**
+     * ACL
+     * @see struct cdi_fs_acl_entry
+     */
     cdi_list_t              acl;
 
-    // Flags
+    /** Flags */
     struct cdi_fs_res_flags flags;
 
 
-    // Einzelne Klassen, zu denen die Ressourcen gehoeren kann, oder Null falls
-    // es zu einer Bestimmten Klasse nicht gehoert.
+    /*@{*/
+    /**
+     * Einzelne Klassen, zu denen die Ressourcen gehoeren kann, oder Null falls
+     * es zu einer Bestimmten Klasse nicht gehoert.
+     */
     struct cdi_fs_res_res*  res;
     struct cdi_fs_res_file* file;
     struct cdi_fs_res_dir*  dir;
     struct cdi_fs_res_link* link;
     struct cdi_fs_res_special* special;
+    /*@}*/
 
-    // Falls die Ressource zu einer Spezialklasse gehoert, wird hier angegeben,
-    // um welchen Typ von Spezialressource sie gehoert.
+    /**
+     * Falls die Ressource zu einer Spezialklasse gehoert, wird hier angegeben,
+     * um welchen Typ von Spezialressource sie gehoert.
+     */
     cdi_fs_res_type_t       type;
 };
 
@@ -398,8 +418,8 @@ struct cdi_fs_res_res {
 };
 
 struct cdi_fs_res_file {
-    // XXX (Aber wie geht das, wenn eine Datei nicht lesbar, aber ausfuehrbar
-    // sein soll?)
+    /** Dateien in dieser Klasse sind grunsaetzlich ausfuehrbar, wenn in der
+     *  Flag-Struktur in der Ressource nicht anders angegeben */
     int                     executable;
 
     /**
@@ -535,20 +555,19 @@ struct cdi_fs_res_special {
 };
 
 
-
 /**
-* Die Berechtigunen werden mit Access controll lists, kurz ACLs verwaltet.
-* Diese werden in Form von Listen gespeichert. Diese Listen enthalten
-* eintraege von verschiedenen Typen.
-*/
+ * Die Berechtigunen werden mit Access controll lists, kurz ACLs verwaltet.
+ * Diese werden in Form von Listen gespeichert. Diese Listen enthalten
+ * eintraege von verschiedenen Typen.
+ */
 typedef enum {
-/// Eine UID
+    /** Eine UID */
     CDI_FS_ACL_USER_NUMERIC,
-/// Ein Benutzername als String
+    /** Ein Benutzername als String */
     CDI_FS_ACL_USER_STRING,
-/// Eine GID
+    /** Eine GID */
     CDI_FS_ACL_GROUP_NUMERIC,
-/// Ein Gruppenname als String
+    /** Ein Gruppenname als String */
     CDI_FS_ACL_GROUP_STRING
 } cdi_fs_acl_entry_type_t;
 
@@ -558,79 +577,101 @@ typedef enum {
 * abgeleitet sind.
 */
 struct cdi_fs_acl_entry {
-    // Typ des Eintrages, eine der obigen Konstanten
+    /** Typ des Eintrages, eine der obigen Konstanten */
     cdi_fs_acl_entry_type_t type;
 
-    // Flags
+    /** Flags */
     struct cdi_fs_res_flags flags;
 };
 
+
 /**
-* Eintraege fuer die einzelnen Typen
-*/
+ * Eintraege fuer die einzelnen ACL-Eintragstypen
+ * @see struct cdi_fs_acl_entry
+ */
 struct cdi_fs_acl_entry_usr_num {
     struct cdi_fs_acl_entry entry;
 
-    // Benutzer-ID
+    /** Benutzer-ID */
     uid_t                   user_id;
 };
 
 struct cdi_fs_acl_entry_usr_str {
     struct cdi_fs_acl_entry entry;
 
-    // Benutzername
+    /** Benutzername */
     char*                   user_name;
 };
 
 struct cdi_fs_acl_entry_grp_num {
     struct cdi_fs_acl_entry entry;
 
-    // Gruppen-ID
+    /** Gruppen-ID */
     gid_t                   group_id;
 };
 
 struct cdi_fs_acl_entry_grp_str {
     struct cdi_fs_acl_entry entry;
 
-    // Gruppenname
+    /** Gruppenname */
     char*                   group_name;
 };
 
 
 
+/**
+ * Dateisystemtreiber-Struktur initialisieren
+ *
+ * @param driver Zeiger auf den Treiber
+ */
 void cdi_fs_driver_init(struct cdi_fs_driver* driver);
+
+/**
+ * Dateisystemtreiber-Struktur zerstoeren
+ *
+ * @param driver Zeiger auf den Treiber
+ */
 void cdi_fs_driver_destroy(struct cdi_fs_driver* driver);
+
+/**
+ * Dateisystemtreiber registrieren
+ *
+ * @param driver Zeiger auf den Treiber
+ */
 void cdi_fs_driver_register(struct cdi_fs_driver* driver);
 
 
+
 /**
-* Quelldateien fuer ein Dateisystem lesen
-* XXX Brauchen wir hier auch noch irgendwas errno-Maessiges?
-*
-* @param fs Pointer auf die FS-Struktur des Dateisystems
-* @param start Position von der an gelesen werden soll
-* @param size Groesse des zu lesenden Datenblocks
-* @param buffer Puffer in dem die Daten abgelegt werden sollen
-*
-* @return die Anzahl der gelesenen Bytes
-*/
+ * Quelldateien fuer ein Dateisystem lesen
+ * XXX Brauchen wir hier auch noch irgendwas errno-Maessiges?
+ *
+ * @param fs Pointer auf die FS-Struktur des Dateisystems
+ * @param start Position von der an gelesen werden soll
+ * @param size Groesse des zu lesenden Datenblocks
+ * @param buffer Puffer in dem die Daten abgelegt werden sollen
+ *
+ * @return die Anzahl der gelesenen Bytes
+ */
 size_t cdi_fs_data_read(struct cdi_fs_filesystem* fs, uint64_t start,
     size_t size, void* buffer);
 
 /**
-* Quellmedium eines Dateisystems beschreiben
-* XXX Brauchen wir hier auch noch irgendwas errno-Maessiges?
-*
-* @param fs Pointer auf die FS-Struktur des Dateisystems
-* @param start Position an die geschrieben werden soll
-* @param size Groesse des zu schreibenden Datenblocks
-* @param buffer Puffer aus dem die Daten gelesen werden sollen
-*
-* @return die Anzahl der geschriebenen Bytes
-*/
+ * Quellmedium eines Dateisystems beschreiben
+ * XXX Brauchen wir hier auch noch irgendwas errno-Maessiges?
+ *
+ * @param fs Pointer auf die FS-Struktur des Dateisystems
+ * @param start Position an die geschrieben werden soll
+ * @param size Groesse des zu schreibenden Datenblocks
+ * @param buffer Puffer aus dem die Daten gelesen werden sollen
+ *
+ * @return die Anzahl der geschriebenen Bytes
+ */
 size_t cdi_fs_data_write(struct cdi_fs_filesystem* fs, uint64_t start,
     size_t size, const void* buffer);
 
 
 #endif
+
+/*\@}*/
 
