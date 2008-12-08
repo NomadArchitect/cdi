@@ -73,8 +73,12 @@ void* cache_create(struct ext2_fs* fs, size_t block_size)
 
 void cache_destroy(void* handle)
 {
-    /** FIXME: TODO */
-    //cdi_cache_destroy(
+    cdi_cache_destroy(handle);
+}
+
+void cache_sync(void* handle)
+{
+    cdi_cache_sync(handle);
 }
 
 ext2_cache_block_t* cache_block(void* handle, uint64_t block, int noread)

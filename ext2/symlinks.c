@@ -33,6 +33,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string.h>
+
 #include "ext2_cdi.h"
 
 const char* ext2_fs_link_read(struct cdi_fs_stream* stream)

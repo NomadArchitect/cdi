@@ -62,8 +62,8 @@ int ext2_symlink_create(ext2_inode_t* parent,
     }
 
     // Initialisierung des Inode
-    newi->raw.deletion_time = 0;
-    newi->raw.mode = EXT2_INODE_MODE_SYMLINK | 0777;
+    newi->raw->deletion_time = 0;
+    newi->raw->mode = EXT2_INODE_MODE_SYMLINK | 0777;
     if (!ext2_inode_update(newi) ||
         !ext2_inode_update(parent))
     {
@@ -91,19 +91,19 @@ int ext2_symlink_create(ext2_inode_t* parent,
  */
 char* ext2_symlink_read(ext2_inode_t* inode)
 {
-    char* result = malloc(inode->raw.size + 1);
-    result[inode->raw.size] = '\0';
+    char* result = malloc(inode->raw->size + 1);
+    result[inode->raw->size] = '\0';
 
     // Bei Fast Symlinks wird das block-Array zur Speicherung des Pfades
     // benutzt, die Block-Anzahl ist dann 0
-    if (inode->raw.block_count == 0) {
+    if (inode->raw->block_count == 0) {
         // Wir haben es mit einem Fast Symlink zu tun, da ist das ganze sehr
         // einfach: Nur den String aus dem Blockarray in den Puffer kopieren
         // und gut ist.
-        memcpy(result, inode->raw.blocks, inode->raw.size);
+        memcpy(result, inode->raw->blocks, inode->raw->size);
     } else {
         // Normale symlinks werden gleich wie regulaere Dateien behandelt
-        size_t res = ext2_inode_readdata(inode, 0, inode->raw.size, result);
+        size_t res = ext2_inode_readdata(inode, 0, inode->raw->size, result);
 
         if (!res) {
             free(result);
@@ -124,13 +124,13 @@ char* ext2_symlink_read(ext2_inode_t* inode)
  */
 int ext2_symlink_write(ext2_inode_t* inode, const char* path)
 {
-    inode->raw.size = strlen(path);
+    inode->raw->size = strlen(path);
 
-    if (inode->raw.size < 15 * 4 - 1) {
-        strcpy((char*) inode->raw.blocks, path);
+    if (inode->raw->size < 15 * 4 - 1) {
+        strcpy((char*) inode->raw->blocks, path);
     } else {
         // Normale symlinks werden gleich wie regulaere Dateien behandelt
-        size_t res = ext2_inode_writedata(inode, 0, inode->raw.size, path);
+        size_t res = ext2_inode_writedata(inode, 0, inode->raw->size, path);
 
         if (!res) {
             return 0;

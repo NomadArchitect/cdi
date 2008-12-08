@@ -119,7 +119,10 @@ typedef struct ext2_inode_t {
     uint32_t number;
 
     /// Datenstruktur auf der Platte
-    struct ext2_raw_inode_t raw;
+    struct ext2_raw_inode_t* raw;
+
+    /// Cache-Block
+    ext2_cache_block_t* block;
 } ext2_inode_t;
 
 
@@ -131,7 +134,7 @@ typedef struct ext2_inode_t {
 #define EXT2_INODE_MODE_DIR 0x4000
 
 #define EXT2_INODE_IS_FORMAT(i, f) \
-    (((i)->raw.mode & EXT2_INODE_MODE_FORMAT) == f)
+    (((i)->raw->mode & EXT2_INODE_MODE_FORMAT) == f)
 #define EXT2_INODE_IS_SYMLINK(i) EXT2_INODE_IS_FORMAT(i, \
     EXT2_INODE_MODE_SYMLINK)
 #define EXT2_INODE_IS_FILE(i) EXT2_INODE_IS_FORMAT(i, EXT2_INODE_MODE_FILE)
@@ -156,6 +159,13 @@ typedef enum {
  * @return 1 wenn der Inode eingelesen wurde, 0 sonst.
  */
 int ext2_inode_read(ext2_fs_t* fs, uint64_t inode_nr, ext2_inode_t* inode);
+
+/**
+ * Eingelesenen oder neu erstellten Inode im Speicher freigeben
+ *
+ * @param inode Freizugebender Inode
+ */
+void ext2_inode_release(ext2_inode_t* inode);
 
 /**
  * Inode speichern
@@ -249,7 +259,7 @@ int ext2_inode_truncate(ext2_inode_t* inode, uint64_t size);
  * @return Typ
  */
 static inline ext2_inode_type_t ext2_inode_type(ext2_inode_t* inode) {
-    switch (inode->raw.mode & EXT2_INODE_MODE_FORMAT) {
+    switch (inode->raw->mode & EXT2_INODE_MODE_FORMAT) {
         case EXT2_INODE_MODE_DIR:
             return EXT2_IT_DIR;
 

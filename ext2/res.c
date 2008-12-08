@@ -33,6 +33,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string.h>
+
 #include "ext2_cdi.h"
 
 /**
@@ -110,16 +112,35 @@ int ext2_fs_res_load(struct cdi_fs_stream* stream)
     switch (ext2_inode_type(res->inode)) {
         case EXT2_IT_FILE:
             res->res.file = &ext2_fs_file;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.read = 1;
+            res->res.flags.write = 1;
+            res->res.flags.execute = 1;
             break;
 
         case EXT2_IT_DIR:
             res->res.dir = &ext2_fs_dir;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.browse = 1;
+            res->res.flags.create_child = 1;
             dir_fill(stream);
             break;
 
         case EXT2_IT_SYMLINK:
             res->res.link = &ext2_fs_link;
             res->res.link_path = ext2_symlink_read(res->inode);
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.read_link = 1;
+            res->res.flags.write_link = 1;
             break;
 
         // TODO
@@ -149,6 +170,7 @@ int ext2_fs_res_unload(struct cdi_fs_stream* stream)
         dir_clear(stream);
     }
 
+    ext2_inode_release(res->inode);
     free(res->inode);
     res->res.loaded = 0;
     return 1;
@@ -161,10 +183,10 @@ int64_t ext2_fs_res_meta_read(struct cdi_fs_stream* stream, cdi_fs_meta_t meta)
 
     switch (meta) {
         case CDI_FS_META_SIZE:
-            return res->inode->raw.size;
+            return res->inode->raw->size;
 
         case CDI_FS_META_USEDBLOCKS:
-            return res->inode->raw.block_count;
+            return res->inode->raw->block_count;
 
         case CDI_FS_META_BLOCKSZ:
             return 512;
@@ -173,13 +195,13 @@ int64_t ext2_fs_res_meta_read(struct cdi_fs_stream* stream, cdi_fs_meta_t meta)
             return ext2_sb_blocksize(fs->sb);
 
         case CDI_FS_META_CREATETIME:
-            return res->inode->raw.creation_time;
+            return res->inode->raw->creation_time;
 
         case CDI_FS_META_ACCESSTIME:
-            return res->inode->raw.access_time;
+            return res->inode->raw->access_time;
 
         case CDI_FS_META_CHANGETIME:
-            return res->inode->raw.modification_time;
+            return res->inode->raw->modification_time;
     }
 
     return 0;
@@ -192,11 +214,11 @@ int ext2_fs_res_meta_write(struct cdi_fs_stream* stream, cdi_fs_meta_t meta,
    
     switch (meta) {
         case CDI_FS_META_ACCESSTIME:
-            res->inode->raw.access_time = value;
+            res->inode->raw->access_time = value;
             return 1;
 
         case CDI_FS_META_CHANGETIME:
-            res->inode->raw.modification_time = value;
+            res->inode->raw->modification_time = value;
             return 1;
 
         // RO:
@@ -238,6 +260,13 @@ int ext2_fs_res_assign_class(struct cdi_fs_stream* stream,
             }
 
             res->res.file = &ext2_fs_file;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.read = 1;
+            res->res.flags.write = 1;
+            res->res.flags.execute = 1;
             break;
 
         case CDI_FS_CLASS_DIR:
@@ -249,6 +278,14 @@ int ext2_fs_res_assign_class(struct cdi_fs_stream* stream,
             }
 
             res->res.dir = &ext2_fs_dir;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.browse = 1;
+            res->res.flags.create_child = 1;
+
+            res->res.children = cdi_list_create();
             break;
 
         case CDI_FS_CLASS_LINK:
@@ -260,6 +297,12 @@ int ext2_fs_res_assign_class(struct cdi_fs_stream* stream,
             }
 
             res->res.link = &ext2_fs_link;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.read_link = 1;
+            res->res.flags.write_link = 1;
             break;
 
         case CDI_FS_CLASS_SPECIAL:
@@ -301,6 +344,7 @@ int ext2_fs_res_remove_class(struct cdi_fs_stream* stream,
         goto error_out;
     }
 
+    ext2_inode_release(res->inode);
     free(res->inode);
     res->inode = NULL;
 

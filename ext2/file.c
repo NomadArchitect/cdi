@@ -68,7 +68,7 @@ int ext2_fs_file_truncate(struct cdi_fs_stream* stream, uint64_t size)
 {
     struct ext2_fs_res* res = (struct ext2_fs_res*) stream->res;
 
-    if (res->inode->raw.size == 0) {
+    if (res->inode->raw->size == 0) {
         return 1;
     }
 

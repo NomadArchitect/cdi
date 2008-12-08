@@ -34,7 +34,7 @@
  */
 #include <stdio.h>
 
-#include <stdio.h>
+#include <string.h>
 #include "ext2.h"
 
 /**
@@ -118,6 +118,8 @@ int ext2_sb_update(ext2_fs_t* fs, ext2_superblock_t* sb)
     int i;
     int group_count = (sb->block_count + sb->blocks_per_group - 1) / sb->
         blocks_per_group;
+    size_t block_size = ext2_sb_blocksize(fs->sb);
+    ext2_cache_block_t* block;
 
     for (i = 0; i < group_count; i++) {
         if (!bg_has_sb(fs->sb, i)) {
@@ -125,13 +127,12 @@ int ext2_sb_update(ext2_fs_t* fs, ext2_superblock_t* sb)
         }
 
         start = i == 0 ? 1024 : (fs->sb->first_data_block + i * fs->sb->
-            blocks_per_group) * ext2_sb_blocksize(fs->sb);
+            blocks_per_group) * block_size;
 
-        if (!fs->dev_write(start, sizeof(ext2_superblock_t), sb,
-            fs->dev_private))
-        {
-            return 0;
-        }
+        block = fs->cache_block(fs->cache_handle, start / block_size, 1);
+        memcpy(block->data + (start % block_size), sb,
+            sizeof(ext2_superblock_t));
+        fs->cache_block_free(block, 1);
     }
 
     return 1;

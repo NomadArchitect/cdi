@@ -34,6 +34,7 @@
  */
 
 #include "ext2_cdi.h"
+#include <string.h>
 #include <stdio.h>
 
 static int dev_read(uint64_t start, size_t size, void* data, void* prv)
@@ -65,6 +66,7 @@ int ext2_fs_init(struct cdi_fs_filesystem* cdi_fs)
 
     fs->cache_create = cache_create;
     fs->cache_destroy = cache_destroy;
+    fs->cache_sync = cache_sync;
     fs->cache_block = cache_block;
     fs->cache_block_dirty = cache_block_dirty;
     fs->cache_block_free = cache_block_free;
@@ -90,6 +92,7 @@ int ext2_fs_init(struct cdi_fs_filesystem* cdi_fs)
 
 int ext2_fs_destroy(struct cdi_fs_filesystem* fs)
 {
-    return 0;
+    ext2_fs_sync(fs->opaque);
+    return ext2_fs_unmount(fs->opaque);
 }
 

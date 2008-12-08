@@ -38,7 +38,6 @@
 #include <stdio.h>
 
 #include "cdi/fs.h"
-#include "cdi/misc.h"
 
 #include "ext2_cdi.h"
 

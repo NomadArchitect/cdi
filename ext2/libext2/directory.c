@@ -48,11 +48,11 @@ void ext2_dir_foreach(ext2_inode_t* inode,
     int (*handler) (ext2_dirent_t*, void*), void* private)
 {
     ext2_dirent_t* entry;
-    char buf[inode->raw.size];
+    char buf[inode->raw->size];
     uint64_t pos = 0;
 
-    ext2_inode_readdata(inode, 0, inode->raw.size, buf);
-    while (pos < inode->raw.size) {
+    ext2_inode_readdata(inode, 0, inode->raw->size, buf);
+    while (pos < inode->raw->size) {
         entry = (ext2_dirent_t*) &buf[pos];
         pos += entry->record_len;
 
@@ -128,6 +128,7 @@ int ext2_dir_find(ext2_fs_t* fs, const char* path, ext2_inode_t* inode)
             }
 
             dirent = ext2_dir_get(&parent, part);
+            ext2_inode_release(&parent);
             if (!dirent) {
                 return 0;
             }
@@ -158,7 +159,7 @@ int ext2_dir_link(ext2_inode_t* dir, ext2_inode_t* inode, const char* name)
 {
     ext2_dirent_t* entry;
     ext2_dirent_t* newentry;
-    char buf[dir->raw.size];
+    char buf[dir->raw->size];
     uint64_t pos = 0;
     size_t newentry_len = dirent_size(strlen(name) + 1);
     size_t entry_len = 0;
@@ -172,9 +173,9 @@ int ext2_dir_link(ext2_inode_t* dir, ext2_inode_t* inode, const char* name)
         type = ext2_inode_type(inode);
     }
 
-    if (dir->raw.size) {
-    ext2_inode_readdata(dir, 0, dir->raw.size, buf);
-    while (dir->raw.size && (pos < dir->raw.size)) {
+    if (dir->raw->size) {
+    ext2_inode_readdata(dir, 0, dir->raw->size, buf);
+    while (dir->raw->size && (pos < dir->raw->size)) {
         entry = (ext2_dirent_t*) &buf[pos];
         entry_len = dirent_size(entry->name_len);
 
@@ -202,7 +203,7 @@ int ext2_dir_link(ext2_inode_t* dir, ext2_inode_t* inode, const char* name)
                 buf + pos);
 
             // Referenzzaehler erhoehen
-            inode->raw.link_count++;
+            inode->raw->link_count++;
             return 1;
         }
         pos += entry->record_len;
@@ -222,7 +223,7 @@ int ext2_dir_link(ext2_inode_t* dir, ext2_inode_t* inode, const char* name)
         newentry->record_len = newentry_len;
         newentry->type = type;
         ext2_inode_writedata(dir, pos, newentry_len, newbuf);
-        inode->raw.link_count++;
+        inode->raw->link_count++;
         return 1;
     }
     return 0;
@@ -233,24 +234,24 @@ int ext2_dir_unlink(ext2_inode_t* dir, const char* name)
     ext2_dirent_t* prev_entry = NULL;
     ext2_dirent_t* entry;
     ext2_inode_t inode;
-    char buf[dir->raw.size];
+    char buf[dir->raw->size];
     uint64_t pos = 0;
     int ret = 0;
     ext2_blockgroup_t bg;
     uint32_t bgnum;
 
-    ext2_inode_readdata(dir, 0, dir->raw.size, buf);
-    while (pos < dir->raw.size) {
+    ext2_inode_readdata(dir, 0, dir->raw->size, buf);
+    while (pos < dir->raw->size) {
         entry = (ext2_dirent_t*) &buf[pos];
 
         // Eintrag als unbenutzt markieren
         if ((strlen(name) == entry->name_len) &&
-            !strncmp(name, entry->name, entry->name_len))
+            !strncmp(name, entry->name, entry->name_len) && entry->inode)
         {
             if (!ext2_inode_read(dir->fs, entry->inode, &inode)) {
                 return 0;
             }
-            if (--inode.raw.link_count == 0) {
+            if (--inode.raw->link_count == 0) {
                 if (EXT2_INODE_IS_DIR(&inode)) {
                     // Bei Verzeichnissen den Zaehler im Blockgrunppen
                     // deskriptor aktualisieren
@@ -265,6 +266,7 @@ int ext2_dir_unlink(ext2_inode_t* dir, const char* name)
             if (!ext2_inode_update(&inode)) {
                 return 0;
             }
+            ext2_inode_release(&inode);
 
             entry->inode = 0;
             ret = 1;
@@ -277,7 +279,7 @@ int ext2_dir_unlink(ext2_inode_t* dir, const char* name)
 
         pos += entry->record_len;
     }
-    ext2_inode_writedata(dir, 0, dir->raw.size, buf);
+    ext2_inode_writedata(dir, 0, dir->raw->size, buf);
 
     return ret;
 }
@@ -296,8 +298,8 @@ int ext2_dir_create(ext2_inode_t* parent, const char* name, ext2_inode_t* newi)
     bgnum = ext2_inode_to_internal(parent->fs, newi->number) /
         newi->fs->sb->inodes_per_group;
 
-    newi->raw.deletion_time = 0;
-    newi->raw.mode = EXT2_INODE_MODE_DIR | 0777;
+    newi->raw->deletion_time = 0;
+    newi->raw->mode = EXT2_INODE_MODE_DIR | 0777;
 
     // Verzeichniseintraege anlegen
     if (!ext2_dir_link(parent, newi, name) ||

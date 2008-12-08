@@ -93,6 +93,7 @@ int         ext2_fs_link_write(struct cdi_fs_stream* stream, const char* path);
 // Cachefunktionen fuer libext2
 void* cache_create(struct ext2_fs* fs, size_t block_size);
 void cache_destroy(void* handle);
+void cache_sync(void* handle);
 ext2_cache_block_t* cache_block(void* handle, uint64_t block, int noread);
 void cache_block_dirty(ext2_cache_block_t* b);
 void cache_block_free(ext2_cache_block_t* b, int dirty);
