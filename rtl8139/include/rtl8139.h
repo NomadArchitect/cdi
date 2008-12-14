@@ -94,11 +94,13 @@ struct rtl8139_device {
     void*                       phys;
     uint16_t                    port_base;
 
-    uint8_t                     buffer[TX_BUFFER_SIZE];
+    uint8_t                     buffer[TX_BUFFER_SIZE]
+                                    __attribute__ ((aligned (4)));
     int                         buffer_used;
     uint8_t                     cur_buffer;
 
-    uint8_t                     rx_buffer[RX_BUFFER_SIZE];
+    uint8_t                     rx_buffer[RX_BUFFER_SIZE]
+                                    __attribute__ ((aligned (4)));
     uint32_t                    rx_buffer_offset;
 
     cdi_list_t                  pending_sends;
