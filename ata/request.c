@@ -57,6 +57,8 @@ static inline int ata_drv_wait_ready(struct ata_device* dev, uint8_t bits,
     struct ata_controller* ctrl = dev->controller;
     uint32_t time = 0;
 
+    ATA_DELAY(dev->controller);
+
     // Zuerst warten, bis das Busy-Bit nicht meht gesetzt ist, denn erst dann
     // sind die anderen Bits gueltig
     while (((ata_reg_inb(ctrl, REG_STATUS) & STATUS_BSY)) &&
@@ -65,9 +67,9 @@ static inline int ata_drv_wait_ready(struct ata_device* dev, uint8_t bits,
         time += 10;
         cdi_sleep_ms(10);
     }
-    
+
     // Dem Geraet etwas Zeit geben
-    ATA_DELAY();
+    ATA_DELAY(dev->controller);
 
     // Jetzt koennen wir warten bis die gewuenschten Bits gesetzt sind
     while (((ata_reg_inb(ctrl, REG_STATUS) & bits) != bits) &&
@@ -236,7 +238,7 @@ static int ata_protocol_pio_in(struct ata_request* request)
                 } else if ((status & STATUS_BSY) == STATUS_BSY) {
                     // Wenn das Busy-Flag gesetzt ist, muss gewartet werden,
                     // bis es geloescht wird.
-                    cdi_sleep_ms(20);
+                    ATA_DELAY(ctrl);
                 } else if ((status & (STATUS_BSY | STATUS_DRQ)) == STATUS_DRQ)
                 {
                     // Wenn nur DRQ gesetzt ist, sind Daten bereit um abgeholt
@@ -247,14 +249,12 @@ static int ata_protocol_pio_in(struct ata_request* request)
             }
 
             case TRANSFER_DATA: {
-                uint16_t i;
                 uint16_t* buffer = (uint16_t*) (request->buffer + (request->
                     blocks_done * request->block_size));
-                
+
                 // Einen Block einlesen
-                for (i = 0; i < request->block_size / 2; i++) {
-                    buffer[i] = ata_reg_inw(ctrl, REG_DATA);
-                }
+                ata_insw(ata_reg_base(ctrl, REG_DATA) + REG_DATA, buffer,
+                    request->block_size / 2);
 
                 // Anzahl der gelesenen Block erhoehen
                 request->blocks_done++;

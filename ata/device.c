@@ -64,7 +64,7 @@ static int ata_bus_floating(struct ata_controller* controller)
 
     // Master auswaehlen und Status auslesen
     ata_reg_outb(controller, REG_DEVICE, DEVICE_DEV(0));
-    ATA_DELAY();
+    ATA_DELAY(controller);
     status = ata_reg_inb(controller, REG_STATUS);
 
     // Nicht floating
@@ -74,7 +74,7 @@ static int ata_bus_floating(struct ata_controller* controller)
 
     // Slave auswaehlen
     ata_reg_outb(controller, REG_DEVICE, DEVICE_DEV(1));
-    ATA_DELAY();
+    ATA_DELAY(controller);
     status = ata_reg_inb(controller, REG_STATUS);
     return (status == 0xFF);
 }
@@ -94,7 +94,7 @@ static int ata_bus_responsive_drv(struct ata_controller* controller)
     // aus. In der Praxis scheint vmware das nicht so zu machen. Deshalb drehen
     // wir weiter unten noch eine Sonderrunde fuer vmware. ;-)
     ata_reg_outb(controller, REG_DEVICE, DEVICE_DEV(1));
-    ATA_DELAY();
+    ATA_DELAY(controller);
 
     // Jetzt wird irgendwas auf die Ports geschrieben. Die Werte sind absolut
     // egal, solange das selbe beim auslesen zurueckkommt ist gut.
@@ -114,7 +114,7 @@ static int ata_bus_responsive_drv(struct ata_controller* controller)
 
     // Hier noch die kleine Ehrenrunde fuer vmware ;-)
     ata_reg_outb(controller, REG_DEVICE, DEVICE_DEV(0));
-    ATA_DELAY();
+    ATA_DELAY(controller);
 
     // Jetzt wird irgendwas auf die Ports geschrieben. Die Werte sind absolut
     // egal, solange das selbe beim auslesen zurueckkommt ist gut.
@@ -259,7 +259,7 @@ void ata_init_controller(struct ata_controller* controller)
     for (i = 0; i < 2; i++) {
         // Geraet auswaehlen
         ata_reg_outb(controller, REG_DEVICE, DEVICE_DEV(i));
-        ATA_DELAY();
+        ATA_DELAY(controller);
 
         // HOB loeschen und NIEN setzen
         ata_reg_outb(controller, REG_CONTROL, CONTROL_NIEN);
