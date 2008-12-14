@@ -5859,9 +5859,9 @@ int ata_drv_identify(struct ata_device* dev)
 
 40003198 <p>:
 /*  
- * Copyright (c) 2007 The LOST Project. All rights reserved.
+ * Copyright (c) 2007 The tyndur Project. All rights reserved.
  *
- * This code is derived from software contributed to the LOST Project
+ * This code is derived from software contributed to the tyndur Project
 40003198:	55                   	push   %ebp
 40003199:	89 e5                	mov    %esp,%ebp
  * by Antoine Kaufmann.
@@ -5888,9 +5888,9 @@ int ata_drv_identify(struct ata_device* dev)
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *     This product includes software developed by the LOST Project
+ *     This product includes software developed by the tyndur Project
  *     and its contributors.
- * 4. Neither the name of the LOST Project nor the names of its
+ * 4. Neither the name of the tyndur Project nor the names of its
 400031b3:	c9                   	leave  
 400031b4:	c3                   	ret    
 400031b5:	90                   	nop    
@@ -5943,9 +5943,9 @@ int ata_drv_identify(struct ata_device* dev)
 
 40003208 <rpc>:
 /*  
- * Copyright (c) 2007 The LOST Project. All rights reserved.
+ * Copyright (c) 2007 The tyndur Project. All rights reserved.
  *
- * This code is derived from software contributed to the LOST Project
+ * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
 40003208:	55                   	push   %ebp
 40003209:	89 e5                	mov    %esp,%ebp
@@ -5970,13 +5970,13 @@ int ata_drv_identify(struct ata_device* dev)
  *    must display the following acknowledgement:
 4000322a:	83 7d fc 00          	cmpl   $0x0,-0x4(%ebp)
 4000322e:	75 e5                	jne    40003215 <rpc+0xd>
- *     This product includes software developed by the LOST Project
+ *     This product includes software developed by the tyndur Project
 40003230:	c9                   	leave  
 40003231:	c3                   	ret    
 
 40003232 <send_message>:
  *     and its contributors.
- * 4. Neither the name of the LOST Project nor the names of its
+ * 4. Neither the name of the tyndur Project nor the names of its
  *    contributors may be used to endorse or promote products derived
 40003232:	55                   	push   %ebp
 40003233:	89 e5                	mov    %esp,%ebp
@@ -11938,11 +11938,11 @@ char* get_cmdline()
 
 40006b90 <syscall_putsn>:
 /*  
- * Copyright (c) 2007 The LOST Project. All rights reserved.
+ * Copyright (c) 2007 The tyndur Project. All rights reserved.
  *
 40006b90:	55                   	push   %ebp
 40006b91:	89 e5                	mov    %esp,%ebp
- * This code is derived from software contributed to the LOST Project
+ * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
 40006b93:	8b 55 08             	mov    0x8(%ebp),%edx
 40006b96:	8b 45 0c             	mov    0xc(%ebp),%eax
@@ -15466,9 +15466,9 @@ int ata_drv_read_sectors(struct ata_device* dev, uint64_t start, size_t count,
 
 40008de4 <strtol>:
 /*  
- * Copyright (c) 2007 The LOST Project. All rights reserved.
+ * Copyright (c) 2007 The tyndur Project. All rights reserved.
  *
- * This code is derived from software contributed to the LOST Project
+ * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
 40008de4:	55                   	push   %ebp
 40008de5:	89 e5                	mov    %esp,%ebp
@@ -15482,7 +15482,7 @@ int ata_drv_read_sectors(struct ata_device* dev, uint64_t start, size_t count,
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
 40008df3:	ff 45 08             	incl   0x8(%ebp)
- * This code is derived from software contributed to the LOST Project
+ * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15526,7 +15526,7 @@ int ata_drv_read_sectors(struct ata_device* dev, uint64_t start, size_t count,
 40008e39:	83 e8 30             	sub    $0x30,%eax
 40008e3c:	3b 45 10             	cmp    0x10(%ebp),%eax
 40008e3f:	7d 13                	jge    40008e54 <strtol+0x70>
- *     This product includes software developed by the LOST Project
+ *     This product includes software developed by the tyndur Project
  *     and its contributors.
 40008e41:	8b 45 08             	mov    0x8(%ebp),%eax
 40008e44:	8a 00                	mov    (%eax),%al
@@ -15540,9 +15540,9 @@ int ata_drv_read_sectors(struct ata_device* dev, uint64_t start, size_t count,
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
 40008e4f:	e9 9a 00 00 00       	jmp    40008eee <strtol+0x10a>
- *     This product includes software developed by the LOST Project
+ *     This product includes software developed by the tyndur Project
  *     and its contributors.
- * 4. Neither the name of the LOST Project nor the names of its
+ * 4. Neither the name of the tyndur Project nor the names of its
  *    contributors may be used to endorse or promote products derived
 40008e54:	8b 45 08             	mov    0x8(%ebp),%eax
 40008e57:	8a 00                	mov    (%eax),%al
