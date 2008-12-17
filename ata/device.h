@@ -330,4 +330,16 @@ static inline void ata_insw(uint16_t port, void* buffer, uint32_t count)
     asm volatile("rep insw" : "+D"(buffer), "+c"(count) : "d"(port) : "memory");
 }
 
+/**
+ * Mehrere Words auf einen Port schreiben
+ *
+ * @param port   Portnummer
+ * @param buffer Puffer aus dem die Words gelesen werden sollen
+ * @param count  Anzahl der Words
+ */
+static inline void ata_outsw(uint16_t port, void* buffer, uint32_t count)
+{
+    asm volatile("rep outsw" : "+S"(buffer), "+c"(count) : "d"(port) : "memory");
+}
+
 #endif

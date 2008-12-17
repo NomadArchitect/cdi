@@ -327,7 +327,7 @@ static int ata_protocol_pio_out(struct ata_request* request)
                 } else if ((status & STATUS_BSY) == STATUS_BSY) {
                     // Wenn das Busy-Flag gesetzt ist, muss gewartet werden,
                     // bis es geloescht wird.
-                    cdi_sleep_ms(20);
+                    ATA_DELAY(ctrl);
                 } else if ((status & (STATUS_BSY | STATUS_DRQ)) == STATUS_DRQ)
                 {
                     // Wenn nur DRQ gesetzt ist, ist der Kontroller bereit um
@@ -339,14 +339,12 @@ static int ata_protocol_pio_out(struct ata_request* request)
             }
 
             case TRANSFER_DATA: {
-                uint16_t i;
                 uint16_t* buffer = (uint16_t*) (request->buffer + (request->
                     blocks_done * request->block_size));
-                
+
                 // Einen Block schreiben
-                for (i = 0; i < request->block_size / 2; i++) {
-                    ata_reg_outw(ctrl, REG_DATA, buffer[i]);
-                }
+                ata_outsw(ata_reg_base(ctrl, REG_DATA) + REG_DATA, buffer,
+                    request->block_size / 2);
 
                 // Anzahl der geschriebenen Block erhoehen
                 request->blocks_done++;
