@@ -91,9 +91,6 @@ static void sis900_driver_init(int argc, char* argv[])
         .ip = 0x0b01a8c0
     };
 
-    // Debugausgaben auf VT2
-    stdout = fopen("vterm:/vterm1/out", "w");
-
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &driver);
     
