@@ -323,6 +323,8 @@ void ata_remove_controller(struct ata_controller* controller)
 
 void ata_init_device(struct cdi_device* device)
 {
+    struct ata_device* dev = (struct ata_device*) device;
+    cdi_storage_device_init(&dev->storage);
 }
 
 void ata_remove_device(struct cdi_device* device)

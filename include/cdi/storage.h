@@ -75,6 +75,12 @@ void cdi_storage_driver_destroy(struct cdi_storage_driver* driver);
  */
 void cdi_storage_driver_register(struct cdi_storage_driver* driver);
 
+/**
+ * Initialisiert einen Massenspeicher
+ */
+void cdi_storage_device_init(struct cdi_storage_device* device);
+
+
 #endif
 
 /*\@}*/

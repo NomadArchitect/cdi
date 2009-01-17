@@ -796,6 +796,8 @@ void floppy_init_device(struct cdi_device* device)
 
     dev->dev.block_size = FLOPPY_SECTOR_SIZE(dev);
     dev->dev.block_count = FLOPPY_SECTOR_COUNT(dev);
+
+    cdi_storage_device_init(&dev->dev);
 }
 
 /**
