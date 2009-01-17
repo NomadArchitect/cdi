@@ -32,6 +32,9 @@ struct cdi_device {
     cdi_device_type_t   type;
     const char*         name;
     struct cdi_driver*  driver;
+
+    // tyndur-spezifisch
+    void*               backdev;
 };
 
 struct cdi_driver {
