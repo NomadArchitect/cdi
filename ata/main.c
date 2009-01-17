@@ -38,21 +38,19 @@
 #include <stdio.h>
 
 #include "cdi/storage.h"
-#include "cdi/pci.h"
 #include "cdi/lists.h"
 
 #include "device.h"
 
-struct ata_driver {
-    struct cdi_storage_driver storage;
-};
-
-static struct ata_driver driver;
-static const char* driver_name = "ata";
+static struct cdi_storage_driver driver_storage;
+static struct cdi_scsi_driver driver_scsi;
+static const char* driver_storage_name = "ata";
+static const char* driver_scsi_name = "atapi";
 static cdi_list_t controller_list = NULL;
 
 static void ata_driver_init(void);
 static void ata_driver_destroy(struct cdi_driver* driver);
+static void atapi_driver_destroy(struct cdi_driver* driver);
 
 #ifdef CDI_STANDALONE
 int main(void)
@@ -62,7 +60,8 @@ int init_ata(void)
 {
     cdi_init();
     ata_driver_init();
-    cdi_storage_driver_register((struct cdi_storage_driver*) &driver);
+    cdi_storage_driver_register((struct cdi_storage_driver*) &driver_storage);
+    cdi_scsi_driver_register((struct cdi_scsi_driver*) &driver_scsi);
 
 #ifdef CDI_STANDALONE
     cdi_run_drivers();
@@ -79,21 +78,27 @@ static void ata_driver_init()
     struct ata_controller* controller;
 
     // Konstruktor der Vaterklasse
-    cdi_storage_driver_init((struct cdi_storage_driver*) &driver);
+    cdi_storage_driver_init((struct cdi_storage_driver*) &driver_storage);
+    cdi_scsi_driver_init((struct cdi_scsi_driver*) &driver_scsi);
     
     // Namen setzen
-    driver.storage.drv.name = driver_name;
+    driver_storage.drv.name = driver_storage_name;
+    driver_scsi.drv.name = driver_scsi_name;
 
     // Funktionspointer initialisieren
-    driver.storage.drv.destroy          = ata_driver_destroy;
-    driver.storage.drv.init_device      = ata_init_device;
-    driver.storage.drv.remove_device    = ata_remove_device;
-    driver.storage.read_blocks          = ata_read_blocks;
-    driver.storage.write_blocks         = ata_write_blocks;
+    driver_storage.drv.destroy          = ata_driver_destroy;
+    driver_storage.drv.init_device      = ata_init_device;
+    driver_storage.drv.remove_device    = ata_remove_device;
+    driver_storage.read_blocks          = ata_read_blocks;
+    driver_storage.write_blocks         = ata_write_blocks;
+
+    driver_scsi.drv.destroy             = atapi_driver_destroy;
+    driver_scsi.drv.init_device         = atapi_init_device;
+    driver_scsi.drv.remove_device       = atapi_remove_device;
+    driver_scsi.request                 = atapi_request;
     
     // Liste mit Controllern initialisieren
     controller_list = cdi_list_create();
-    
     
     // Primaeren Controller vorbereiten
     controller = malloc(sizeof(*controller));
@@ -101,7 +106,8 @@ static void ata_driver_init()
     controller->port_ctl_base = ATA_PRIMARY_CTL_BASE;
     controller->irq = ATA_PRIMARY_IRQ;
     controller->id = 0;
-    controller->driver = (struct cdi_storage_driver*) &driver;
+    controller->storage = (struct cdi_storage_driver*) &driver_storage;
+    controller->scsi = (struct cdi_scsi_driver*) &driver_scsi;
     ata_init_controller(controller);
     cdi_list_push(controller_list, controller);
     
@@ -111,7 +117,8 @@ static void ata_driver_init()
     controller->port_ctl_base = ATA_SECONDARY_CTL_BASE;
     controller->irq = ATA_SECONDARY_IRQ;
     controller->id = 1;
-    controller->driver = (struct cdi_storage_driver*) &driver;
+    controller->storage = (struct cdi_storage_driver*) &driver_storage;
+    controller->scsi = (struct cdi_scsi_driver*) &driver_scsi;
     ata_init_controller(controller);
     cdi_list_push(controller_list, controller);
 }
@@ -124,4 +131,9 @@ static void ata_driver_destroy(struct cdi_driver* driver)
     cdi_storage_driver_destroy((struct cdi_storage_driver*) driver);
 
     // TODO Alle Karten deinitialisieren
+}
+
+static void atapi_driver_destroy(struct cdi_driver* driver)
+{
+    cdi_scsi_driver_destroy((struct cdi_scsi_driver*) driver);
 }

@@ -40,11 +40,10 @@
 #include "cdi/storage.h"
 #include "cdi/misc.h"
 #include "cdi/io.h"
+#include "cdi/scsi.h"
 
 #include "device.h"
 #include "libpartition.h"
-
-#define MAX(a, b) (a > b ? a : b)
 
 // IRQ-Handler
 static inline void ata_controller_irq(struct cdi_device* dev);
@@ -76,6 +75,8 @@ static int ata_bus_floating(struct ata_controller* controller)
     ata_reg_outb(controller, REG_DEVICE, DEVICE_DEV(1));
     ATA_DELAY(controller);
     status = ata_reg_inb(controller, REG_STATUS);
+
+    // Wenn alle Bits gesetzt sind, ist der Bus floating
     return (status == 0xFF);
 }
 
@@ -182,13 +183,13 @@ void ata_parse_partitions(struct ata_device* dev)
 
     // Die Partitionstabelle liegt im MBR
     if (!dev->read_sectors(dev, 0, 1, mbr)) {
-        printf("ata: Fehler beim Einlesen der Partitionstabelle");
+        DEBUG("Fehler beim Einlesen der Partitionstabelle");
         return;
     }
 
     // Partitionstabelle Verarbeiten
     if (!partition_table_fill(&partition_table, mbr)) {
-        printf("ata: Fehler beim Verarbeiten der Partitionstabelle");
+        DEBUG("Fehler beim Verarbeiten der Partitionstabelle");
         return;
     }
 
@@ -197,23 +198,23 @@ void ata_parse_partitions(struct ata_device* dev)
         if (partition_table.entries[i].used) {
             // Erweiterter Eintrag => ueberspringen
             if (partition_table.entries[i].type == PARTITION_TYPE_EXTENDED) {
-                printf("ata: TODO Erweiterte Partitionstabelleneintraege\n");
+                DEBUG("TODO Erweiterte Partitionstabelleneintraege\n");
                 continue;
             }
             
             struct ata_partition* partition = malloc(sizeof(*partition));
-            partition->dev = dev;
+            partition->realdev = dev;
             partition->null = NULL;
             partition->start = partition_table.entries[i].start;
-            partition->storage.block_size = ATA_SECTOR_SIZE;
-            partition->storage.block_count = partition_table.entries[i].size;
-            printf("ata: Partition von %d bis %d\n", partition->start, partition->storage.block_count + partition->start - 1);
-            asprintf((char**) &(partition->storage.dev.name), "ata%01d%01d_p%01d",
+            partition->dev.storage.block_size = ATA_SECTOR_SIZE;
+            partition->dev.storage.block_count = partition_table.entries[i].size;
+            DEBUG("Partition von %d bis %d\n", partition->start, partition->dev.storage.block_count + partition->start - 1);
+            asprintf((char**) &(partition->dev.storage.dev.name), "ata%01d%01d_p%01d",
                 (uint32_t) dev->controller->id, dev->id, cdi_list_size(dev->
                 partition_list));
 
             // Geraet registrieren
-            cdi_list_push(dev->controller->driver->drv.devices, partition);
+            cdi_list_push(dev->controller->storage->drv.devices, partition);
 
             // An Partitionsliste fuer das aktuelle Geraet anhaengen
             cdi_list_push(dev->partition_list, partition);
@@ -233,11 +234,11 @@ void ata_init_controller(struct ata_controller* controller)
 
     // Ports registrieren
     if (cdi_ioports_alloc(controller->port_cmd_base, 8) != 0) {
-        printf("ata: Fehler beim allozieren der I/O-Ports\n");
+        DEBUG("Fehler beim allozieren der I/O-Ports\n");
         return;
     }
     if (cdi_ioports_alloc(controller->port_ctl_base, 1) != 0) {
-        printf("ata: Fehler beim allozieren der I/O-Ports\n");
+        DEBUG("Fehler beim allozieren der I/O-Ports\n");
         cdi_ioports_free(controller->port_cmd_base, 8);
         return;
     }
@@ -267,7 +268,7 @@ void ata_init_controller(struct ata_controller* controller)
 
     // Jetzt pruefen wir ob der Bus leer ist (mehr dazu bei ata_bus_floating).
     if (ata_bus_floating(controller)) {
-        printf("ata: Floating Bus %d\n", controller->id);
+        DEBUG("Floating Bus %d\n", controller->id);
         return;
     }
     
@@ -275,7 +276,7 @@ void ata_init_controller(struct ata_controller* controller)
     // darauf geachtet werden, dass der Master auch antworten muss, wenn zwar
     // der Slave ausgewaehlt ist, aber nicht existiert.
     if (!ata_bus_responsive_drv(controller)) {
-        printf("ata: No responsive drive on Bus %d\n", controller->id);
+        DEBUG("No responsive drive on Bus %d\n", controller->id);
         return;
     }
 
@@ -285,30 +286,39 @@ void ata_init_controller(struct ata_controller* controller)
         struct ata_device* dev = malloc(sizeof(*dev));
         dev->controller = controller;
         dev->id = i;
-        dev->storage.block_size = ATA_SECTOR_SIZE;
         dev->partition_list = cdi_list_create();
 
         if (ata_drv_identify(dev)) {
-            printf("Bus %d  Device %d: ATAPI=%d\n", (uint32_t) controller->id, i, dev->atapi);
+            DEBUG("Bus %d  Device %d: ATAPI=%d\n", (uint32_t) controller->id, i, dev->atapi);
+
+#ifdef ATAPI_ENABLE
             if (dev->atapi == 0) {
+#endif
+                dev->dev.storage.block_size = ATA_SECTOR_SIZE;
+
                 // Handler setzen
                 dev->read_sectors = ata_drv_read_sectors;
                 dev->write_sectors = ata_drv_write_sectors;
                 
                 // Name setzen
-                asprintf((char**) &(dev->storage.dev.name), "ata%01d%01d",
+                asprintf((char**) &(dev->dev.storage.dev.name), "ata%01d%01d",
                     (uint32_t) controller->id, i);
 
                 // Partitionen parsen
                 ata_parse_partitions(dev);
+
+                // Geraet registrieren
+                cdi_list_push(controller->storage->drv.devices, dev);
+#ifdef ATAPI_ENABLE
             } else {
                 // Name setzen
-                asprintf((char**) &(dev->storage.dev.name), "atapi%01d%01d",
+                asprintf((char**) &(dev->dev.scsi.dev.name),"atapi%01d%01d",
                     (uint32_t) controller->id, i);
-            }
             
             // Geraet registrieren
-            cdi_list_push(controller->driver->drv.devices, dev);
+                cdi_list_push(controller->scsi->drv.devices, dev);
+            }
+#endif
         } else {
             free(dev);
         }
@@ -324,7 +334,7 @@ void ata_remove_controller(struct ata_controller* controller)
 void ata_init_device(struct cdi_device* device)
 {
     struct ata_device* dev = (struct ata_device*) device;
-    cdi_storage_device_init(&dev->storage);
+    cdi_storage_device_init(&dev->dev.storage);
 }
 
 void ata_remove_device(struct cdi_device* device)
@@ -346,7 +356,7 @@ int ata_read_blocks(struct cdi_storage_device* device, uint64_t block,
     // Partition
     if (dev->controller == NULL) {
         partition = (struct ata_partition*) dev;
-        dev = partition->dev;
+        dev = partition->realdev;
     }
 
     // Natuerlich nur ausfuehren wenn ein Handler eingetragen ist
@@ -376,7 +386,7 @@ int ata_write_blocks(struct cdi_storage_device* device, uint64_t block,
     // Partition
     if (dev->controller == NULL) {
         partition = (struct ata_partition*) dev;
-        dev = partition->dev;
+        dev = partition->realdev;
     }
 
     // Natuerlich nur ausfuehren wenn ein Handler eingetragen ist

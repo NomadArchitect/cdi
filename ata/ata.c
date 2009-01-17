@@ -44,172 +44,6 @@
 #include "device.h"
 
 /**
- * Resultat beim IDENTIFY DEVICE Befehl
- */
-struct ata_identfiy_data {
-    struct {
-        uint8_t                         : 7;    
-        uint8_t     removable           : 1;
-        uint8_t                         : 7;
-        uint8_t     ata                 : 1;
-    } __attribute__((packed)) general_config;
-
-    uint16_t        log_cyl;                    // Veraltet
-    uint16_t                            : 16;
-    uint16_t        log_heads;                  // Veraltet
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    uint16_t        log_spt;                    // Veraltet
-    uint16_t                            : 16;
-    // 8
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    char            serial_number[20];
-    // 20
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    char            firmware_revision[8];
-    // 27
-    char            model_number[40];
-    uint8_t                             : 8; // Immer 0x80
-    uint8_t         max_sec_per_irq;
-    // 48
-    uint16_t                            : 16;
-    struct {
-        uint16_t                        : 8;
-        uint8_t     dma                 : 1;
-        uint8_t     lba                 : 1;
-        uint8_t     iordy_disabled      : 1;
-        uint8_t     irdy_supported      : 1;
-        uint8_t                         : 1;
-        uint8_t                         : 1;    // Irgendwas mit Standbytimer
-        uint8_t                         : 2;
-    } __attribute__((packed)) capabilities;
-    uint16_t                            : 16; // Noch ein paar Faehigkeiten,
-                                              // die wir aber sicher nicht
-                                              // brauchen
-    uint8_t                             : 8;
-    uint8_t         pio_mode_number;
-    uint16_t                            : 16;
-    struct {
-        uint8_t     current_chs         : 1;    // Words 54-56
-        uint8_t     transfer_settings   : 1;    // Words 64-70
-        uint8_t     ultra_dma           : 1;    // Word 88
-        uint16_t                        : 13;
-    } __attribute__((packed)) valid_words;
-    uint16_t        cur_log_cyl;                // Veraltet
-    uint16_t        cur_log_heads;              // Veraltet
-    // 56
-    uint16_t        cur_log_spt;                // Veraltet
-    uint16_t        chs_capacity[2];            // Veraltet
-    struct {
-        uint8_t     cur_sec_per_int     : 8;
-        uint8_t     setting_valid       : 1;
-        uint8_t                         : 7;
-    } __attribute__((packed)) multi_sector;
-    uint32_t        lba_sector_count;           // LBA28
-    uint16_t                            : 16;
-    struct {
-        uint8_t                         : 1;
-        uint8_t     mode0_supported     : 1;
-        uint8_t     mode1_supported     : 1;
-        uint8_t     mode2_supported     : 1;
-        uint8_t                         : 4;
-        uint8_t     mode0_selected      : 1;
-        uint8_t     mode1_selected      : 1;
-        uint8_t     mode2_selected      : 1;
-        uint8_t                         : 5;
-    } __attribute__((packed)) multiword_dma;
-    // 64
-    uint8_t         pio_modes_supported;
-    uint8_t                             : 8;
-    // Multiword dma Zeiten
-    uint16_t        mwd_time1;
-    uint16_t        mwd_time2;
-    uint16_t        mwd_time3;
-    uint16_t        mwd_time4;
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    // 72
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    struct {
-        uint8_t     max_depth           : 5;
-        uint16_t                        : 11;
-    } __attribute__((packed)) queue_depth;
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    uint16_t                            : 16;
-    // 80
-    union {
-        uint16_t    raw;
-        struct {
-            uint8_t                     : 1;
-            uint8_t ata1                : 1;
-            uint8_t ata2                : 1;
-            uint8_t ata3                : 1;
-            uint8_t ata4                : 1;
-            uint8_t ata5                : 1;
-            uint8_t ata6                : 1;
-            uint8_t ata7                : 1;
-            uint16_t                    : 8;
-        } __attribute__((packed)) bits;
-    } major_version;
-    uint16_t        minor_version;
-    
-    union {
-        uint16_t    raw[2];
-        struct {
-            // Word 82
-            uint8_t smart               : 1;
-            uint8_t security_mode       : 1;
-            uint8_t removable_media     : 1;
-            uint8_t power_management    : 1;
-            uint8_t packet              : 1;
-            uint8_t write_cache         : 1;
-            uint8_t look_ahead          : 1;
-            uint8_t release_int         : 1;
-            uint8_t service_int         : 1;
-            uint8_t device_reset        : 1;
-            uint8_t hpa                 : 1; // Host protected area
-            uint8_t                     : 1;
-            uint8_t write_buffer        : 1;
-            uint8_t read_buffer         : 1;
-            uint8_t nop                 : 1;
-            uint8_t                     : 1;
-
-            // Word 83
-            uint8_t download_microcode  : 1;
-            uint8_t rw_dma_queued       : 1;
-            uint8_t cfa                 : 1;
-            uint8_t apm                 : 1; // Advanced power management
-            uint8_t removable_media_sn  : 1; // R. Media Status notification
-            uint8_t power_up_standby    : 1;
-            uint8_t set_features_spinup : 1;
-            uint8_t                     : 1;
-            uint8_t set_max_security    : 1;
-            uint8_t auto_acoustic_mngmnt: 1; // Automatic acoustic management
-            uint8_t lba48               : 1;
-            uint8_t dev_config_overlay  : 1;
-            uint8_t flush_cache         : 1;
-            uint8_t flush_cache_ext     : 1;
-            uint8_t                     : 2;
-        } __attribute__((packed)) bits;
-    } features_support;
-    // 83
-    uint16_t        todo[17];
-    // 100
-    uint64_t        max_lba48_address;
-    // 107
-    uint16_t        todo2[153];
-} __attribute__((packed));
-
-
-/**
  * ATA-Geraet identifizieren
  *
  * @return 0 Wenn das Geraet erfolgreich identifiziert wurde, != 0 sonst
@@ -245,17 +79,17 @@ int ata_drv_identify(struct ata_device* dev)
     // Pruefen, welche LBA-Modi dabei sind
     if (id.features_support.bits.lba48) {
         dev->lba48 = 1;
-        dev->storage.block_count = id.max_lba48_address;
+        dev->dev.storage.block_count = id.max_lba48_address;
     }
     if (id.capabilities.lba) {
         dev->lba28 = 1;
-        dev->storage.block_count = id.lba_sector_count;
+        dev->dev.storage.block_count = id.lba_sector_count;
     }
 
     // Wenn keiner der LBA-Modi unterstuetzt wird, muss abgebrochen werden, da
     // CHS noch nicht implementiert ist.
     if (!dev->lba48 && !dev->lba28) {
-        printf("ata: Geraet unterstuetzt nur CHS.\n");
+        DEBUG("Geraet unterstuetzt nur CHS.\n");
         return 0;
     }
 

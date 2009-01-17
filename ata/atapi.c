@@ -40,6 +40,7 @@
 #include "cdi/storage.h"
 #include "cdi/misc.h"
 #include "cdi/io.h"
+#include "cdi/scsi.h"
 
 #include "device.h"
 
@@ -51,7 +52,7 @@
  */
 int atapi_drv_identify(struct ata_device* dev)
 {
-    uint8_t buffer[ATA_SECTOR_SIZE];
+    struct ata_identfiy_data id;
 
     // Request vorbereiten
     struct ata_request request = {
@@ -66,7 +67,7 @@ int atapi_drv_identify(struct ata_device* dev)
         .registers.ata.command = IDENTIFY_PACKET_DEVICE,
         .block_count = 1,
         .block_size = ATA_SECTOR_SIZE,
-        .buffer = buffer,
+        .buffer = &id,
 
         .error = 0
     };
@@ -80,8 +81,73 @@ int atapi_drv_identify(struct ata_device* dev)
     // Es handelt sich um ein ATAPI-Geraet
     dev->atapi = 1;
 
-    // TODO: Informationen verarbeiten
-
     return 1;
 }
 
+void atapi_init_device(struct cdi_device* device)
+{
+    struct cdi_scsi_device* scsi = (struct cdi_scsi_device*) device;
+
+    scsi->type = CDI_STORAGE;
+    cdi_scsi_device_init(scsi);
+}
+
+void atapi_remove_device(struct cdi_device* device)
+{
+
+}
+
+int atapi_request(struct cdi_scsi_device* scsi,struct cdi_scsi_packet* packet)
+{
+    struct ata_device *dev = (struct ata_device*)scsi;
+    struct ata_request request = {
+        .dev = dev,
+        .protocol = PIO,
+        .flags = {
+            .direction = WRITE,
+            .poll = 1,
+            .ata = 0, // Ich brauch nur ATA-Befehle (Packet)
+            .lba = 0 // Der Kommentar in device.h ist kein deutscher Satz!
+        },
+        .registers = {
+            .ata = {
+                .command = PACKET,
+                .lba = 0x00FFFF00 // Sonst hat bei mir nachher nichts in den
+                                  // LBA-Registern dringestanden und die
+                                  // braucht man ja fuer die Paketgroesse.
+            }
+        },
+        .block_count = 1,
+        .block_size = packet->cmdsize,
+        .blocks_done = 0,
+        .buffer = packet->command,
+        .error = 0
+    };
+
+    if (ata_request(&request))
+    {
+        struct ata_request rw_request = {
+            .dev = dev,
+            .flags = {
+                .poll = 1,
+                .lba = 1,
+                .ata = 1
+            },
+            .block_count = 1,
+            .block_size = packet->bufsize,
+            .blocks_done = 0,
+            .buffer = packet->buffer,
+            .error = 0
+        };
+
+        // Lesen bzw. Schreiben der Daten
+        // TODO: DMA
+        if (packet->direction==CDI_SCSI_READ) ata_protocol_pio_in(&rw_request);
+        else if (packet->direction==CDI_SCSI_WRITE) ata_protocol_pio_in(&rw_request);
+
+        // Sense Key zurueck
+        return (ata_reg_inb(dev->controller,REG_ERROR)>>4);
+    }
+
+    return 0xB;
+}
