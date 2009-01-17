@@ -23,7 +23,8 @@
 typedef enum {
     CDI_UNKNOWN         = 0,
     CDI_NETWORK         = 1,
-    CDI_STORAGE         = 2
+    CDI_STORAGE         = 2,
+    CDI_SCSI            = 3,
 } cdi_device_type_t;
 
 struct cdi_driver;
