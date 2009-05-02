@@ -24,7 +24,29 @@
  */
 void cdi_register_irq(uint8_t irq, void (*handler)(struct cdi_device*), 
     struct cdi_device* device);
-    
+
+/**
+ * Setzt den IRQ-Zaehler fuer cdi_wait_irq zurueck.
+ *
+ * @param irq Nummer des IRQ
+ *
+ * @return 0 bei Erfolg, -1 im Fehlerfall
+ */
+int cdi_reset_wait_irq(uint8_t irq);
+
+/**
+ * Wartet bis der IRQ aufgerufen wurde. Der interne Zaehler muss zuerst mit
+ * cdi_reset_wait_irq zurueckgesetzt werden, damit auch die IRQs abgefangen
+ * werden koennen, die kurz vor dem Aufruf von dieser Funktion aufgerufen
+ * werden.
+ *
+ * @param irq       Nummer des IRQ auf den gewartet werden soll
+ * @param timeout   Anzahl der Millisekunden, die maximal gewartet werden sollen
+ *
+ * @return 0 wenn der irq aufgerufen wurde, -1 sonst.
+ */
+int cdi_wait_irq(uint8_t irq, uint32_t timeout);
+
 /**
  * Reserviert physisch zusammenhaengenden Speicher.
  *
