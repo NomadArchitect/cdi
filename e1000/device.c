@@ -72,9 +72,10 @@ static void reset_nic(struct e1000_device* netcard)
 
     // Reset ausfuehren
     reg_outl(netcard, REG_CTL, CTL_PHY_RESET);
-    while (reg_inl(netcard, REG_CTL) & CTL_PHY_RESET);
+    cdi_sleep_ms(10);
 
     reg_outl(netcard, REG_CTL, CTL_RESET);
+    cdi_sleep_ms(10);
     while (reg_inl(netcard, REG_CTL) & CTL_RESET);
 
     // Kontrollregister initialisieren
