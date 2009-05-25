@@ -131,14 +131,33 @@ int ramdisk_fs_res_assign_class(struct cdi_fs_stream* stream,
     switch (class) {
         case CDI_FS_CLASS_FILE:
             res->res.file = &ramdisk_fs_file;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.read = 1;
+            res->res.flags.write = 1;
+            res->res.flags.execute = 1;
             break;
 
         case CDI_FS_CLASS_DIR:
             res->res.dir = &ramdisk_fs_dir;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.browse = 1;
+            res->res.flags.create_child = 1;
             break;
 
         case CDI_FS_CLASS_LINK:
             res->res.link = &ramdisk_fs_link;
+
+            res->res.flags.remove = 1;
+            res->res.flags.rename = 1;
+            res->res.flags.move = 1;
+            res->res.flags.read_link = 1;
+            res->res.flags.write_link = 1;
             break;
 
         case CDI_FS_CLASS_SPECIAL:

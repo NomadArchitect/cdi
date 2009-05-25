@@ -46,6 +46,11 @@ int ramdisk_fs_init(struct cdi_fs_filesystem* cdi_fs)
     root_res->res.name = strdup("/");
     root_res->res.res = &ramdisk_fs_res;
     root_res->res.dir = &ramdisk_fs_dir;
+    root_res->res.flags.remove = 1;
+    root_res->res.flags.rename = 1;
+    root_res->res.flags.move = 1;
+    root_res->res.flags.browse = 1;
+    root_res->res.flags.create_child = 1;
     root_res->res.loaded = 1;
     root_res->res.children = cdi_list_create();
     root_res->creation_time = 0;
