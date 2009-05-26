@@ -259,6 +259,16 @@ int ata_protocol_pio_in(struct ata_request* request)
                 uint16_t* buffer = (uint16_t*) (request->buffer + (request->
                     blocks_done * request->block_size));
 
+                // Wenn wir nicht pollen, muessen wir den Zahler zuruecksetzen,
+                // da wir sonst moeglicherweise einen IRQ verpassen wenn wir das
+                // erst nach dem insw machen. Das sollte auch nicht gleich nach
+                // dem Warten gemacht werden, da es moeglich ist, dass der IRQ
+                // nochmal feuert, wenn das Statusregister noch nicht gelesen
+                // wurde.
+                if (!request->flags.poll) {
+                    cdi_reset_wait_irq(ctrl->irq);
+                }
+
                 ata_insw(ata_reg_base(ctrl, REG_DATA) + REG_DATA, buffer,
                     request->block_size / 2);
 
@@ -370,6 +380,16 @@ int ata_protocol_pio_out(struct ata_request* request)
             case TRANSFER_DATA: {
                 uint16_t* buffer = (uint16_t*) (request->buffer + (request->
                     blocks_done * request->block_size));
+
+                // Wenn wir nicht pollen, muessen wir den Zaehler zuruecksetzen,
+                // da wir sonst moeglicherweise einen IRQ verpassen wenn wir das
+                // erst nach dem outsw machen. Das sollte auch nicht gleich nach
+                // dem Warten gemacht werden, da es moeglich ist, dass der IRQ
+                // nochmal feuert, wenn das Statusregister noch nicht gelesen
+                // wurde.
+                if (!request->flags.poll) {
+                    cdi_reset_wait_irq(ctrl->irq);
+                }
 
                 // Einen Block schreiben
                 ata_outsw(ata_reg_base(ctrl, REG_DATA) + REG_DATA, buffer,
