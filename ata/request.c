@@ -1,5 +1,5 @@
 /*  
- * Copyright (c) 2007 The tyndur Project. All rights reserved.
+ * Copyright (c) 2007-2009 The tyndur Project. All rights reserved.
  *
  * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
@@ -160,7 +160,7 @@ static int ata_protocol_non_data(struct ata_request* request)
         switch (state) {
             case IRQ_WAIT:
                 // Auf IRQ warten
-                if (ata_wait_irq(ctrl, ATA_IRQ_TIMEOUT)) {
+                if (!ata_wait_irq(ctrl, ATA_IRQ_TIMEOUT)) {
                     request->error = IRQ_TIMEOUT;
                     DEBUG("non_data IRQ-Timeout\n");
                     return 0;
@@ -216,7 +216,7 @@ int ata_protocol_pio_in(struct ata_request* request)
         switch (state) {
             case IRQ_WAIT:
                 // Auf IRQ warten
-                if (ata_wait_irq(ctrl, ATA_IRQ_TIMEOUT)) {
+                if (!ata_wait_irq(ctrl, ATA_IRQ_TIMEOUT)) {
                     request->error = IRQ_TIMEOUT;
                     DEBUG("pio_in IRQ-Timeout\n");
                     return 0;
@@ -313,7 +313,7 @@ int ata_protocol_pio_out(struct ata_request* request)
         switch (state) {
             case IRQ_WAIT:
                 // Auf IRQ warten
-                if (ata_wait_irq(ctrl, ATA_IRQ_TIMEOUT)) {
+                if (!ata_wait_irq(ctrl, ATA_IRQ_TIMEOUT)) {
                     request->error = IRQ_TIMEOUT;
                     DEBUG("pio_out IRQ-Timeout\n");
                     return 0;
