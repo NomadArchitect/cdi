@@ -336,7 +336,6 @@ struct ata_controller {
     uint16_t                    port_cmd_base;
     uint16_t                    port_ctl_base;
     uint16_t                    irq;
-    uint16_t                    irq_cnt;
 
     // Wird auf 1 gesetzt wenn IRQs benutzt werden sollen, also das NIEN-Bit im
     // Control register nicht aktiviert ist.

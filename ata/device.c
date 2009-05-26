@@ -1,5 +1,5 @@
 /*  
- * Copyright (c) 2007 The tyndur Project. All rights reserved.
+ * Copyright (c) 2007-2009 The tyndur Project. All rights reserved.
  *
  * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
@@ -142,10 +142,10 @@ static int ata_bus_responsive_drv(struct ata_controller* controller)
  */
 static void ata_controller_irq(struct cdi_device* dev)
 {
-    struct ata_device* ata_dev = (struct ata_device*) dev;
-    struct ata_controller* ctrl = ata_dev->controller;
-
-    ctrl->irq_cnt++;
+    // Hier muessen wir eigentlich garnichts tun, da wir immer nur auf IRQs
+    // warten wollen, und dafuer stellt CDI Funktionen zur Verfuegung. Doch
+    // registriert muss der IRQ dennoch werden, und dort muessen wir einen
+    // Handler angeben, sonst fliegt uns das beim ersten IRQ um die Ohren.
 }
 
 /**
@@ -157,16 +157,8 @@ static void ata_controller_irq(struct cdi_device* dev)
  */
 int ata_wait_irq(struct ata_controller* controller, uint32_t timeout)
 {
-    uint32_t time = 0;
-
-    // Warten bis der IRQ-Zaehler vom Handler erhoeht wird
-    while (controller->irq_cnt == 0) {
-        cdi_sleep_ms(20);
-        time += 20;
-
-        if (timeout <= time) {
-            return 0;
-        }
+    if (cdi_wait_irq(controller->irq, timeout)) {
+        return 0;
     }
 
     return 1;

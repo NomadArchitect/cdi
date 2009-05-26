@@ -96,7 +96,7 @@ static int ata_request_command(struct ata_request* request)
     
     // IRQ-Zaehler zuruecksetzen, egal ob er gebraucht wird oder nicht, stoert
     // ja niemanden
-    ctrl->irq_cnt = 0;
+    cdi_reset_wait_irq(ctrl->irq);
 
     ata_drv_select(dev);
 
