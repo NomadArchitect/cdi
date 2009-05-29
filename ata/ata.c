@@ -1,5 +1,5 @@
 /*  
- * Copyright (c) 2007 The tyndur Project. All rights reserved.
+ * Copyright (c) 2007-2009 The tyndur Project. All rights reserved.
  *
  * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
@@ -86,6 +86,11 @@ int ata_drv_identify(struct ata_device* dev)
         dev->dev.storage.block_count = id.lba_sector_count;
     }
 
+    // Pruefen ob DMA unterstuetzt wird
+    if (id.capabilities.dma) {
+        dev->dma = 1;
+    }
+
     // Wenn keiner der LBA-Modi unterstuetzt wird, muss abgebrochen werden, da
     // CHS noch nicht implementiert ist.
     if (!dev->lba48 && !dev->lba28) {
@@ -122,38 +127,59 @@ static int ata_drv_rw_sectors(struct ata_device* dev, int direction,
     uint16_t current_count;
     void* current_buffer = buffer;
     uint64_t lba = start;
-
+    int max_count;
     // Anzahl der Sektoren die noch uebrig sind
     size_t count_left = count;
+
+
+
+    // Request vorbereiten
+    request.dev = dev;
+    request.flags.poll = 0;
+    request.flags.ata = 0;
+    request.flags.lba = 1;
+
+    // Richtung festlegen
+    if (direction == 0) {
+        request.flags.direction = READ;
+    } else {
+        request.flags.direction = WRITE;
+    }
+
+
+    if (dev->dma && dev->controller->dma_use) {
+        // DMA
+        max_count = ATA_DMA_MAXSIZE / ATA_SECTOR_SIZE;
+        if (direction) {
+            request.registers.ata.command = WRITE_SECTORS_DMA;
+        } else {
+            request.registers.ata.command = READ_SECTORS_DMA;
+        }
+        request.protocol = DMA;
+    } else {
+        // PIO
+        max_count = 256;
+        if (direction) {
+            request.registers.ata.command = WRITE_SECTORS;
+        } else {
+            request.registers.ata.command = READ_SECTORS;
+        }
+        request.protocol = PIO;
+
+        // Mit PIO pollen wir lieber, da IRQs dort _wirklich langsam_ sind
+        request.flags.poll = 1;
+    }
 
     // Solange wie noch Sektoren uebrig sind, wird gelesen
     while (count_left > 0) {
         // Entscheiden wieviele Sektoren im aktuellen Durchlauf gelesen werden
-        if (count_left > 256) {
-            current_count = 256;
+        if (count_left > max_count) {
+            current_count = max_count;
         } else {
             current_count = count_left;
         }
         
-        // Request vorbereiten
-        request.dev = dev;
-        // TODO: DMA, UltraDMA...
-        request.protocol = PIO;
 
-        // FIXME
-        request.flags.poll = 1;
-        request.flags.ata = 0;
-        request.flags.lba = 1;
-
-        // Richtung festlegen
-        if (direction == 0) {
-            request.flags.direction = READ;
-            request.registers.ata.command = READ_SECTORS;
-        } else {
-            request.flags.direction = WRITE;
-            request.registers.ata.command = WRITE_SECTORS;
-        }
-        
         // Achtung: Beim casten nach uint8_t wird bei 256 Sektoren eine 0.
         // Das macht aber nichts, da in der Spezifikation festgelegt ist,
         // dass 256 Sektoren gelesen werden sollen, wenn im count-Register

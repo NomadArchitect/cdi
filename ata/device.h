@@ -1,5 +1,5 @@
 /*  
- * Copyright (c) 2007 The tyndur Project. All rights reserved.
+ * Copyright (c) 2007-2009 The tyndur Project. All rights reserved.
  *
  * This code is derived from software contributed to the tyndur Project
  * by Antoine Kaufmann.
@@ -48,6 +48,10 @@
 
 #define ATAPI_ENABLE
 
+#define PCI_CLASS_ATA           0x01
+#define PCI_SUBCLASS_ATA        0x01
+#define PCI_VENDOR_VIA          0x1106
+
 #define ATA_PRIMARY_CMD_BASE    0x1F0
 #define ATA_PRIMARY_CTL_BASE    0x3F6
 #define ATA_PRIMARY_IRQ         14
@@ -76,6 +80,7 @@
 // Diese Register werden ueber die port_cmd_base angesprochen
 #define REG_DATA                0x0
 #define REG_ERROR               0x1
+#define REG_FEATURES            0x1
 #define REG_SEC_CNT             0x2
 #define REG_LBA_LOW             0x3
 #define REG_LBA_MID             0x4
@@ -109,6 +114,24 @@
 #define CONTROL_HOB             (1 << 7)
 #define CONTROL_SRST            (1 << 2)
 #define CONTROL_NIEN            (1 << 1)
+
+
+// Busmaster-Register (in port_bmr_base)
+#define BMR_COMMAND             0x0
+#define BMR_STATUS              0x2
+#define BMR_PRDT                0x4
+
+// Bits im Busmaster Command Register
+#define BMR_CMD_START           (1 << 0)
+#define BMR_CMD_WRITE           (1 << 3)
+
+// Bits im Busmaster Status Register
+#define BMR_STATUS_ERROR        (1 << 1)
+#define BMR_STATUS_IRQ          (1 << 2)
+
+/// Maximale Groesse eines DMA-Transfers
+#define ATA_DMA_MAXSIZE         (64 * 1024)
+
 
 // Debug
 #ifdef DEBUG_ENABLE
@@ -320,7 +343,10 @@ struct ata_device {
 
     // 1 Wenn das Geraet lba28 unterstuetzt
     uint8_t                     lba28;
-    
+
+    /// 1 wenn das Geraet DMA unterstuetzt
+    uint8_t                     dma;
+
     // Funktionen fuer den Zugriff auf dieses Geraet
     int (*read_sectors) (struct ata_device* dev, uint64_t start, size_t count,
         void* dest);
@@ -335,13 +361,26 @@ struct ata_controller {
     uint8_t                     id;
     uint16_t                    port_cmd_base;
     uint16_t                    port_ctl_base;
+    uint16_t                    port_bmr_base;
     uint16_t                    irq;
 
     // Wird auf 1 gesetzt wenn IRQs benutzt werden sollen, also das NIEN-Bit im
     // Control register nicht aktiviert ist.
     int                         irq_use;
+    /// Wird auf 1 gesetzt wenn DMA benutzt werden darf
+    int                         dma_use;
     // HACKKK ;-)
     struct ata_device           irq_dev;
+
+
+    /// Physische Adresse der Physical Region Descriptor Table (fuer DMA)
+    uint64_t*                   prdt_phys;
+    /// Virtuelle Adresse der Physical Region Descriptor Table (fuer DMA)
+    uint64_t*                   prdt_virt;
+    /// Physische Adresse des DMA-Puffers
+    void*                       dma_buf_phys;
+    /// Virtuelle Adresse des DMA-Puffers
+    void*                       dma_buf_virt;
 };
 
 struct ata_request {
@@ -349,7 +388,8 @@ struct ata_request {
     
     enum {
         NON_DATA,
-        PIO
+        PIO,
+        DMA,
     } protocol;
 
     // Flags fuer die Uebertragung
@@ -377,10 +417,14 @@ struct ata_request {
                 IDENTIFY_PACKET_DEVICE = 0xA1,
                 PACKET = 0xA0,
                 READ_SECTORS = 0x20,
-                WRITE_SECTORS = 0x30
+                READ_SECTORS_DMA = 0xC8,
+                SET_FEATURES = 0xEF,
+                WRITE_SECTORS = 0x30,
+                WRITE_SECTORS_DMA = 0xCA,
             } command;
             uint8_t count;
             uint64_t lba;
+            uint8_t features;
         } ata;
     } registers;
 

@@ -231,8 +231,13 @@ void ata_init_controller(struct ata_controller* controller)
     }
     if (cdi_ioports_alloc(controller->port_ctl_base, 1) != 0) {
         DEBUG("Fehler beim allozieren der I/O-Ports\n");
-        cdi_ioports_free(controller->port_cmd_base, 8);
-        return;
+        goto error_free_cmdbase;
+    }
+    if (controller->port_bmr_base &&
+        (cdi_ioports_alloc(controller->port_bmr_base, 8) != 0))
+    {
+        DEBUG("ata: Fehler beim allozieren der I/O-Ports\n");
+        goto error_free_ctlbase;
     }
     
     // Da NIEN nicht ueberall sauber funktioniert, muss jetzt trotzdem schon
@@ -315,6 +320,23 @@ void ata_init_controller(struct ata_controller* controller)
             free(dev);
         }
     }
+
+    // Abschliessend wird noch DMA vorbereitet, wenn moeglich
+    if (controller->port_bmr_base) {
+        cdi_alloc_phys_mem(sizeof(uint64_t), (void**) &controller->prdt_virt,
+            (void**) &controller->prdt_phys);
+        cdi_alloc_phys_mem(ATA_DMA_MAXSIZE, (void**) &controller->dma_buf_virt,
+            (void**) &controller->dma_buf_phys);
+
+        controller->dma_use = 1;
+    }
+
+    return;
+
+error_free_ctlbase:
+    cdi_ioports_free(controller->port_ctl_base, 1);
+error_free_cmdbase:
+    cdi_ioports_free(controller->port_cmd_base, 8);
 }
 
 void ata_remove_controller(struct ata_controller* controller)

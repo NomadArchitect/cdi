@@ -120,6 +120,9 @@ static int ata_request_command(struct ata_request* request)
     // TODO: HOB
     ata_reg_outb(ctrl, REG_CONTROL, control);
 
+    // Features-Register schreiben
+    ata_reg_outb(ctrl, REG_FEATURES, request->registers.ata.features);
+
     // Count-Register schrieben
     ata_reg_outb(ctrl, REG_SEC_CNT, request->registers.ata.count);
     
@@ -415,6 +418,109 @@ int ata_protocol_pio_out(struct ata_request* request)
 }
 
 /**
+ * Initialisiert DMA fuer einen Transfer
+ */
+static int ata_request_dma_init(struct ata_request* request)
+{
+    struct ata_device* dev = request->dev;
+    struct ata_controller* ctrl = dev->controller;
+    uint64_t size = request->block_size * request->block_count;
+
+    *ctrl->prdt_virt = (uint32_t) ctrl->dma_buf_phys;
+    // Groesse nicht ueber 64K, 0 == 64K
+    *ctrl->prdt_virt |= (size & (ATA_DMA_MAXSIZE - 1)) << 32L;
+    // Letzter Eintrag in PRDT
+    *ctrl->prdt_virt |= (uint64_t) 1L << 63L;
+
+    // Die laufenden Transfers anhalten
+    cdi_outb(ctrl->port_bmr_base + BMR_COMMAND, 0);
+    cdi_outb(ctrl->port_bmr_base + BMR_STATUS,
+        cdi_inb(ctrl->port_bmr_base + BMR_STATUS) | BMR_STATUS_ERROR |
+        BMR_STATUS_IRQ);
+
+    // Adresse der PRDT eintragen
+    cdi_outl(ctrl->port_bmr_base + BMR_PRDT, (uint32_t) ctrl->prdt_phys);
+
+    if (request->flags.direction != READ) {
+        memcpy(ctrl->dma_buf_virt, request->buffer, size);
+    }
+    return 1;
+}
+
+/**
+ * Verarbeitet einen ATA-Request bei dem Daten ueber DMA uebertragen werden
+ * sollen
+ */
+static int ata_protocol_dma(struct ata_request* request)
+{
+    struct ata_device* dev = request->dev;
+    struct ata_controller* ctrl = dev->controller;
+
+    // Aktueller Status im Protokoll
+    enum {
+        IRQ_WAIT,
+        CHECK_STATUS,
+    } state;
+
+    // Wozu das lesen und dieser Register gut ist, weiss ich nicht, doch ich
+    // habe es so in verschiedenen Treibern gesehen, deshalb gehe ich mal davon
+    // aus, dass es notwendig ist.
+    cdi_inb(ctrl->port_bmr_base + BMR_COMMAND);
+    cdi_inb(ctrl->port_bmr_base + BMR_STATUS);
+    // Busmastering starten
+    if (request->flags.direction != READ) {
+        cdi_outb(ctrl->port_bmr_base + BMR_COMMAND, BMR_CMD_START |
+            BMR_CMD_WRITE);
+    } else {
+        cdi_outb(ctrl->port_bmr_base + BMR_COMMAND, BMR_CMD_START);
+    }
+    cdi_inb(ctrl->port_bmr_base + BMR_COMMAND);
+    cdi_inb(ctrl->port_bmr_base + BMR_STATUS);
+
+
+    if (request->flags.poll) {
+        state = CHECK_STATUS;
+    } else {
+        state = IRQ_WAIT;
+    }
+
+    while (1) {
+        switch (state) {
+            case IRQ_WAIT:
+                // Auf IRQ warten
+                if (!ata_wait_irq(ctrl, ATA_IRQ_TIMEOUT)) {
+                    request->error = IRQ_TIMEOUT;
+                    DEBUG("dma IRQ-Timeout\n");
+                    return 0;
+                }
+
+                state = CHECK_STATUS;
+                break;
+
+            case CHECK_STATUS: {
+                uint8_t status = ata_reg_inb(ctrl, REG_STATUS);
+
+                // Sicherstellen dass der Transfer abgeschlossen ist. Bei
+                // polling ist das hier noch nicht umbedingt der Fall.
+                if ((status & (STATUS_BSY | STATUS_DRQ)) == 0) {
+                    cdi_inb(ctrl->port_bmr_base + BMR_STATUS);
+                    cdi_outb(ctrl->port_bmr_base + BMR_COMMAND, 0);
+                    goto out_success;
+                }
+                break;
+            }
+        }
+    }
+
+out_success:
+    if (request->flags.direction == READ) {
+        memcpy(request->buffer, ctrl->dma_buf_virt,
+            request->block_size * request->block_count);
+    }
+    return 1;
+}
+
+/**
  * Fuehrt einen ATA-Request aus.
  *
  * @return 1 Wenn der Request erfolgreich bearbeitet wurde, 0 sonst
@@ -422,6 +528,13 @@ int ata_protocol_pio_out(struct ata_request* request)
 int ata_request(struct ata_request* request)
 {
    // printf("ata: [%d:%d] Request command=%x count=%x lba=%llx protocol=%x\n", request->dev->controller->id, request->dev->id, request->registers.ata.command, request->registers.ata.count, request->registers.ata.lba, request->protocol);
+
+    // Bei einem DMA-Request muss der DMA-Controller erst vorbereitet werden
+    if ((request->protocol == DMA) && !ata_request_dma_init(request)) {
+        DEBUG("ata: Fehler beim Initialisieren des DMA-Controllers\n");
+        return 0;
+    }
+
     // Befehl ausfuehren
     if (!ata_request_command(request)) {
         DEBUG("Fehler bei der Befehlsausfuehrung\n");
@@ -447,6 +560,15 @@ int ata_request(struct ata_request* request)
                 return 0;
             }
             break;
+
+        case DMA:
+            if (!ata_protocol_dma(request)) {
+                return 0;
+            }
+            break;
+
+        default:
+            return 0;
     }
     return 1;
 }
