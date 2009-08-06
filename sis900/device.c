@@ -29,13 +29,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
-#include <syscall.h>
 
 #include "cdi.h"
 #include "cdi/misc.h"
 
 #include "device.h"
 #include "sis900_io.h"
+
+#ifdef TYNDUR
+#include <syscall.h>
+#endif
+
 
 #undef DEBUG
 
@@ -272,9 +276,13 @@ void sis900_send_packet(struct cdi_net_device* device, void* data, size_t size)
 
     // Warten, bis das Paket gesendet ist
     // FIXME: Nicht portabel
+#ifdef TYNDUR
     qword timeout = get_tick_count() + 500000;
     while ((netcard->tx_desc[cur].status & DESC_STATUS_OWN) 
         && (get_tick_count() < timeout));
+#else
+    while (netcard->tx_desc[cur].status & DESC_STATUS_OWN);
+#endif
 
 #ifdef DEBUG
     if (netcard->tx_desc[cur].status & DESC_STATUS_OWN) {        

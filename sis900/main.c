@@ -41,8 +41,10 @@ struct module_options {
     uint32_t ip;
 };
 
-// FIXME: LOST-spezifisch
+#ifdef TYNDUR
 uint32_t string_to_ip(char* ip);
+#endif
+
 static void process_parameter(struct module_options* options, char* param);
 
 struct sis900_driver {
@@ -68,7 +70,7 @@ int init_sis900(int argc, char* argv[])
 
 #ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif    
+#endif
 
     return 0;
 }
@@ -94,12 +96,14 @@ static void sis900_driver_init(int argc, char* argv[])
     driver.net.drv.destroy         = sis900_driver_destroy;
     driver.net.drv.init_device     = sis900_init_device;
     driver.net.drv.remove_device   = sis900_remove_device;
-    
+
     // Parameter verarbeiten
     int i;
+#ifdef TYNDUR
     for (i = 1; i < argc; i++) {
         process_parameter(&options, argv[i]);
     }
+#endif
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -117,7 +121,9 @@ static void sis900_driver_init(int argc, char* argv[])
 
             device->phys = phys_device;
             device->pci = dev;
+#ifdef TYNDUR
             device->net.ip = options.ip;
+#endif
             cdi_list_push(driver.net.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
@@ -130,6 +136,7 @@ static void sis900_driver_init(int argc, char* argv[])
     cdi_list_destroy(pci_devices);
 }
 
+#ifdef TYNDUR
 static void process_parameter(struct module_options* options, char* param)
 {
     printf("sis900-Parameter: %s\n", param);
@@ -142,6 +149,7 @@ static void process_parameter(struct module_options* options, char* param)
         printf("Unbekannter Parameter %s\n", param);
     }
 }
+#endif
 
 /**
  * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
