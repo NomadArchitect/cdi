@@ -37,7 +37,6 @@
 #include "cdi/io.h"
 
 #include <stdio.h>
-#include <syscall.h>
 
 static void pcnet_handle_interrupt(struct cdi_device* device);
 static void pcnet_reset(struct pcnet_device *netcard);
@@ -118,8 +117,6 @@ void pcnet_remove_device(struct cdi_device* device)
 void pcnet_send_packet
     (struct cdi_net_device* device, void* data, size_t size)
 {
-//    p();
-
     struct pcnet_device *netcard = (struct pcnet_device*) device;
 
     if (netcard->last_transmit_descriptor > 7)netcard->last_transmit_descriptor = 0;
@@ -140,14 +137,10 @@ void pcnet_send_packet
     
     ++netcard->last_transmit_descriptor;
     if (netcard->last_transmit_descriptor == 8)netcard->last_transmit_descriptor = 0;
-
-//    v();
 }
 
 static void pcnet_handle_interrupt(struct cdi_device* device)
 {
-//    p();
-
     struct pcnet_device* netcard = (struct pcnet_device*) device;
 
     if (netcard->init_wait_for_irq == 1)
@@ -156,7 +149,6 @@ static void pcnet_handle_interrupt(struct cdi_device* device)
         pcnet_write_csr(netcard, CSR_STATUS, csr0);
         DEBUG_MSG("Interrupt (wait for irq)");
         netcard->init_wait_for_irq = 0;
-//        v();
         return;
     }
 
@@ -216,8 +208,6 @@ static void pcnet_handle_interrupt(struct cdi_device* device)
         // Clear the interrupt request
         pcnet_write_csr(netcard, CSR_STATUS, STATUS_INTERRUPT_ENABLE | STATUS_RECEIVE_INTERRUPT);
     }
-
-//    v();
 }
 
 static void pcnet_reset(struct pcnet_device *netcard)

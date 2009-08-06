@@ -52,8 +52,10 @@ static struct {
 
 static const char* driver_name = "pcnet";
 
+#ifdef TYNDUR
 // FIXME: LOST-spezifisch
 uint32_t string_to_ip(char* ip);
+#endif
 
 static void process_parameter(struct module_options* options, char* param);
 static int pcnet_driver_init(int argc, char* argv[]);
@@ -118,7 +120,9 @@ static int pcnet_driver_init(int argc, char* argv[])
             memset(device, 0, sizeof(struct pcnet_device));
 
             device->pci = dev;
+#ifdef TYNDUR
             device->net.ip = options.ip;
+#endif
             cdi_list_push(driver.net.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
@@ -133,6 +137,7 @@ static int pcnet_driver_init(int argc, char* argv[])
 
 static void process_parameter(struct module_options* options, char* param)
 {
+#ifdef TYNDUR
     printf("pcnet-Parameter: %s\n", param);
 
     if (strncmp(param, "ip=", 3) == 0) {
@@ -142,6 +147,7 @@ static void process_parameter(struct module_options* options, char* param)
     } else {
         printf("Unbekannter Parameter %s\n", param);
     }
+#endif
 }
 
 /**
