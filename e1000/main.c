@@ -69,9 +69,6 @@ int init_e1000(void)
  */
 static void e1000_driver_init()
 {
-    // Debugausgaben auf VT2
-    stdout = fopen("vterm:/vterm1/out", "w");
-
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &driver);
 
