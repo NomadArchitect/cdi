@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "cdi/net.h"
 #include "cdi/pci.h"

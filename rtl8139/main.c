@@ -44,8 +44,10 @@ static struct {
 
 static const char* driver_name = "rtl8139";
 
-// FIXME: LOST-spezifisch
+#ifdef TYNDUR
+// FIXME: tyndur-spezifisch
 uint32_t string_to_ip(char* ip);
+#endif
 
 static void process_parameter(struct module_options* options, char* param);
 static int rtl8139_driver_init(int argc, char* argv[]);
@@ -113,7 +115,9 @@ static int rtl8139_driver_init(int argc, char* argv[])
 
             device->phys = phys_device;
             device->pci = dev;
+#ifdef TYNDUR
             device->net.ip = options.ip;
+#endif
             cdi_list_push(driver.net.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
@@ -128,6 +132,7 @@ static int rtl8139_driver_init(int argc, char* argv[])
 
 static void process_parameter(struct module_options* options, char* param)
 {
+#ifdef TYNDUR
     printf("rtl8139-Parameter: %s\n", param);
 
     if (strncmp(param, "ip=", 3) == 0) {
@@ -137,6 +142,7 @@ static void process_parameter(struct module_options* options, char* param)
     } else {
         printf("Unbekannter Parameter %s\n", param);
     }
+#endif
 }
 
 /**
