@@ -57,9 +57,7 @@ int init_ata(int argc, char* argv[])
     cdi_storage_driver_register((struct cdi_storage_driver*) &driver_storage);
     cdi_scsi_driver_register((struct cdi_scsi_driver*) &driver_scsi);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif    
 
     return 0;
 }

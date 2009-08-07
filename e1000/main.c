@@ -57,9 +57,7 @@ int init_e1000(void)
     e1000_driver_init();
     cdi_driver_register((struct cdi_driver*) &driver);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif
 
     return 0;
 }

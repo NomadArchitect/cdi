@@ -58,9 +58,7 @@ int init_ramdisk(void)
     }
     cdi_fs_driver_register((struct cdi_fs_driver*) &ramdisk_driver);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif
 
     return 0;
 }

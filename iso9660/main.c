@@ -45,9 +45,7 @@ int init_iso9660(void)
     if (iso9660_driver_init(&iso9660_driver)!=0) return -1;
     cdi_fs_driver_register((struct cdi_fs_driver*)&iso9660_driver);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif
 
     return 0;
 }

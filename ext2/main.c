@@ -64,9 +64,7 @@ int init_ext2(void)
     }
     cdi_fs_driver_register((struct cdi_fs_driver*) &ext2_driver);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif
 
     return 0;
 }

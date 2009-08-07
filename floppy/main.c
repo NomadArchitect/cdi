@@ -63,9 +63,7 @@ int init_floppy(void)
     }
     cdi_storage_driver_register((struct cdi_storage_driver*) &floppy_driver);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif    
 
     return 0;
 }

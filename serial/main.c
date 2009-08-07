@@ -58,9 +58,7 @@ int init_serial(void)
     }
     cdi_fs_driver_register((struct cdi_fs_driver*) &serial_driver);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif
 
     return 0;
 }

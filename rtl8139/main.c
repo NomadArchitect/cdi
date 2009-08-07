@@ -64,9 +64,7 @@ int init_rtl8139(int argc, char* argv[])
     rtl8139_driver_init(argc, argv);
     cdi_driver_register((struct cdi_driver*) &driver);
 
-#ifdef CDI_STANDALONE
     cdi_run_drivers();
-#endif
 
     return 0;
 }
