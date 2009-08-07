@@ -217,7 +217,7 @@ static void pcnet_reset(struct pcnet_device *netcard)
     cdi_sleep_ms(10);
 
     // Set software style to PCnet-PCI 32bit
-    pcnet_write_bcr(netcard, BCR_SOFTWARE_STYLE, 0x02);
+    pcnet_write_bcr(netcard, BCR_SOFTWARE_STYLE, 0x0102);
 
     DEBUG_MSG("Reset");
 }
