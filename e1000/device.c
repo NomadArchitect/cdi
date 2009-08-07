@@ -36,7 +36,7 @@
 #include "device.h"
 #include "e1000_io.h"
 
-#define DEBUG
+#undef DEBUG
 
 #define PHYS(netcard, field) \
     ((uintptr_t) netcard->phys + offsetof(struct e1000_device, field))
@@ -293,6 +293,8 @@ static void e1000_handle_interrupt(struct cdi_device* device)
     } else if (icr & ICR_TRANSMIT) {
         // Nichts zu tun
     } else {
+#ifdef DEBUG
         printf("e1000: Unerwarteter Interrupt.\n");
+#endif
     }
 }
