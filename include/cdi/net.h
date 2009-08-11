@@ -29,9 +29,6 @@ struct cdi_net_device {
 
     void (*send_packet)
         (struct cdi_net_device* device, void* data, size_t size);
-
-    // LOST-spezifisch
-    uint32_t            ip;
 };
 
 struct cdi_net_driver {
