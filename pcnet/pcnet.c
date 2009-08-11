@@ -37,6 +37,7 @@
 #include "cdi/io.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static void pcnet_handle_interrupt(struct cdi_device* device);
 static void pcnet_reset(struct pcnet_device *netcard);
