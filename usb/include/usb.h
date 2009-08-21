@@ -28,10 +28,11 @@
 #include "cdi/misc.h"
 #include "cdi/pci.h"
 
-
-#define PACKET_SETUP 0x2D
-#define PACKET_IN    0x69
-#define PACKET_OUT   0xE1
+enum usb_packet_type {
+    PACKET_SETUP = 0x2D,
+    PACKET_IN    = 0x69,
+    PACKET_OUT   = 0xE1,
+};
 
 #define NO_DATA       0x01
 #define DEV_TO_HOST   0x80
@@ -270,6 +271,22 @@ struct msclass_data
     struct endpoint_desc *bulk_ep_out;
 };
 
+/** Beschreibt ein USB-Paket */
+struct usb_packet {
+    /// Der Typ des Pakets (PACKET_IN, PACKET_OUT, PACKET_SETUP)
+    enum usb_packet_type type;
+    /// Der gewuenschte Endpoint (0 bis 15)
+    int endpoint;
+    /// Die physische Adresse des zu verwendenden Datenpuffers
+    uintptr_t phys_data;
+    /// Die Laenge des Puffers
+    int length;
+    /// Gibt an, ob DATA0 (0) oder DATA1 (1) verwendet werden soll
+    int datatoggle;
+    /// Typ der Daten (zur Sicherheit, damit es kein doofes STALL gibt)
+    int type_of_data;
+};
+
 
 #include "uhci.h"
 
@@ -277,7 +294,7 @@ struct msclass_data
 #define HCI_STRUCT_SIZE sizeof(struct uhci)
 
 
-int do_packet(struct usb_device *device, int type, int endpoint, uintptr_t phys_data, int length, int datatoggle, int type_of_data);
+int usb_do_packet(struct usb_device *device, struct usb_packet* packet);
 void enumerate_hci(struct hci *);
 struct cdi_driver *init_uhcd(void);
 void init_msc_driver(void);

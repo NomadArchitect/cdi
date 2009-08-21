@@ -97,44 +97,41 @@ static const int next_data_type[9] = {
 * Verarbeitet ein USB-Paket.
 *
 * @param device Das USB-Gerät
-* @param type Der Typ des Pakets (PACKET_IN, PACKET_OUT, PACKET_SETUP)
-* @param endpoint Der gewünschte Endpoint (0 bis 15)
-* @param phys_data Die physische Adresse des zu verwendenden Datenpuffers
-* @param length Die Länge des Puffers
-* @param datatoggle Gibt an, ob DATA0 (0) oder DATA1 (1) verwendet werden soll
-* @param type_of_data Typ der Daten (zur Sicherheit, damit es kein doofes STALL gibt)
 */
 
-int do_packet(struct usb_device *device, int type, int endpoint, uintptr_t phys_data, int length, int datatoggle, int type_of_data)
+int usb_do_packet(struct usb_device *device, struct usb_packet* packet)
 {
     int error;
     int tod_short;
 
-    if (!(device->expects & type_of_data)) {
-        dprintf("Expected 0x%04X, got 0x%04X...?\n", device->expects, type_of_data);
+    if (!(device->expects & packet->type_of_data)) {
+        dprintf("Expected 0x%04X, got 0x%04X...?\n", device->expects,
+            packet->type_of_data);
+        // FIXME Das ist keine elegante Loesung des Problems
         for (;;);
     }
-    type_of_data >>= 1;
-    for (tod_short = 0; type_of_data; tod_short++) {
-        type_of_data >>= 1;
+    packet->type_of_data >>= 1;
+    for (tod_short = 0; packet->type_of_data; tod_short++) {
+        packet->type_of_data >>= 1;
     }
     //dprintf("TOD: %s\n", tod_name[tod_short]);
     device->expects = next_data_type[tod_short];
-    endpoint &= 0x07;
-    type &= 0xFF;
+    packet->endpoint &= 0x07;
+    packet->type &= 0xFF;
     if (device->stalled) //TODO: Irgendwie entstallen, evtl.? oO
     {
         dprintf("Zugriff auf stalled-Gerät verweigert.\n");
         return USB_STALLED;
     }
     error = device->hci->do_packet(device->hci,
-                                   (device->hci->get_frame(device->hci) + 3) & 0x3FF,
-                                   type, device->id, endpoint,
-                                   device->low_speed, phys_data, length,
-                                   datatoggle);
+        (device->hci->get_frame(device->hci) + 3) & 0x3FF,
+        packet->type, device->id, packet->endpoint,
+        device->low_speed, packet->phys_data, packet->length,
+        packet->datatoggle);
     if (error == USB_STALLED)
     {
-        printf("[usb] ENDPOINT %i DES GERÄTS %i STALLED!\n", endpoint, device->id);
+        printf("[usb] ENDPOINT %i DES GERÄTS %i STALLED!\n",
+            packet->endpoint, device->id);
         device->stalled = 1;
     }
     return error;
@@ -164,10 +161,21 @@ static void *do_control(struct usb_device *device, int direction, void *buffer, 
     setup->value = value;
     setup->index = index;
     setup->length = length;
-    if (do_packet(device, PACKET_SETUP, 0, psetup, sizeof(struct setup_packet),
-                  0, USB_TOD_SETUP) != USB_NO_ERROR) {
+
+    struct usb_packet setup_packet = {
+        .type           = PACKET_SETUP,
+        .endpoint       = 0,
+        .phys_data      = psetup,
+        .length         = sizeof(*setup),
+        .datatoggle     = 0,
+        .type_of_data   = USB_TOD_SETUP,
+    };
+
+
+    if (usb_do_packet(device, &setup_packet)) {
         return NULL;
     }
+
     cdi_sleep_ms(20);
     if (no_data)
     {
@@ -176,22 +184,40 @@ static void *do_control(struct usb_device *device, int direction, void *buffer, 
     }
     else
     {
-        if (direction == DEV_TO_HOST) {
-            rval = do_packet(device, PACKET_IN, 0, pbuf, length, 1,
-                             USB_TOD_SETUP_DATA_IN);
-        } else {
-            rval = do_packet(device, PACKET_OUT, 0, pbuf, length, 1,
-                             USB_TOD_SETUP_DATA_OUT);
-        }
+        struct usb_packet data_packet = {
+            .type           = (direction == DEV_TO_HOST ?
+                              PACKET_IN : PACKET_OUT),
+            .endpoint       = 0,
+            .phys_data      = pbuf,
+            .length         = length,
+            .datatoggle     = 1,
+            .type_of_data   = (direction == DEV_TO_HOST ?
+                              USB_TOD_SETUP_DATA_IN : USB_TOD_SETUP_DATA_OUT),
+        };
+
+        rval = usb_do_packet(device, &data_packet);
     }
+
     if (rval == USB_NO_ERROR)
     {
+        struct usb_packet ack_packet = {
+            .endpoint       = 0,
+            .phys_data      = 0,
+            .length         = 0,
+            .datatoggle     = 1,
+        };
+
         cdi_sleep_ms(20);
+
         if (no_data || (direction == HOST_TO_DEV)) {
-            rval = do_packet(device, PACKET_IN, 0, 0, 0, 1, USB_TOD_SETUP_ACK_IN);
+            ack_packet.type         = PACKET_IN;
+            ack_packet.type_of_data = USB_TOD_SETUP_ACK_IN;
         } else {
-            rval = do_packet(device, PACKET_OUT, 0, 0, 0, 1, USB_TOD_SETUP_ACK_OUT);
+            ack_packet.type         = PACKET_OUT;
+            ack_packet.type_of_data = USB_TOD_SETUP_ACK_OUT;
         }
+
+        rval = usb_do_packet(device, &ack_packet);
     }
     return (rval == USB_NO_ERROR) ? rbuf : NULL;
 }

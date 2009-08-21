@@ -187,7 +187,7 @@ void register_msd(struct usb_device *usbdev)
         strgdev->block_count = bc;
         size = bs;
         size *= bc;
-        dprintf("%s: %i * %i B (ca. %i MB).\n", strgdev->dev.name, bc, bs, size >> 20);
+        dprintf("%s: %i * %i B (ca. %lld MB).\n", strgdev->dev.name, bc, bs, size >> 20);
     }
     cdi_storage_device_init(strgdev);
     cdi_list_push(cdi_driver.drv.devices, strgdev);
@@ -208,6 +208,36 @@ static void kill_driver(struct cdi_driver *cdi_msc_driver)
 static void deinit_msd(struct cdi_device *cdi_msd)
 {
     //TODO: Und gerade hier...
+}
+
+static int write_cmd(struct usb_device* usbdev, uintptr_t src)
+{
+    struct msclass_data *msc = (struct msclass_data*) usbdev->classd;
+    struct usb_packet cmd_packet = {
+        .type           = PACKET_OUT,
+        .endpoint       = msc->bulk_ep_out->endpoint_address,
+        .phys_data      = src,
+        .length         = 0x1F,
+        .datatoggle     = 0,
+        .type_of_data   = USB_TOD_COMMAND,
+    };
+
+    return usb_do_packet(usbdev, &cmd_packet);
+}
+
+static int read_status(struct usb_device* usbdev, uintptr_t dest)
+{
+    struct msclass_data *msc = (struct msclass_data*) usbdev->classd;
+    struct usb_packet status_packet = {
+        .type           = PACKET_IN,
+        .endpoint       = msc->bulk_ep_in->endpoint_address,
+        .phys_data      = dest,
+        .length         = 0x0D,
+        .datatoggle     = 0,
+        .type_of_data   = USB_TOD_STATUS,
+    };
+
+    return usb_do_packet(usbdev, &status_packet);
 }
 
 static int msd_get_capacity(struct usb_device *usbdev, uint32_t *block_size, uint32_t *block_count)
@@ -244,29 +274,43 @@ static int msd_get_capacity(struct usb_device *usbdev, uint32_t *block_size, uin
     cbw->cbw_cb_length = 12;
     cbw->cbw_cb[0] = MSC_CMD_CAPACITY;
     cbw->cbw_cb[1] = 0; //LUN: 0
-    if (do_packet(usbdev, PACKET_OUT, msc->bulk_ep_out->endpoint_address, pcbw,
-                  0x1F, 0, USB_TOD_COMMAND) != USB_NO_ERROR) {
+
+    if (write_cmd(usbdev, pcbw) != USB_NO_ERROR) {
         return 0;
     }
+
     cdi_sleep_ms(20);
-    if (do_packet(usbdev, PACKET_IN, msc->bulk_ep_in->endpoint_address, pcap,
-                  sizeof(struct msd_capacity), 0, USB_TOD_DATA_IN)
-           != USB_NO_ERROR) {
+
+    struct usb_packet in_packet = {
+        .type           = PACKET_IN,
+        .endpoint       = msc->bulk_ep_in->endpoint_address,
+        .phys_data      = pcap,
+        .length         = sizeof(*cap),
+        .datatoggle     = 0,
+        .type_of_data   = USB_TOD_DATA_IN,
+    };
+
+    if (usb_do_packet(usbdev, &in_packet) != USB_NO_ERROR) {
         return 0;
     }
+
     cdi_sleep_ms(5);
-    if (do_packet(usbdev, PACKET_IN, msc->bulk_ep_in->endpoint_address, pcsw,
-                  0x0D, 0, USB_TOD_STATUS) != USB_NO_ERROR) {
+
+    if (read_status(usbdev, pcsw) != USB_NO_ERROR) {
         return 0;
     }
+
     cdi_sleep_ms(5);
+
     if ((csw->csw_signature != CSW_SIGNATURE) ||
          (csw->csw_tag      !=  expected_tag) ||
           csw->csw_status) {
         return 0;
     }
+
     *block_size = BE2CPU(cap->block_length);
     *block_count = BE2CPU(cap->last_lba) + 1;
+
     return 1;
 }
 
@@ -295,21 +339,23 @@ static int msd_ready(struct usb_device *usbdev)
    cbw->cbw_flags = 0x80; //IN
    cbw->cbw_lun = 0; //Was weiß ich, wie viele LUNs datt Dingens hat?
    cbw->cbw_cb_length = 12; //Alles null, also "Test unit ready"
-   if (do_packet(usbdev, PACKET_OUT, msc->bulk_ep_out->endpoint_address, pcbw,
-                 0x1F, 0, USB_TOD_COMMAND) != USB_NO_ERROR) {
+
+   if (write_cmd(usbdev, pcbw) != USB_NO_ERROR) {
        return 0;
    }
+
    cdi_sleep_ms(7);
-   if (do_packet(usbdev, PACKET_IN, msc->bulk_ep_in->endpoint_address, pcsw,
-                 0x0D, 0, USB_TOD_STATUS) != USB_NO_ERROR) {
+   if (read_status(usbdev, pcsw) != USB_NO_ERROR) {
        return 0;
    }
+
    cdi_sleep_ms(4);
    if ((csw->csw_signature != CSW_SIGNATURE) ||
        (csw->csw_tag       !=  expected_tag) ||
         csw->csw_status) {
       return 0;
    }
+
    return 1;
 }
 #endif
@@ -409,23 +455,33 @@ static uint32_t msd_read(struct usb_device *usbdev, uint32_t lba, uint16_t secto
     cbw->cbw_cb[5] =  lba & 0x000000FF;
     cbw->cbw_cb[7] = (sectors & 0x0000FF00) >> 8;
     cbw->cbw_cb[8] =  sectors & 0x000000FF;
-    error = do_packet(usbdev, PACKET_OUT, msc->bulk_ep_out->endpoint_address,
-                      pcbw, 0x1F, 0, USB_TOD_COMMAND);
+
+    error = write_cmd(usbdev, pcbw);
     if (error != USB_NO_ERROR) {
         return error;
     }
     cdi_sleep_ms(20);
-    error = do_packet(usbdev, PACKET_IN, msc->bulk_ep_in->endpoint_address,
-                      phys_buffer, length, 0, USB_TOD_DATA_IN);
+
+    struct usb_packet in_packet = {
+        .type           = PACKET_IN,
+        .endpoint       = msc->bulk_ep_in->endpoint_address,
+        .phys_data      = phys_buffer,
+        .length         = length,
+        .datatoggle     = 0,
+        .type_of_data   = USB_TOD_DATA_IN,
+    };
+
+    error = usb_do_packet(usbdev, &in_packet);
     if (error != USB_NO_ERROR) {
         return error;
     }
     cdi_sleep_ms(5);
-    error = do_packet(usbdev, PACKET_IN, msc->bulk_ep_in->endpoint_address,
-                      pcsw, 0x0D, 0, USB_TOD_STATUS);
+
+    error = read_status(usbdev, pcsw);
     if (error != USB_NO_ERROR) {
         return error;
     }
+
     cdi_sleep_ms(4);
     if ((csw->csw_signature != CSW_SIGNATURE) ||
         (csw->csw_tag       !=  expected_tag) ||
@@ -522,23 +578,33 @@ static uint32_t msd_write(struct usb_device *usbdev, uint32_t lba, uint16_t sect
     cbw->cbw_cb[5] =  lba & 0x000000FF;
     cbw->cbw_cb[7] = (sectors & 0x0000FF00) >> 8;
     cbw->cbw_cb[8] =  sectors & 0x000000FF;
-    error = do_packet(usbdev, PACKET_OUT, msc->bulk_ep_out->endpoint_address,
-                      pcbw, 0x1F, 0, USB_TOD_COMMAND);
+
+    error = write_cmd(usbdev, pcbw);
     if (error != USB_NO_ERROR) {
         return error;
     }
     cdi_sleep_ms(20);
-    error = do_packet(usbdev, PACKET_OUT, msc->bulk_ep_out->endpoint_address,
-                      phys_buffer, length, 0, USB_TOD_DATA_OUT);
+
+    struct usb_packet out_packet = {
+        .type           = PACKET_OUT,
+        .endpoint       = msc->bulk_ep_out->endpoint_address,
+        .phys_data      = phys_buffer,
+        .length         = length,
+        .datatoggle     = 0,
+        .type_of_data   = USB_TOD_DATA_OUT,
+    };
+
+    error = usb_do_packet(usbdev, &out_packet);
     if (error != USB_NO_ERROR) {
         return error;
     }
+
     cdi_sleep_ms(5);
-    error = do_packet(usbdev, PACKET_IN, msc->bulk_ep_in->endpoint_address,
-                      pcsw, 0x0D, 0, USB_TOD_STATUS);
+    error = read_status(usbdev, pcsw);
     if (error != USB_NO_ERROR) {
         return error;
     }
+
     cdi_sleep_ms(4);
     if ((csw->csw_signature != CSW_SIGNATURE) ||
         (csw->csw_tag       !=  expected_tag) ||
