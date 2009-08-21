@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "cdi/storage.h"
 #include "cdi/lists.h"

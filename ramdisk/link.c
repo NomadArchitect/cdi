@@ -26,6 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string.h>
+
 #include "ramdisk_cdi.h"
 
 const char *ramdisk_fs_link_read(struct cdi_fs_stream *stream)

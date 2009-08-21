@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cdi/fs.h"
 #include "cdi/lists.h"

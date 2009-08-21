@@ -242,7 +242,7 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
     }
 
     #ifdef DEBUG
-        printf("pcnet: descriptor region at 0x%x virtual and 0x%x physical\n", virt_desc_region, phys_desc_region);
+        printf("pcnet: descriptor region at 0x%p virtual and 0x%p physical\n", virt_desc_region, phys_desc_region);
     #endif
     netcard->receive_descriptor = virt_desc_region;
     netcard->transmit_descriptor = virt_desc_region + 2 * 1024;
@@ -263,7 +263,7 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
     netcard->initialization_block->physical_address = netcard->net.mac;
 
     #ifdef DEBUG
-        printf("pcnet: initialization block at 0x%x virtual and 0x%x physical\n",
+        printf("pcnet: initialization block at 0x%p virtual and 0x%p physical\n",
                netcard->initialization_block,
                netcard->phys_initialization_block);
     #endif

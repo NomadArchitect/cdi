@@ -17,6 +17,7 @@
 */
 
 #include <stdint.h>
+#include <string.h>
 
 #include "cdi/fs.h"
 #include "cdi/cache.h"

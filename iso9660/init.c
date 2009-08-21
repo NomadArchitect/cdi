@@ -31,7 +31,7 @@
  *  @return If initialization was successful
  */
 int iso9660_fs_init(struct cdi_fs_filesystem *fs) {
-  debug("iso9660_fs_init(0x%x)\n",fs);
+  debug("iso9660_fs_init(0x%p)\n",fs);
   struct iso9660_voldesc_prim *voldesc = malloc(sizeof(struct iso9660_voldesc_prim));
   if (iso9660_voldesc_load(fs,ISO9660_VOLDESC_PRIM,voldesc)!=-1) {
     struct iso9660_fs_res *root_res = iso9660_dirrec_load(&voldesc->root_dir,NULL,voldesc);
@@ -48,7 +48,7 @@ int iso9660_fs_init(struct cdi_fs_filesystem *fs) {
  *  @return If destroy was successful
  */
 int iso9660_fs_destroy(struct cdi_fs_filesystem *fs) {
-  fprintf(stderr,"iso9660_fs_destroy(0x%x)\n",fs);
+  fprintf(stderr,"iso9660_fs_destroy(0x%p)\n",fs);
   struct iso9660_fs_res *root_res = (struct iso9660_fs_res*)(fs->root_res);
   free(root_res->voldesc);
   cdi_cache_destroy(root_res->cache);

@@ -165,14 +165,14 @@ void e1000_init_device(struct cdi_device* device)
     }
 
     // Karte initialisieren
-    printf("e1000: IRQ %d, MMIO an %x  Revision:%d\n",
+    printf("e1000: IRQ %d, MMIO an %p  Revision:%d\n",
         netcard->pci->irq, netcard->mem_base, netcard->revision);
 
     printf("e1000: Fuehre Reset der Karte durch\n");
     reset_nic(netcard);
 
     netcard->net.mac = get_mac_address(netcard);
-    printf("e1000: MAC-Adresse: %012llx\n", netcard->net.mac);
+    printf("e1000: MAC-Adresse: %012llx\n", (uint64_t) netcard->net.mac);
 
     cdi_net_device_init((struct cdi_net_device*) device);
 }

@@ -26,6 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string.h>
+
 #include "ramdisk_cdi.h"
 
 size_t ramdisk_fs_file_read(struct cdi_fs_stream* stream, uint64_t start,

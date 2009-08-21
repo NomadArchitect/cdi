@@ -26,6 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string.h>
+
 #include "ramdisk_cdi.h"
 
 int ramdisk_fs_res_load(struct cdi_fs_stream* stream)

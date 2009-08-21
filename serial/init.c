@@ -30,7 +30,9 @@
 #include "serial.h"
 #include "cdi/lists.h"
 #include "cdi/misc.h"
+
 #include <stdio.h>
+#include <string.h>
 
 int serial_fs_init(struct cdi_fs_filesystem* cdi_fs)
 {

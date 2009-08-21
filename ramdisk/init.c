@@ -26,9 +26,11 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <string.h>
+
 #include "ramdisk_cdi.h"
 #include "cdi/lists.h"
-#include <stdio.h>
 
 int ramdisk_fs_init(struct cdi_fs_filesystem* cdi_fs)
 {
