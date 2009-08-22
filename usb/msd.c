@@ -41,7 +41,7 @@
 #endif
 
 #ifdef DEBUG
-#define dprintf(fmt, args...)  printf("[usb-msc] " fmt, ## args)
+#define dprintf(fmt, args...) printf("[usb-msc] " fmt, ## args)
 #define _dprintf(fmt, args...) printf(fmt, ## args)
 #else
 static int dprintf(const char* fmt, ...)
@@ -59,6 +59,7 @@ static int fdprintf(const char* fmt, ...)
 {
     return 0;
 }
+
 #endif
 
 static uint32_t cbw_tag = 1;
@@ -91,30 +92,29 @@ static int msd_get_capacity(struct usb_device* usbdev, uint32_t* block_size,
                                  8) | \
                                 (((_) & 0xFF00) << 8) | (((_) & 0xFF) << 24))
 #ifdef CPU_IS_LITTLE_ENDIAN
-#define CPU2BE(_)              change_endianess_32(_)
-#define CPU2LE(_)              (_)
-#define BE2CPU(_)              change_endianess_32(_)
-#define LE2CPU(_)              (_)
+#define CPU2BE(_)               change_endianess_32(_)
+#define CPU2LE(_)               (_)
+#define BE2CPU(_)               change_endianess_32(_)
+#define LE2CPU(_)               (_)
 #else
-#define CPU2BE(_)              (_)
-#define CPU2LE(_)              change_endianess_32(_)
-#define BE2CPU(_)              (_)
-#define LE2CPU(_)              change_endianess_32(_)
+#define CPU2BE(_)               (_)
+#define CPU2LE(_)               change_endianess_32(_)
+#define BE2CPU(_)               (_)
+#define LE2CPU(_)               change_endianess_32(_)
 #endif
 
 //Das muss definiert werden, um vor einem Befehl zu warten, bis das MSD fertig
 //ist. Theoretisch ist das äußerst sinnvoll, praktisch hängt sich der Treiber
 //bisweilen auf - das sollte allerdings mit dem Timeout gegessen sein
 /**
- #define WAIT_FOR_MSD_READY
- */
+  #define WAIT_FOR_MSD_READY
+  */
 
 //TODO: Storage bietet eine SCSI-Klasse. Die könnte man durchaus benutzen. xD
 
 void init_msc_driver()
 {
     struct cdi_driver* stddrv = (struct cdi_driver*) &cdi_driver;
-
     stddrv->type = CDI_STORAGE;
     stddrv->name = driver_name;
     stddrv->init_device = &init_msd;
@@ -142,12 +142,10 @@ void register_msd(struct usb_device* usbdev)
         dprintf("Es werden nur bulk-only-Interfaces unterstützt.\n");
         return;
     }
-
     cdimsd = malloc(sizeof(struct cdi_msd));
     if (cdimsd == NULL) {
         return;
     }
-
     cdimsd->usb_device = usbdev;
     cdimsd->offset = 0;
     strgdev = (struct cdi_storage_device*) cdimsd;
@@ -157,7 +155,6 @@ void register_msd(struct usb_device* usbdev)
         free(strgdev);
         return;
     }
-
     sprintf((char*) strgdev->dev.name, "msd%i", msdnum++);
     msc = malloc(sizeof(struct msclass_data));
     if (msc == NULL) {
@@ -165,7 +162,6 @@ void register_msd(struct usb_device* usbdev)
         free(strgdev);
         return;
     }
-
     usbdev->classd = (struct class_data*) msc;
     msc->bulk_ep_in = NULL;
     msc->bulk_ep_out = NULL;
@@ -173,24 +169,21 @@ void register_msd(struct usb_device* usbdev)
     for (i = 0; i < usbdev->interface->num_endpoints; i++) {
         ep_desc = address;
         if ((ep_desc->endpoint_address & 0x80) &&
-            (ep_desc->attributes == 0x02) && (msc->bulk_ep_in == NULL))   //BULK-IN
+            (ep_desc->attributes == 0x02) && (msc->bulk_ep_in == NULL))                                                             //BULK-IN
         {
             msc->bulk_ep_in = ep_desc;
         } else if (!(ep_desc->endpoint_address & 0x80) &&
                    (ep_desc->attributes == 0x02) &&
-                   (msc->bulk_ep_out == NULL))          //BULK-OUT
+                   (msc->bulk_ep_out == NULL))                                                                                             //BULK-OUT
         {
             msc->bulk_ep_out = ep_desc;
         }
-
         address += sizeof(struct endpoint_desc);
     }
-
     if ((msc->bulk_ep_in == NULL) || (msc->bulk_ep_out == NULL)) {
         dprintf("Nicht genügend Endpoints gefunden.\n");
         return;
     }
-
     if (!msd_get_capacity(usbdev, &bs, &bc)) {
         strgdev->block_size = 0;
         strgdev->block_count = 0;
@@ -200,10 +193,13 @@ void register_msd(struct usb_device* usbdev)
         strgdev->block_count = bc;
         size = bs;
         size *= bc;
-        dprintf("%s: %i * %i B (ca. %lld MB).\n", strgdev->dev.name, bc, bs,
+        dprintf("%s: %i * %i B (ca. %i MB).\n", strgdev->dev.name, bc, bs,
             size >> 20);
+        dprintf("EP %i: %i; EP %i: %i\n", msc->bulk_ep_in->endpoint_address,
+            msc->bulk_ep_in->max_packet_size,
+            msc->bulk_ep_out->endpoint_address,
+            msc->bulk_ep_out->max_packet_size);
     }
-
     cdi_storage_device_init(strgdev);
     cdi_list_push(cdi_driver.drv.devices, strgdev);
     get_partitions(strgdev);
@@ -229,25 +225,25 @@ static int write_cmd(struct usb_device* usbdev, uintptr_t src)
 {
     struct msclass_data* msc = (struct msclass_data*) usbdev->classd;
     struct usb_packet cmd_packet = {
-        .type           = PACKET_OUT,
-        .endpoint       = msc->bulk_ep_out->endpoint_address,
-        .phys_data      = src,
-        .length         = 0x1F,
-        .datatoggle     = 0,
-        .type_of_data   = USB_TOD_COMMAND,
+        .type         = PACKET_OUT,
+        .endpoint     = msc->bulk_ep_out->endpoint_address,
+        .phys_data    = src,
+        .length       = 0x1F,
+        .datatoggle   = 0,
+        .type_of_data = USB_TOD_COMMAND,
     };
 
     return usb_do_packet(usbdev, &cmd_packet);
 }
 
 /**
- * Liest den Status von einem MSD
- *
- * @param usbdev Das bewusste Gerät
- * @param expected_tag Das erwartete Tag
- *
- * @return Wenn der Status OK ist USB_NO_ERROR, sonst entsprechender Fehler
- */
+  * Liest den Status von einem MSD
+  *
+  * @param usbdev Das bewusste Gerät
+  * @param expected_tag Das erwartete Tag
+  *
+  * @return Wenn der Status OK ist USB_NO_ERROR, sonst entsprechender Fehler
+  */
 
 static int read_status(struct usb_device* usbdev, uint32_t expected_tag)
 {
@@ -256,32 +252,31 @@ static int read_status(struct usb_device* usbdev, uint32_t expected_tag)
     struct command_status_wrapper* csw;
     int error;
 
-    if (cdi_alloc_phys_mem(sizeof(struct command_status_wrapper),
-            (void**) &csw, (void**) &pcsw) == -1)
+    if (cdi_alloc_phys_mem(sizeof(struct command_status_wrapper), (void**) &csw,
+            (void**) &pcsw) == -1)
     {
         return USB_TRIVIAL_ERROR;
     }
 
     struct usb_packet status_packet = {
-        .type           = PACKET_IN,
-        .endpoint       = msc->bulk_ep_in->endpoint_address,
-        .phys_data      = pcsw,
-        .length         = 0x0D,
-        .datatoggle     = 0,
-        .type_of_data   = USB_TOD_STATUS,
+        .type         = PACKET_IN,
+        .endpoint     = msc->bulk_ep_in->endpoint_address,
+        .phys_data    = pcsw,
+        .length       = 0x0D,
+        .datatoggle   = 0,
+        .type_of_data = USB_TOD_STATUS,
     };
 
     error = usb_do_packet(usbdev, &status_packet);
     if (error != USB_NO_ERROR) {
         return error;
     }
-
     if ((csw->csw_signature != CSW_SIGNATURE) ||
         (csw->csw_tag != expected_tag) || csw->csw_status)
     {
-        return USB_CRC; //Watt weiß denn ich
-    }
+        return USB_CRC;         //Watt weiß denn ich
 
+    }
     return USB_NO_ERROR;
 }
 
@@ -297,19 +292,16 @@ static int msd_get_capacity(struct usb_device* usbdev, uint32_t* block_size,
     if ((usbdev == NULL) || (block_size == NULL) || (block_count == NULL)) {
         return 0;
     }
-
-    if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper),
-            (void**) &cbw, (void**) &pcbw) == -1)
+    if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper), (void**) &cbw,
+            (void**) &pcbw) == -1)
     {
         return 0;
     }
-
-    if (cdi_alloc_phys_mem(sizeof(struct msd_capacity),
-            (void**) &cap, (void**) &pcap) == -1)
+    if (cdi_alloc_phys_mem(sizeof(struct msd_capacity), (void**) &cap,
+            (void**) &pcap) == -1)
     {
         return 0;
     }
-
     msc = (struct msclass_data*) usbdev->classd;
     memset(cbw, 0, 0x1F);
     cbw->cbw_signature = CBW_SIGNATURE;
@@ -326,12 +318,12 @@ static int msd_get_capacity(struct usb_device* usbdev, uint32_t* block_size,
     }
 
     struct usb_packet in_packet = {
-        .type           = PACKET_IN,
-        .endpoint       = msc->bulk_ep_in->endpoint_address,
-        .phys_data      = pcap,
-        .length         = sizeof(*cap),
-        .datatoggle     = 0,
-        .type_of_data   = USB_TOD_DATA_IN,
+        .type         = PACKET_IN,
+        .endpoint     = msc->bulk_ep_in->endpoint_address,
+        .phys_data    = pcap,
+        .length       = sizeof(*cap),
+        .datatoggle   = 0,
+        .type_of_data = USB_TOD_DATA_IN,
     };
 
     if (usb_do_packet(usbdev, &in_packet) != USB_NO_ERROR) {
@@ -356,12 +348,11 @@ static int msd_ready(struct usb_device* usbdev)
     uintptr_t pcbw;
     uint32_t expected_tag;
 
-    if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper),
-            (void**) &cbw, (void**) &pcbw) == -1)
+    if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper), (void**) &cbw,
+            (void**) &pcbw) == -1)
     {
         return 0;
     }
-
     msc = (struct msclass_data*) usbdev->classd;
     memset(cbw, 0, 0x1F);
     cbw->cbw_signature = CBW_SIGNATURE;
@@ -381,12 +372,12 @@ static int msd_ready(struct usb_device* usbdev)
 
     return 1;
 }
+
 #endif
 
 static inline int tsl(volatile int* variable)
 {
     int rval;
-
     rval = *variable;
     *variable = 1;
     return rval;
@@ -403,11 +394,10 @@ static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
     void* vb;
     uintptr_t pb;
     int bs = strgdev->block_size, error;
-
 #ifdef WAIT_FOR_MSD_READY
     int j;
 #endif
-    uint32_t i;
+//    uint32_t i;
     struct usb_device* usbdev = ((struct cdi_msd*) strgdev)->usb_device;
 
     fdprintf("read(%i, %i)\n", (int) start, (int) count);
@@ -416,35 +406,31 @@ static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
         dprintf("Blockspeicher konnte nicht allociert werden.\n");
         return -1;
     }
-
     if (!count) {
         dprintf("Leere Leseanfrage.\n");
         return 0;
     }
-
     while (tsl(&usbdev->locked)) {
 #ifndef CDI_STANDALONE
         __asm__ __volatile__ ("hlt");
 #endif
     }
-
-    for (i = 0; i < count; i++) {
+    /*for (i = 0; i < count; i++)
+       {*/
 #ifdef WAIT_FOR_MSD_READY
-        for (j = 0; !msd_ready(usbdev) && (j < 10); j++) {
-            cdi_sleep_ms(20);
-        }
-
-#endif
-        error = msd_read(usbdev, start + i, 1, pb, bs);
-        if (error != USB_NO_ERROR) {
-            dprintf("Lesefehler 0x%X bei Block %i.\n", error, i);
-            usbdev->locked = 0;
-            return -1;
-        }
-
-        memcpy(buffer + i * bs, vb, bs);
+    for (j = 0; !msd_ready(usbdev) && (j < 10); j++) {
+        cdi_sleep_ms(20);
     }
 
+#endif
+    error = msd_read(usbdev, start /* + i*/, count, pb, bs);
+    if (error != USB_NO_ERROR) {
+        dprintf("Lesefehler 0x%X bei Block %i.\n", error, 0);
+        usbdev->locked = 0;
+        return -1;
+    }
+    memcpy(buffer /* + i * bs*/, vb, count * bs);
+    //}
     usbdev->locked = 0;
     return 0;
 }
@@ -457,18 +443,16 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     struct command_block_wrapper* cbw;
     uintptr_t pcbw;
     uint32_t expected_tag;
-    int error;
+    int error, i, ep_size;
 
-    if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper),
-            (void**) &cbw, (void**) &pcbw) == -1)
+    if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper), (void**) &cbw,
+            (void**) &pcbw) == -1)
     {
         return USB_TRIVIAL_ERROR;
     }
-
     if (!phys_buffer || !length) {
         return USB_TRIVIAL_ERROR;
     }
-
     msc = (struct msclass_data*) usbdev->classd;
     memset(cbw, 0, 0x1F);
     cbw->cbw_signature = CBW_SIGNATURE;
@@ -492,18 +476,31 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     }
 
     struct usb_packet in_packet = {
-        .type           = PACKET_IN,
-        .endpoint       = msc->bulk_ep_in->endpoint_address,
-        .phys_data      = phys_buffer,
-        .length         = length,
-        .datatoggle     = 0,
-        .type_of_data   = USB_TOD_DATA_IN,
+        .type         = PACKET_IN,
+        .endpoint     = msc->bulk_ep_in->endpoint_address,
+        .phys_data    = phys_buffer,
+        .length       = 0,
+        .datatoggle   = 0,
+        .type_of_data = USB_TOD_DATA_IN,
     };
 
-    error = usb_do_packet(usbdev, &in_packet);
-    if (error != USB_NO_ERROR) {
-        return error;
+    //Transaktionen eintragen
+    ep_size = msc->bulk_ep_in->max_packet_size;
+    for (i = 0; i < length; i += ep_size) {
+        in_packet.length = (length - i > ep_size) ? ep_size : length - i;
+        error = usb_do_packet(usbdev, &in_packet);
+        if (error != USB_NO_ERROR) {
+            return error;
+        }
+        in_packet.phys_data += ep_size;
+        in_packet.datatoggle ^= 1;
     }
+
+    /*//Auf deren Ende warten
+       for (i = 0; i < length; i += ep_size)
+       {
+
+       }*/
 
     error = read_status(usbdev, expected_tag);
     if (error != USB_NO_ERROR) {
@@ -524,7 +521,6 @@ static int msd_cdi_write(struct cdi_storage_device* strgdev, uint64_t start,
     void* vb;
     uintptr_t pb;
     int bs = strgdev->block_size, error;
-
 #ifdef WAIT_FOR_MSD_READY
     int j;
 #endif
@@ -537,13 +533,11 @@ static int msd_cdi_write(struct cdi_storage_device* strgdev, uint64_t start,
         dprintf("Blockspeicher zum Schreiben konnte nicht allociert werden.\n");
         return -1;
     }
-
     while (tsl(&usbdev->locked)) {
 #ifndef CDI_STANDALONE
         __asm__ __volatile__ ("hlt");
 #endif
     }
-
     for (i = 0; i < count; i++) {
         memcpy(vb, buffer + i * bs, bs);
 #ifdef WAIT_FOR_MSD_READY
@@ -559,7 +553,6 @@ static int msd_cdi_write(struct cdi_storage_device* strgdev, uint64_t start,
             return -1;
         }
     }
-
     usbdev->locked = 0;
     return 0;
 }
@@ -568,71 +561,71 @@ static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
     uint16_t sectors, uintptr_t phys_buffer,
     size_t length)
 {
-    struct msclass_data* msc;
-    struct command_block_wrapper* cbw;
-    struct command_status_wrapper* csw;
-    uintptr_t pcbw, pcsw;
-    uint32_t expected_tag;
-    int error;
+    /*struct msclass_data *msc;
+       struct command_block_wrapper *cbw;
+       struct command_status_wrapper *csw;
+       uintptr_t pcbw, pcsw;
+       uint32_t expected_tag;
+       int error;
 
-    if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper),
-            (void**) &cbw, (void**) &pcbw) == -1)
-    {
-        return USB_TRIVIAL_ERROR;
-    }
+       if (cdi_alloc_phys_mem(sizeof(struct command_block_wrapper), (void **)&cbw, (void **)&pcbw) == -1)
+       {
+       return USB_TRIVIAL_ERROR;
+       }
+       if (cdi_alloc_phys_mem(sizeof(struct command_status_wrapper), (void **)&csw, (void **)&pcsw) == -1)
+       {
+       return USB_TRIVIAL_ERROR;
+       }
+       if (!phys_buffer || !length)
+       {
+       return USB_TRIVIAL_ERROR;
+       }
+       msc = (struct msclass_data *)usbdev->classd;
+       memset(cbw, 0, 0x1F);
+       cbw->cbw_signature = CBW_SIGNATURE;
+       cbw->cbw_tag = (expected_tag = cbw_tag++);
+       cbw->cbw_data_transfer_length = length;
+       cbw->cbw_flags = 0x00;       //OUT
+       cbw->cbw_lun = 0;            //Was weiß ich, wie viele LUNs datt Dingens hat?
+       cbw->cbw_cb_length = 12;
+       cbw->cbw_cb[0] = MSC_CMD_WRITE10;
+       cbw->cbw_cb[1] = 0;          //LUN: 0
+       cbw->cbw_cb[2] = (lba & 0xFF000000) >> 24;
+       cbw->cbw_cb[3] = (lba & 0x00FF0000) >> 16;
+       cbw->cbw_cb[4] = (lba & 0x0000FF00) >> 8;
+       cbw->cbw_cb[5] = lba & 0x000000FF;
+       cbw->cbw_cb[7] = (sectors & 0x0000FF00) >> 8;
+       cbw->cbw_cb[8] = sectors & 0x000000FF;
 
-    if (cdi_alloc_phys_mem(sizeof(struct command_status_wrapper),
-            (void**) &csw, (void**) &pcsw) == -1)
-    {
-        return USB_TRIVIAL_ERROR;
-    }
+       error = write_cmd(usbdev, pcbw);
+       if (error != USB_NO_ERROR)
+       {
+       return error;
+       }
 
-    if (!phys_buffer || !length) {
-        return USB_TRIVIAL_ERROR;
-    }
+       struct usb_packet out_packet = {
+       .type = PACKET_OUT,
+       .endpoint = msc->bulk_ep_out->endpoint_address,
+       .phys_data = phys_buffer,
+       .length = length,
+       .datatoggle = 0,
+       .type_of_data = USB_TOD_DATA_OUT,
+       };
 
-    msc = (struct msclass_data*) usbdev->classd;
-    memset(cbw, 0, 0x1F);
-    cbw->cbw_signature = CBW_SIGNATURE;
-    cbw->cbw_tag = (expected_tag = cbw_tag++);
-    cbw->cbw_data_transfer_length = length;
-    cbw->cbw_flags = 0x00;      //OUT
-    cbw->cbw_lun = 0;           //Was weiß ich, wie viele LUNs datt Dingens hat?
-    cbw->cbw_cb_length = 12;
-    cbw->cbw_cb[0] = MSC_CMD_WRITE10;
-    cbw->cbw_cb[1] = 0;         //LUN: 0
-    cbw->cbw_cb[2] = (lba & 0xFF000000) >> 24;
-    cbw->cbw_cb[3] = (lba & 0x00FF0000) >> 16;
-    cbw->cbw_cb[4] = (lba & 0x0000FF00) >> 8;
-    cbw->cbw_cb[5] = lba & 0x000000FF;
-    cbw->cbw_cb[7] = (sectors & 0x0000FF00) >> 8;
-    cbw->cbw_cb[8] = sectors & 0x000000FF;
+       error = usb_do_packet(usbdev, &out_packet);
+       if (error != USB_NO_ERROR)
+       {
+       return error;
+       }
 
-    error = write_cmd(usbdev, pcbw);
-    if (error != USB_NO_ERROR) {
-        return error;
-    }
+       error = read_status(usbdev, expected_tag);
+       if (error != USB_NO_ERROR)
+       {
+       return error;
+       }
 
-    struct usb_packet out_packet = {
-        .type           = PACKET_OUT,
-        .endpoint       = msc->bulk_ep_out->endpoint_address,
-        .phys_data      = phys_buffer,
-        .length         = length,
-        .datatoggle     = 0,
-        .type_of_data   = USB_TOD_DATA_OUT,
-    };
-
-    error = usb_do_packet(usbdev, &out_packet);
-    if (error != USB_NO_ERROR) {
-        return error;
-    }
-
-    error = read_status(usbdev, expected_tag);
-    if (error != USB_NO_ERROR) {
-        return error;
-    }
-
-    return USB_NO_ERROR;
+       return USB_NO_ERROR;*/
+    return USB_STALLED;
 }
 
 static void get_partitions(struct cdi_storage_device* cdistrg)
@@ -647,23 +640,19 @@ static void get_partitions(struct cdi_storage_device* cdistrg)
         dprintf("MBR konnte nicht eingelesen werden.\n");
         return;
     }
-
     if (((uint16_t*) mbr)[255] != 0xAA55) {
         return;
     }
-
     partition = mbr + 0x1BE;
     dprintf("Partitionen auf %s:", cdistrg->dev.name);
     for (i = 0; i < 4; i++) {
-        if (partition[i].type && partition[i].size
-            && (partition[i].start + partition[i].size <
-                cdistrg->block_count))
+        if (partition[i].type && partition[i].size &&
+            (partition[i].start + partition[i].size < cdistrg->block_count))
         {
             cdimsd = malloc(sizeof(struct cdi_msd));
             if (cdimsd == NULL) {
                 break;
             }
-
             cdimsd->offset = partition[i].start;
             cdimsd->usb_device = base_cdimsd->usb_device;
             cdimsd->cdi_device.dev.type = CDI_STORAGE;
@@ -672,9 +661,9 @@ static void get_partitions(struct cdi_storage_device* cdistrg)
                 free(cdimsd);
                 break;
             }
-
             sprintf((char*) cdimsd->cdi_device.dev.name, "%sp%i",
-                cdistrg->dev.name, j++);
+                cdistrg->dev.name,
+                j++);
             cdimsd->cdi_device.block_size = base_cdimsd->cdi_device.block_size;
             cdimsd->cdi_device.block_count = partition[i].size;
             _dprintf(" %s", cdimsd->cdi_device.dev.name);
@@ -682,6 +671,5 @@ static void get_partitions(struct cdi_storage_device* cdistrg)
             cdi_list_push(cdi_driver.drv.devices, cdimsd);
         }
     }
-
     _dprintf("\n");
 }

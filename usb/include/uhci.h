@@ -35,7 +35,7 @@
 #define UHCI_USBSTS    0x02 //w
 #define UHCI_USBINTR   0x04 //w
 #define UHCI_FRNUM     0x06 //w
-#define UHCI_FRBASEADD 0x08     //l
+#define UHCI_FRBASEADD 0x08 //l
 #define UHCI_SOFMOD    0x0C //b
 #define UHCI_RPORTS    0x10
 #define UHCI_PORTSC1   0x10 //w
