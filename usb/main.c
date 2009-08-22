@@ -126,6 +126,9 @@ int usb_do_packet(struct usb_device* device, struct usb_packet* packet)
     }
     while (error == USB_NAK) {
         error = device->hci->do_packet(device, packet);
+        if (error == USB_NAK) {
+            cdi_sleep_ms(5);
+        }
     }
     if (error == USB_STALLED) {
         printf("[usb] ENDPOINT %i DES GERÄTS %i STALLED!\n", packet->endpoint,

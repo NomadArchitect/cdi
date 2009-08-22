@@ -93,15 +93,16 @@ enum usb_packet_type {
 #define DESC_OTHER_SPEED_CONFIGURATION 7
 #define DESC_INTERFACE_POWER           8
 
-#define USB_NO_ERROR                   0x00
-#define USB_STALLED                    0x01
-#define USB_BUFFER_ERROR               0x02
-#define USB_BABBLE                     0x04
-#define USB_NAK                        0x08
-#define USB_CRC                        0x10
-#define USB_TIMEOUT                    0x20
-#define USB_BITSTUFF                   0x40
-#define USB_TRIVIAL_ERROR              0x80
+#define USB_NO_ERROR                   0x0000
+#define USB_STALLED                    0x0001
+#define USB_BUFFER_ERROR               0x0002
+#define USB_BABBLE                     0x0004
+#define USB_NAK                        0x0008
+#define USB_CRC                        0x0010
+#define USB_TIMEOUT                    0x0020
+#define USB_BITSTUFF                   0x0040
+#define USB_TRIVIAL_ERROR              0x0080
+#define USB_STATUS_ERROR               0x0100
 
 #define USB_TOD_SETUP                  0x0001
 #define USB_TOD_SETUP_DATA_IN          0x0002
