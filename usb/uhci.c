@@ -53,9 +53,8 @@ static struct cdi_driver cdi_driver;
 static cdi_list_t active_transfers;
 
 static void uhci_handler(struct cdi_device* dev);
-static int enqueue_request(struct hci* gen_hci, int frame, int type, int device,
-    int endpoint, int low_speed, uintptr_t phys_data, int length,
-    int datatoggle);
+static int uhci_do_packet(struct usb_device* usbdev,
+    struct usb_packet* packet);
 static cdi_list_t get_devices(struct hci* gen_hci);
 static void activate_device(struct hci* gen_hci, struct usb_device* device);
 static int get_current_frame(struct hci* gen_hci);
@@ -159,7 +158,7 @@ void uhci_init(struct cdi_device* cdi_hci)
     dprintf("  Fertig\n");
     gen_hci->find_devices = &get_devices;
     gen_hci->activate_device = &activate_device;
-    gen_hci->do_packet = &enqueue_request;
+    gen_hci->do_packet = &uhci_do_packet;
     gen_hci->get_frame = &get_current_frame;
 
     enumerate_hci(gen_hci);
@@ -217,16 +216,17 @@ static inline int tsl(volatile int* variable)
 
 static volatile int locked = 0;
 
-static int enqueue_request(struct hci* gen_hci, int frame, int type, int device,
-    int endpoint, int low_speed, uintptr_t phys_data, int length,
-    int datatoggle)
+static int uhci_do_packet(struct usb_device* usbdev,
+    struct usb_packet* packet)
 {
-    struct uhci* uhci = (struct uhci*) gen_hci;
+    struct uhci* uhci = (struct uhci*) usbdev->hci;
     struct uhci_td* td;
     struct uhci_qh* qh;
     uintptr_t ptd, pqh;
     struct transfer* addr;
     int timeout;
+
+    int frame = (usbdev->hci->get_frame(usbdev->hci) + 3) & 0x3FF;
 
     if (cdi_alloc_phys_mem(sizeof(struct uhci_td), (void**) &td,
             (void**) &ptd) == -1)
@@ -249,14 +249,14 @@ static int enqueue_request(struct hci* gen_hci, int frame, int type, int device,
     td->next = 1;               //Invalid
     td->active = 1;
     td->ioc = 1;
-    td->data_toggle = datatoggle;
-    td->low_speed = low_speed;
+    td->data_toggle = packet->datatoggle;
+    td->low_speed = usbdev->low_speed;
     td->errors = 1;
-    td->pid = type;
-    td->device = device;
-    td->endpoint = endpoint;
-    td->maxlen = length ? length - 1 : 0x7FF;
-    td->buffer = phys_data;
+    td->pid = packet->type;
+    td->device = usbdev->id;
+    td->endpoint = packet->endpoint;
+    td->maxlen = packet->length ? packet->length - 1 : 0x7FF;
+    td->buffer = packet->phys_data;
     addr = malloc(sizeof(struct transfer));
     addr->virt = td;
     addr->phys = ptd;

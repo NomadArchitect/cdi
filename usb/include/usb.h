@@ -136,15 +136,14 @@ struct cdi_hci {
 };
 
 struct usb_device;
+struct usb_packet;
 
 struct hci {
     struct cdi_pci_device* pcidev;
     hci_type_t type;
     cdi_list_t (* find_devices)(struct hci*);
     void (* activate_device)(struct hci*, struct usb_device*);
-    int (* do_packet)(struct hci*, int frame, int type, int device,
-        int endpoint, int low_speed, uintptr_t phys_data, int length,
-        int datatoggle);
+    int (* do_packet)(struct usb_device*, struct usb_packet* packet);
     int (* get_frame)(struct hci*);
 };
 
