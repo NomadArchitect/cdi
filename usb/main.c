@@ -41,12 +41,13 @@ static int dprintf(const char *fmt, ...)
 {
     return 0;
 }
+
 #define _dprintf(fmt, args...) dprintf(fmt, ##args)
 #endif
 
 static struct usb_device *devices[128];
 static cdi_list_t ehci, ohci, uhci;
-static void (*ccdriver_take_device[0x100])(struct usb_device *);
+static void (*ccdriver_take_device[0x100]) (struct usb_device *);
 static int usb_dev_ids = 1;
 
 static void usb_init(void);
@@ -94,18 +95,18 @@ static const int next_data_type[9] = {
 };*/
 
 /**
-* Verarbeitet ein USB-Paket.
-*
-* @param device Das USB-Gerät
-*/
+ * Verarbeitet ein USB-Paket.
+ *
+ * @param device Das USB-Gerät
+ */
 
-int usb_do_packet(struct usb_device *device, struct usb_packet* packet)
+int usb_do_packet(struct usb_device *device, struct usb_packet *packet)
 {
-    int error;
+    int error = USB_NAK;
     int tod_short;
 
     if (!(device->expects & packet->type_of_data)) {
-        dprintf("Expected 0x%04X, got 0x%04X...?\n", device->expects,
+        dprintf("0x%04X erwartet, 0x%04X bekommen...?\n", device->expects,
             packet->type_of_data);
         // FIXME Das ist keine elegante Loesung des Problems
         for (;;);
@@ -118,18 +119,18 @@ int usb_do_packet(struct usb_device *device, struct usb_packet* packet)
     device->expects = next_data_type[tod_short];
     packet->endpoint &= 0x07;
     packet->type &= 0xFF;
-    if (device->stalled) //TODO: Irgendwie entstallen, evtl.? oO
-    {
+    if (device->stalled) {
+        //TODO: Irgendwie entstallen, evtl.? oO
         dprintf("Zugriff auf stalled-Gerät verweigert.\n");
         return USB_STALLED;
     }
-    error = device->hci->do_packet(device->hci,
-        (device->hci->get_frame(device->hci) + 3) & 0x3FF,
-        packet->type, device->id, packet->endpoint,
-        device->low_speed, packet->phys_data, packet->length,
-        packet->datatoggle);
-    if (error == USB_STALLED)
-    {
+    while (error == USB_NAK) {
+        error = device->hci->do_packet(device->hci,
+            (device->hci->get_frame(device->hci) + 3) & 0x3FF,
+            packet->type, device->id, packet->endpoint, device->low_speed,
+            packet->phys_data, packet->length, packet->datatoggle);
+    }
+    if (error == USB_STALLED) {
         printf("[usb] ENDPOINT %i DES GERÄTS %i STALLED!\n",
             packet->endpoint, device->id);
         device->stalled = 1;
@@ -137,7 +138,8 @@ int usb_do_packet(struct usb_device *device, struct usb_packet* packet)
     return error;
 }
 
-static void *do_control(struct usb_device *device, int direction, void *buffer, int length, int rtype, int recipient, int request, int value, int index)
+static void *do_control(struct usb_device *device, int direction, void *buffer,
+    int length, int rtype, int recipient, int request, int value, int index)
 {
     void *rbuf;
     int rval, no_data;
@@ -149,7 +151,7 @@ static void *do_control(struct usb_device *device, int direction, void *buffer, 
         return NULL;
     }
     if (cdi_alloc_phys_mem(sizeof(struct setup_packet),
-                           (void **)&setup, (void **)&psetup) == -1) {
+            (void **)&setup, (void **)&psetup) == -1) {
         return NULL;
     }
     direction &= 0x80;
@@ -163,12 +165,12 @@ static void *do_control(struct usb_device *device, int direction, void *buffer, 
     setup->length = length;
 
     struct usb_packet setup_packet = {
-        .type           = PACKET_SETUP,
-        .endpoint       = 0,
-        .phys_data      = psetup,
-        .length         = sizeof(*setup),
-        .datatoggle     = 0,
-        .type_of_data   = USB_TOD_SETUP,
+        .type = PACKET_SETUP,
+        .endpoint = 0,
+        .phys_data = psetup,
+        .length = sizeof(*setup),
+        .datatoggle = 0,
+        .type_of_data = USB_TOD_SETUP,
     };
 
 
@@ -177,43 +179,38 @@ static void *do_control(struct usb_device *device, int direction, void *buffer, 
     }
 
     cdi_sleep_ms(20);
-    if (no_data)
-    {
+    if (no_data) {
         rval = USB_NO_ERROR;
-        rbuf = (void *)0xFFFFFFFF; //Kein Fehler, aber auch keine Daten
-    }
-    else
-    {
+        rbuf = (void *)0xFFFFFFFF;      //Kein Fehler, aber auch keine Daten
+    } else {
         struct usb_packet data_packet = {
-            .type           = (direction == DEV_TO_HOST ?
-                              PACKET_IN : PACKET_OUT),
-            .endpoint       = 0,
-            .phys_data      = pbuf,
-            .length         = length,
-            .datatoggle     = 1,
-            .type_of_data   = (direction == DEV_TO_HOST ?
-                              USB_TOD_SETUP_DATA_IN : USB_TOD_SETUP_DATA_OUT),
+            .type = (direction == DEV_TO_HOST ? PACKET_IN : PACKET_OUT),
+            .endpoint = 0,
+            .phys_data = pbuf,
+            .length = length,
+            .datatoggle = 1,
+            .type_of_data = (direction == DEV_TO_HOST ?
+                USB_TOD_SETUP_DATA_IN : USB_TOD_SETUP_DATA_OUT),
         };
 
         rval = usb_do_packet(device, &data_packet);
     }
 
-    if (rval == USB_NO_ERROR)
-    {
+    if (rval == USB_NO_ERROR) {
         struct usb_packet ack_packet = {
-            .endpoint       = 0,
-            .phys_data      = 0,
-            .length         = 0,
-            .datatoggle     = 1,
+            .endpoint = 0,
+            .phys_data = 0,
+            .length = 0,
+            .datatoggle = 1,
         };
 
         cdi_sleep_ms(20);
 
         if (no_data || (direction == HOST_TO_DEV)) {
-            ack_packet.type         = PACKET_IN;
+            ack_packet.type = PACKET_IN;
             ack_packet.type_of_data = USB_TOD_SETUP_ACK_IN;
         } else {
-            ack_packet.type         = PACKET_OUT;
+            ack_packet.type = PACKET_OUT;
             ack_packet.type_of_data = USB_TOD_SETUP_ACK_OUT;
         }
 
@@ -233,7 +230,8 @@ static void usb_init(void)
 
     init_msc_driver();
 
-    memset(ccdriver_take_device, 0, sizeof(void (*)(struct usb_device *)) * 0x100);
+    memset(ccdriver_take_device, 0,
+        sizeof(void (*)(struct usb_device *)) * 0x100);
     ccdriver_take_device[8] = &register_msd;
     ccdriver_take_device[9] = &enumerate_hub;
 
@@ -243,13 +241,11 @@ static void usb_init(void)
 
     cdi_list_t pci_devices = cdi_list_create();
     cdi_pci_get_all_devices(pci_devices);
-    for (i = 0; (dev = cdi_list_get(pci_devices, i)) != NULL; i++)
-    {
+    for (i = 0; (dev = cdi_list_get(pci_devices, i)) != NULL; i++) {
         if ((dev->class_id != 0x0C) || (dev->subclass_id != 0x03)) {
             cdi_pci_device_destroy(dev);
         } else {
-            switch (dev->interface_id)
-            {
+            switch (dev->interface_id) {
                 case 0x00:
                     hci = malloc(HCI_STRUCT_SIZE);
                     hci->pcidev = dev;
@@ -273,14 +269,12 @@ static void usb_init(void)
 
     cdi_list_destroy(pci_devices);
 
-    dprintf("%i EHCIs, %i OHCIs und %i UHCIs gefunden.\n", cdi_list_size(ehci),
-                                                           cdi_list_size(ohci),
-                                                           cdi_list_size(uhci));
+    dprintf("%i EHCIs, %i OHCIs und %i UHCIs gefunden.\n",
+        cdi_list_size(ehci), cdi_list_size(ohci), cdi_list_size(uhci));
 
     uhcd = init_uhcd();
 
-    for (i = 0; (hci = cdi_list_pop(uhci)) != NULL; i++)
-    {
+    for (i = 0; (hci = cdi_list_pop(uhci)) != NULL; i++) {
         cdi_hci = malloc(sizeof(struct cdi_hci));
         cdi_hci->cdi_device.type = CDI_UNKNOWN;
         dev_name = malloc(10);
@@ -313,23 +307,21 @@ static void enum_device(struct usb_device *usbdev)
     usbdev->locked = 0;
     usbdev->expects = USB_TOD_SETUP | USB_TOD_COMMAND;
     dev_desc = do_control(usbdev, DEV_TO_HOST, NULL, sizeof(*dev_desc),
-                          STD_REQUEST, REC_DEVICE, GET_DESCRIPTOR,
-                          DESC_DEVICE << 8, 0);
+        STD_REQUEST, REC_DEVICE, GET_DESCRIPTOR, DESC_DEVICE << 8, 0);
     if (dev_desc == NULL) {
         return;
     }
     usbdev->device = dev_desc;
     dprintf("0x%04X:0x%04X (%i) -> ", dev_desc->vendor_id, dev_desc->device_id,
-                                      dev_desc->class_id);
+        dev_desc->class_id);
     do_control(usbdev, HOST_TO_DEV | NO_DATA, NULL, 0, STD_REQUEST, REC_DEVICE,
-               SET_ADDRESS, (id = usb_dev_ids++), 0);
+        SET_ADDRESS, (id = usb_dev_ids++), 0);
     usbdev->id = id;
     _dprintf("%i\n", id);
-    if (dev_desc->iManufacturer)
-    {
+    if (dev_desc->iManufacturer) {
         name = do_control(usbdev, DEV_TO_HOST, NULL, 64, STD_REQUEST,
-                          REC_DEVICE, GET_DESCRIPTOR,
-                          (DESC_STRING << 8) | dev_desc->iManufacturer, 0);
+            REC_DEVICE, GET_DESCRIPTOR,
+            (DESC_STRING << 8) | dev_desc->iManufacturer, 0);
         if (name == NULL) {
             return;
         }
@@ -339,11 +331,10 @@ static void enum_device(struct usb_device *usbdev)
         }
         _dprintf("\n");
     }
-    if (dev_desc->iProduct)
-    {
+    if (dev_desc->iProduct) {
         name = do_control(usbdev, DEV_TO_HOST, NULL, 64, STD_REQUEST,
-                          REC_DEVICE, GET_DESCRIPTOR,
-                          (DESC_STRING << 8) | dev_desc->iProduct, 0);
+            REC_DEVICE, GET_DESCRIPTOR,
+            (DESC_STRING << 8) | dev_desc->iProduct, 0);
         if (name == NULL) {
             return;
         }
@@ -354,27 +345,25 @@ static void enum_device(struct usb_device *usbdev)
         _dprintf("\n");
     }
     devices[id] = usbdev;
-  //TODO: Man kann doch nicht immer den ersten nehmen...
+    //TODO: Man kann doch nicht immer den ersten nehmen...
     conf_desc = do_control(usbdev, DEV_TO_HOST, NULL,
-                           sizeof(struct config_desc), STD_REQUEST, REC_DEVICE,
-                           GET_DESCRIPTOR, DESC_CONFIGURATION << 8, 0);
+        sizeof(struct config_desc), STD_REQUEST,
+        REC_DEVICE, GET_DESCRIPTOR, DESC_CONFIGURATION << 8, 0);
     if (conf_desc == NULL) {
         return;
     }
     conf_desc = do_control(usbdev, DEV_TO_HOST, NULL, conf_desc->total_length,
-                           STD_REQUEST, REC_DEVICE, GET_DESCRIPTOR,
-                           DESC_CONFIGURATION << 8, 0);
+        STD_REQUEST, REC_DEVICE, GET_DESCRIPTOR, DESC_CONFIGURATION << 8, 0);
     if (conf_desc == NULL) {
         return;
     }
     usbdev->config = conf_desc;
     do_control(usbdev, HOST_TO_DEV, NULL, 0, STD_REQUEST, REC_DEVICE,
-               SET_CONFIGURATION, conf_desc->config_value, 0);
-    if (conf_desc->iConfiguration)
-    {
+        SET_CONFIGURATION, conf_desc->config_value, 0);
+    if (conf_desc->iConfiguration) {
         name = do_control(usbdev, DEV_TO_HOST, NULL, 64, STD_REQUEST,
-                          REC_DEVICE, GET_DESCRIPTOR,
-                          (DESC_STRING << 8) | conf_desc->iConfiguration, 0);
+            REC_DEVICE, GET_DESCRIPTOR,
+            (DESC_STRING << 8) | conf_desc->iConfiguration, 0);
         if (name == NULL) {
             return;
         }
@@ -386,25 +375,25 @@ static void enum_device(struct usb_device *usbdev)
     }
     position = conf_desc;
     position += sizeof(struct config_desc);
-    best_if = position; //Standard-IF
-    for (i = 0; i < conf_desc->num_interfaces; i++)
-    {
+    best_if = position;         //Standard-IF
+    for (i = 0; i < conf_desc->num_interfaces; i++) {
         if_desc = position;
-        if (if_desc->interface_class == 8) //TODO: Mehr Klassencodes natürlich!
-        {
+        //TODO: Mehr Klassencodes natürlich!
+        if (if_desc->interface_class == 8) {
             best_if = if_desc;
             break;
         }
-        position += sizeof(struct interface_desc) + if_desc->num_endpoints * sizeof(struct endpoint_desc);
+        position +=
+            sizeof(struct interface_desc) +
+            if_desc->num_endpoints * sizeof(struct endpoint_desc);
     }
     do_control(usbdev, HOST_TO_DEV, NULL, 0, STD_REQUEST, REC_DEVICE,
-               SET_INTERFACE, best_if->interface_number, 0);
+        SET_INTERFACE, best_if->interface_number, 0);
     usbdev->interface = best_if;
-    if (best_if->iInterface)
-    {
+    if (best_if->iInterface) {
         name = do_control(usbdev, DEV_TO_HOST, NULL, 64, STD_REQUEST,
-                          REC_DEVICE, GET_DESCRIPTOR,
-                          (DESC_STRING << 8) | best_if->iInterface, 0);
+            REC_DEVICE, GET_DESCRIPTOR,
+            (DESC_STRING << 8) | best_if->iInterface, 0);
         if (name == NULL) {
             return;
         }
@@ -415,10 +404,9 @@ static void enum_device(struct usb_device *usbdev)
         _dprintf(".\n");
     }
     dprintf("Konfiguration: %i:%i (%i)\n", conf_desc->config_value,
-                                           best_if->interface_number,
-                                           best_if->interface_class);
+        best_if->interface_number, best_if->interface_class);
     if (ccdriver_take_device[best_if->interface_class] != NULL) {
-        ccdriver_take_device[best_if->interface_class](usbdev);
+        ccdriver_take_device[best_if->interface_class] (usbdev);
     }
 }
 
@@ -432,22 +420,20 @@ static void enumerate_hub(struct usb_device *usbdev)
     //Mehr als 8 Ports sollte es nicht geben, die Größe des Deskriptors wird
     //daher wohl nicht größer als sizeof()+16 werden
     hub_desc = do_control(usbdev, DEV_TO_HOST, NULL, sizeof(*hub_desc) + 16,
-                          CLS_REQUEST, REC_DEVICE, GET_DESCRIPTOR,
-                          DESC_DEVICE << 8, 0);
-    for (i = 0; i < hub_desc->nbr_ports; i++)
-    {
+        CLS_REQUEST, REC_DEVICE, GET_DESCRIPTOR, DESC_DEVICE << 8, 0);
+    for (i = 0; i < hub_desc->nbr_ports; i++) {
         port_status = do_control(usbdev, DEV_TO_HOST, NULL, 4, CLS_REQUEST,
-                                 REC_OTHER, GET_STATUS, 0, i+1);
+            REC_OTHER, GET_STATUS, 0, i + 1);
         if (!(port_status[0] & PORT_DEVICE)) {
             continue;
         }
         //Strom an
         do_control(usbdev, HOST_TO_DEV, NULL, 0, CLS_REQUEST, REC_OTHER,
-                   SET_FEATURE, PORTF_POWER, i+1);
+            SET_FEATURE, PORTF_POWER, i + 1);
         cdi_sleep_ms(hub_desc->pwron2pwrgood * 2);
         //Resetten
         do_control(usbdev, HOST_TO_DEV, NULL, 0, CLS_REQUEST, REC_OTHER,
-                   SET_FEATURE, PORTF_RESET, i+1);
+            SET_FEATURE, PORTF_RESET, i + 1);
         //Reset sollte jetzt eigtl. schon beendet sein
         //(do_control wartet ja 50 ms)
         down = malloc(sizeof(struct usb_device));
@@ -464,11 +450,9 @@ void enumerate_hci(struct hci *hci)
     struct usb_device *usbdev;
     cdi_list_t usb_devices;
 
-    if (hci->find_devices != NULL)
-    {
+    if (hci->find_devices != NULL) {
         usb_devices = hci->find_devices(hci);
-        while ((usbdev = cdi_list_pop(usb_devices)) != NULL)
-        {
+        while ((usbdev = cdi_list_pop(usb_devices)) != NULL) {
             hci->activate_device(hci, usbdev);
             cdi_sleep_ms(50);
             enum_device(usbdev);

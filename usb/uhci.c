@@ -43,6 +43,7 @@ static int dprintf(const char *fmt, ...)
 {
     return 0;
 }
+
 #define _dprintf(fmt, args...) dprintf(fmt, ##args)
 #endif
 
@@ -52,7 +53,9 @@ static struct cdi_driver cdi_driver;
 static cdi_list_t active_transfers;
 
 static void uhci_handler(struct cdi_device *dev);
-static int enqueue_request(struct hci *gen_hci, int frame, int type, int device, int endpoint, int low_speed, uintptr_t phys_data, int length, int datatoggle);
+static int enqueue_request(struct hci *gen_hci, int frame, int type,
+    int device, int endpoint, int low_speed,
+    uintptr_t phys_data, int length, int datatoggle);
 static cdi_list_t get_devices(struct hci *gen_hci);
 static void activate_device(struct hci *gen_hci, struct usb_device *device);
 static int get_current_frame(struct hci *gen_hci);
@@ -75,14 +78,13 @@ struct cdi_driver *init_uhcd()
 
 static void uhci_kill(struct cdi_driver *cdi_hcd)
 {
-  //TODO: Da geht doch noch was
+    //TODO: Da geht doch noch was
 }
 
 static void uhci_deinit(struct cdi_device *cdi_hci)
 {
-    cdi_outw(((struct uhci *)((struct cdi_hci *)cdi_hci)->hci)->pbase + UHCI_USBCMD,
-             MAXP); //HC anhalten
-  //TODO: Hier doch auch
+    cdi_outw(((struct uhci *)((struct cdi_hci *)cdi_hci)->hci)->pbase + UHCI_USBCMD, MAXP);     //HC anhalten
+    //TODO: Hier doch auch
 }
 
 void uhci_init(struct cdi_device *cdi_hci)
@@ -95,13 +97,10 @@ void uhci_init(struct cdi_device *cdi_hci)
     //cdi_pci_alloc_ioports(gen_hci->pcidev);
     uhci->pbase = 0;
     for (i = 0; (res = cdi_list_get(gen_hci->pcidev->resources, i)) != NULL;
-         i++)
-    {
-        if (res->type == CDI_PCI_IOPORTS)
-        {
+        i++) {
+        if (res->type == CDI_PCI_IOPORTS) {
             size = res->length ? res->length : 0x14;
-            if (cdi_ioports_alloc(res->start, size) == -1)
-            {
+            if (cdi_ioports_alloc(res->start, size) == -1) {
                 dprintf("I/O-Ports konnten nicht reserviert werden.\n");
                 return;
             }
@@ -109,14 +108,12 @@ void uhci_init(struct cdi_device *cdi_hci)
             break;
         }
     }
-    if (!uhci->pbase)
-    {
+    if (!uhci->pbase) {
         dprintf("I/O-Basis nicht gefunden!\n");
         return;
     }
     if (cdi_alloc_phys_mem(4096, (void **)&uhci->frame_list,
-                                 (void **)&uhci->phys_frame_list) == -1)
-    {
+            (void **)&uhci->phys_frame_list) == -1) {
         dprintf("Frame List konnte nicht allociert werden!\n");
         return;
     }
@@ -125,9 +122,10 @@ void uhci_init(struct cdi_device *cdi_hci)
     if (uhci->root_ports > 7) { //Laut Linuxkernel ist das so "weird", dass da was nicht stimmen kann...
         uhci->root_ports = 2;
     }
-    dprintf("UHC mit I/O 0x%04X (%i Ports) und IRQ %i\n", uhci->pbase, uhci->root_ports, gen_hci->pcidev->irq);
+    dprintf("UHC mit I/O 0x%04X (%i Ports) und IRQ %i\n", uhci->pbase,
+        uhci->root_ports, gen_hci->pcidev->irq);
     for (i = 0; i < 1024; i++) {
-        uhci->frame_list[i] = 1; //Invalid
+        uhci->frame_list[i] = 1;        //Invalid
     }
     dprintf("Resetten...\n");
     //HC zurücksetzen
@@ -144,10 +142,10 @@ void uhci_init(struct cdi_device *cdi_hci)
     cdi_outw(uhci->pbase + UHCI_USBINTR, 0xF);
     //Framelistadresse eintragen
     cdi_outl(uhci->pbase + UHCI_FRBASEADD, uhci->phys_frame_list);
-    cdi_outw(uhci->pbase + UHCI_FRNUM, 0); //Frame zurücksetzen
+    cdi_outw(uhci->pbase + UHCI_FRNUM, 0);      //Frame zurücksetzen
     //Ports abschalten, damit selektiv eingeschaltet werden kann (Enumeration)
     for (i = 0; i < uhci->root_ports; i++) {
-        cdi_outw(uhci->pbase + UHCI_RPORTS + i*2, RPORT_CSC);
+        cdi_outw(uhci->pbase + UHCI_RPORTS + i * 2, RPORT_CSC);
     }
     dprintf("  Fertig\n");
     gen_hci->find_devices = &get_devices;
@@ -167,10 +165,8 @@ static cdi_list_t get_devices(struct hci *gen_hci)
 
     dprintf("Geräte finden: ");
     cdi_outw(uhci->pbase + UHCI_USBCMD, USB_RUN);
-    for (i = 0; i < uhci->root_ports; i++)
-    {
-        if (!(cdi_inw(uhci->pbase + UHCI_RPORTS + 2*i) & RPORT_DEVICE))
-        {
+    for (i = 0; i < uhci->root_ports; i++) {
+        if (!(cdi_inw(uhci->pbase + UHCI_RPORTS + 2 * i) & RPORT_DEVICE)) {
             _dprintf("-");
             continue;
         }
@@ -180,7 +176,7 @@ static cdi_list_t get_devices(struct hci *gen_hci)
         dev->id = 0;
         dev->port = i;
         dev->low_speed =
-                (cdi_inw(uhci->pbase + UHCI_RPORTS + 2*i) & RPORT_LOSPD) && 1;
+            (cdi_inw(uhci->pbase + UHCI_RPORTS + 2 * i) & RPORT_LOSPD) && 1;
         cdi_list_push(dlist, dev);
     }
     _dprintf("\n");
@@ -193,7 +189,7 @@ static void activate_device(struct hci *gen_hci, struct usb_device *device)
 
     dprintf("Gerät an Port %i wird aktiviert.\n", device->port);
     cdi_outw(uhci->pbase + UHCI_RPORTS + 2 * device->port,
-             RPORT_RESET | RPORT_ENABLE | RPORT_CSC);
+        RPORT_RESET | RPORT_ENABLE | RPORT_CSC);
     cdi_sleep_ms(20);
 }
 
@@ -209,34 +205,37 @@ static inline int tsl(volatile int *variable)
     *variable = 1;
     return rval;
 }
+
 static volatile int locked = 0;
 
-static int enqueue_request(struct hci *gen_hci, int frame, int type, int device, int endpoint, int low_speed, uintptr_t phys_data, int length, int datatoggle)
+static int enqueue_request(struct hci *gen_hci, int frame, int type,
+    int device, int endpoint, int low_speed,
+    uintptr_t phys_data, int length, int datatoggle)
 {
     struct uhci *uhci = (struct uhci *)gen_hci;
     struct uhci_td *td;
     struct uhci_qh *qh;
     uintptr_t ptd, pqh;
     struct transfer *addr;
+    int timeout;
 
     if (cdi_alloc_phys_mem(sizeof(struct uhci_td),
-                           (void **)&td, (void **)&ptd) == -1) {
+            (void **)&td, (void **)&ptd) == -1) {
         return USB_TRIVIAL_ERROR;
     }
     if (cdi_alloc_phys_mem(sizeof(struct uhci_qh),
-                           (void **)&qh, (void **)&pqh) == -1) {
+            (void **)&qh, (void **)&pqh) == -1) {
         return USB_TRIVIAL_ERROR;
     }
-    while (tsl(&locked))
-    {
+    while (tsl(&locked)) {
 #ifndef CDI_STANDALONE
-        __asm__ __volatile__ ("hlt");
+        __asm__ __volatile__("hlt");
 #endif
     }
-    qh->next = 1; //Invalid
+    qh->next = 1;               //Invalid
     qh->transfer = ptd;
     memset(td, 0, sizeof(struct uhci_td));
-    td->next = 1; //Invalid
+    td->next = 1;               //Invalid
     td->active = 1;
     td->ioc = 1;
     td->data_toggle = datatoggle;
@@ -245,7 +244,7 @@ static int enqueue_request(struct hci *gen_hci, int frame, int type, int device,
     td->pid = type;
     td->device = device;
     td->endpoint = endpoint;
-    td->maxlen = length ? length-1 : 0x7FF;
+    td->maxlen = length ? length - 1 : 0x7FF;
     td->buffer = phys_data;
     addr = malloc(sizeof(struct transfer));
     addr->virt = td;
@@ -253,20 +252,12 @@ static int enqueue_request(struct hci *gen_hci, int frame, int type, int device,
     addr->error = 0xFFFF;
     cdi_list_push(active_transfers, addr);
     uhci->frame_list[frame] = pqh | 2;
-#ifdef CDI_STANDALONE
-    /*int cframe = get_current_frame(gen_hci), nframe;
-    nframe = (cframe > frame) ? frame + 1024 : frame; //Überläufe korrigieren
-    //Annähern, wann er wohl fertig ist
-    cdi_sleep_ms(nframe + 30 - get_current_frame(gen_hci));*/
-#else
-    while (!(qh->transfer & 1)) {
-        __asm__ __volatile__ ("hlt");
+    for (timeout = 0; !(qh->transfer & 1) && (timeout < 1000); timeout++) {
+        cdi_sleep_ms(1);
     }
-#endif
-    while (addr->error == 0xFFFF)
-    {
+    while ((timeout < 1000) && (addr->error == 0xFFFF)) {
 #ifndef CDI_STANDALONE
-        __asm__ __volatile__ ("hlt");
+        __asm__ __volatile__("hlt");
 #endif
     }
     uhci->frame_list[frame] = 1;
@@ -281,54 +272,44 @@ static void uhci_handler(struct cdi_device *cdi_hci)
     struct transfer *addr;
     struct uhci_td *td;
 
-    if (!status) { //Also, von hier kommt der IRQ nicht.
+    if (!status) {              //Also, von hier kommt der IRQ nicht.
         return;
     }
     if (status & ~0x0001) {
         dprintf("Unerwarteter IRQ 0x%04X von %s\n", status, cdi_hci->name);
     }
-    if (status & 0x10)
-    {
+    if (status & 0x10) {
         printf("[uhci] SCHWERWIEGENDER FEHLER - HC WIRD ANGEHALTEN\n");
-        cdi_outw(uhci->pbase + UHCI_USBCMD, MAXP | HCRESET); //FU!
-    }
-    else
-    {
-        for (i = 0; (addr = cdi_list_get(active_transfers, i)) != NULL; i++)
-        {
+        cdi_outw(uhci->pbase + UHCI_USBCMD, MAXP | HCRESET);    //FU!
+    } else {
+        for (i = 0; (addr = cdi_list_get(active_transfers, i)) != NULL; i++) {
             td = addr->virt;
             if (td->active) {
                 continue;
             }
             addr->error = USB_NO_ERROR;
             cdi_list_remove(active_transfers, i--);
-            if (td->stalled_err)
-            {
+            if (td->stalled_err) {
                 dprintf("ENDPOINT STALLED\n");
                 addr->error |= USB_STALLED;
             }
-            if (td->buf_err)
-            {
+            if (td->buf_err) {
                 dprintf("Pufferüberlauf oder Underrun\n");
                 addr->error |= USB_BUFFER_ERROR;
             }
-            if (td->babble)
-            {
-                dprintf("Puh, da war ein Gerät wohl sehr gesprächig: Babble.\n");
+            if (td->babble) {
+                dprintf("Da war ein Gerät wohl sehr gesprächig: Babble.\n");
                 addr->error |= USB_BABBLE;
             }
-            if (td->nak)
-            {
+            if (td->nak) {
                 dprintf("NAK empfangen\n");
                 addr->error |= USB_NAK;
             }
-            if (td->crc_time_err)
-            {
+            if (td->crc_time_err) {
                 dprintf("CRC-Fehler oder Timeout\n");
                 addr->error |= USB_CRC | USB_TIMEOUT;
             }
-            if (td->bitstuff_err)
-            {
+            if (td->bitstuff_err) {
                 dprintf("Bitstufffehler\n");
                 addr->error |= USB_BITSTUFF;
             }

@@ -30,8 +30,8 @@
 
 enum usb_packet_type {
     PACKET_SETUP = 0x2D,
-    PACKET_IN    = 0x69,
-    PACKET_OUT   = 0xE1,
+    PACKET_IN = 0x69,
+    PACKET_OUT = 0xE1
 };
 
 #define NO_DATA       0x01
@@ -124,42 +124,39 @@ enum usb_packet_type {
 #define USB_TODS_STATUS         8
 
 
-typedef enum
-{
+typedef enum {
     HCI_UHCI,
     HCI_OHCI,
     HCI_EHCI
 } hci_type_t;
 
-struct cdi_hci
-{
+struct cdi_hci {
     struct cdi_device cdi_device;
     struct hci *hci;
 };
 
 struct usb_device;
 
-struct hci
-{
+struct hci {
     struct cdi_pci_device *pcidev;
     hci_type_t type;
-    cdi_list_t (*find_devices)(struct hci *);
-    void (*activate_device)(struct hci *, struct usb_device *);
-    int (*do_packet)(struct hci *, int frame, int type, int device, int endpoint, int low_speed, uintptr_t phys_data, int length, int datatoggle);
-    int (*get_frame)(struct hci *);
+    cdi_list_t (*find_devices) (struct hci *);
+    void (*activate_device) (struct hci *, struct usb_device *);
+    int (*do_packet) (struct hci *, int frame, int type, int device,
+        int endpoint, int low_speed, uintptr_t phys_data,
+        int length, int datatoggle);
+    int (*get_frame) (struct hci *);
 };
 
-struct setup_packet
-{
+struct setup_packet {
     uint8_t request_type;
     uint8_t request;
     uint16_t value;
     uint16_t index;
     uint16_t length;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct device_desc
-{
+struct device_desc {
     uint8_t length;
     uint8_t descriptor_type;
     uint16_t bcdUSB;
@@ -174,10 +171,9 @@ struct device_desc
     uint8_t iProduct;
     uint8_t iSerialNumber;
     uint8_t num_configurations;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct config_desc
-{
+struct config_desc {
     uint8_t length;
     uint8_t descriptor_type;
     uint16_t total_length;
@@ -186,10 +182,9 @@ struct config_desc
     uint8_t iConfiguration;
     uint8_t attributes;
     uint8_t max_power;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct interface_desc
-{
+struct interface_desc {
     uint8_t length;
     uint8_t descriptor_type;
     uint8_t interface_number;
@@ -199,30 +194,27 @@ struct interface_desc
     uint8_t interface_subclass;
     uint8_t interface_protocol;
     uint8_t iInterface;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct endpoint_desc
-{
+struct endpoint_desc {
     uint8_t length;
     uint8_t descriptor_type;
     uint8_t endpoint_address;
     uint8_t attributes;
     uint16_t max_packet_size;
     uint8_t interval;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct hub_desc
-{
+struct hub_desc {
     uint8_t length;
     uint8_t descriptor_type;
     uint8_t nbr_ports;
     uint16_t hub_characteristics;
     uint8_t pwron2pwrgood;
     uint8_t hub_contr_current;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-typedef enum
-{
+typedef enum {
     USBDC_COMPOSITE = 0x00,
     USBDC_AUDIO = 0x01,
     USBDC_COMM_CDC = 0x02,
@@ -244,13 +236,11 @@ typedef enum
     USBDC_VENDOR_SPEC = 0xFF
 } usb_class_t;
 
-struct class_data
-{
+struct class_data {
     usb_class_t type;
 };
 
-struct usb_device
-{
+struct usb_device {
     struct hci *hci;
     int id;
     int port;
@@ -264,8 +254,7 @@ struct usb_device
     int expects;
 };
 
-struct msclass_data
-{
+struct msclass_data {
     struct class_data gen_class;
     struct endpoint_desc *bulk_ep_in;
     struct endpoint_desc *bulk_ep_out;
@@ -294,7 +283,7 @@ struct usb_packet {
 #define HCI_STRUCT_SIZE sizeof(struct uhci)
 
 
-int usb_do_packet(struct usb_device *device, struct usb_packet* packet);
+int usb_do_packet(struct usb_device *device, struct usb_packet *packet);
 void enumerate_hci(struct hci *);
 struct cdi_driver *init_uhcd(void);
 void init_msc_driver(void);

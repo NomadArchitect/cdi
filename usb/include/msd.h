@@ -32,8 +32,7 @@
 
 //"USBC"
 #define CBW_SIGNATURE 0x43425355
-struct command_block_wrapper
-{
+struct command_block_wrapper {
     uint32_t cbw_signature;
     uint32_t cbw_tag;
     uint32_t cbw_data_transfer_length;
@@ -41,55 +40,50 @@ struct command_block_wrapper
     uint8_t cbw_lun;
     uint8_t cbw_cb_length;
     uint8_t cbw_cb[16];
-} __attribute__((packed));
+} __attribute__ ((packed));
 
 //"USBS"
 #define CSW_SIGNATURE 0x53425355
-struct command_status_wrapper
-{
+struct command_status_wrapper {
     uint32_t csw_signature;
     uint32_t csw_tag;
     uint32_t csw_data_residue;
     uint8_t csw_status;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct msc_sense
-{
-    unsigned error : 7;
-    unsigned valid : 1;
+struct msc_sense {
+    unsigned error:7;
+    unsigned valid:1;
     uint8_t rsvd0;
-    unsigned sense_key : 4;
-    unsigned rsvd1 : 4;
+    unsigned sense_key:4;
+    unsigned rsvd1:4;
     uint32_t information;
     uint8_t additional_length;
     uint32_t rsvd2;
     uint8_t additional_code;
     uint8_t additional_code_qualifier;
     uint32_t rsvd;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct msd_capacity
-{
+struct msd_capacity {
     uint32_t last_lba;
     uint32_t block_length;
-} __attribute__((packed));
+} __attribute__ ((packed));
 
-struct cdi_msd
-{
+struct cdi_msd {
     struct cdi_storage_device cdi_device;
     struct usb_device *usb_device;
-    uint32_t offset; //Für Partitionen
+    uint32_t offset;            //Für Partitionen
 };
 
-struct part_table_entry
-{
-   uint8_t active;
-   uint8_t begin_chs[3];
-   uint8_t type;
-   uint8_t end_chs[3];
-   uint32_t start;
-   uint32_t size;
-} __attribute__((packed));
+struct part_table_entry {
+    uint8_t active;
+    uint8_t begin_chs[3];
+    uint8_t type;
+    uint8_t end_chs[3];
+    uint32_t start;
+    uint32_t size;
+} __attribute__ ((packed));
 
 
 #define MSC_CMD_REZERO   0x01
