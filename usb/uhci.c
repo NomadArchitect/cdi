@@ -53,8 +53,7 @@ static struct cdi_driver cdi_driver;
 static cdi_list_t active_transfers;
 
 static void uhci_handler(struct cdi_device* dev);
-static int uhci_do_packet(struct usb_device* usbdev,
-    struct usb_packet* packet);
+static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet);
 static cdi_list_t get_devices(struct hci* gen_hci);
 static void activate_device(struct hci* gen_hci, struct usb_device* device);
 static int get_current_frame(struct hci* gen_hci);
@@ -216,8 +215,7 @@ static inline int tsl(volatile int* variable)
 
 static volatile int locked = 0;
 
-static int uhci_do_packet(struct usb_device* usbdev,
-    struct usb_packet* packet)
+static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
 {
     struct uhci* uhci = (struct uhci*) usbdev->hci;
     struct uhci_td* td;
@@ -258,18 +256,18 @@ static int uhci_do_packet(struct usb_device* usbdev,
         __asm__ __volatile__ ("hlt");
 #endif
     }
-    qh->next = 1;               //Invalid
+    qh->next = 1; //Invalid
     qh->transfer = ptd;
     memset(td, 0, sizeof(struct uhci_td));
-    td->next = 1;               //Invalid
+    td->next = 1; //Invalid
     td->active = 1;
     td->ioc = 1;
-    td->data_toggle = packet->datatoggle;
+    td->data_toggle = usbdev->data_toggle;
     td->low_speed = usbdev->low_speed;
     td->errors = 1;
     td->pid = packet->type;
     td->device = usbdev->id;
-    td->endpoint = packet->endpoint;
+    td->endpoint = packet->endpoint->endpoint_address & 0x07;
     td->maxlen = packet->length ? packet->length - 1 : 0x7FF;
     td->buffer = phys_data;
     addr = malloc(sizeof(struct transfer));

@@ -245,6 +245,7 @@ struct usb_device {
     int id;
     int port;
     int low_speed;
+    struct endpoint_desc* ep0;
     struct device_desc* device;
     struct config_desc* config;
     struct interface_desc* interface;
@@ -252,6 +253,7 @@ struct usb_device {
     int stalled;
     int locked;
     int expects;
+    int data_toggle;
 };
 
 struct msclass_data {
@@ -264,14 +266,12 @@ struct msclass_data {
 struct usb_packet {
     /// Der Typ des Pakets (PACKET_IN, PACKET_OUT, PACKET_SETUP)
     enum usb_packet_type type;
-    /// Der gewuenschte Endpoint (0 bis 15)
-    int endpoint;
+    /// Der gewuenschte Endpoint
+    struct endpoint_desc* endpoint;
     /// Zeiger auf den Datenpuffer
     void* data;
     /// Die Laenge des Puffers
     int length;
-    /// Gibt an, ob DATA0 (0) oder DATA1 (1) verwendet werden soll
-    int datatoggle;
     /// Typ der Daten (zur Sicherheit, damit es kein doofes STALL gibt)
     int type_of_data;
 };

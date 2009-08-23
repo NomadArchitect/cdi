@@ -228,10 +228,9 @@ static int write_cmd(struct usb_device* usbdev, void* src)
     struct msclass_data* msc = (struct msclass_data*) usbdev->classd;
     struct usb_packet cmd_packet = {
         .type         = PACKET_OUT,
-        .endpoint     = msc->bulk_ep_out->endpoint_address,
+        .endpoint     = msc->bulk_ep_out,
         .data         = src,
         .length       = 0x1F,
-        .datatoggle   = 0,
         .type_of_data = USB_TOD_COMMAND,
     };
 
@@ -256,10 +255,9 @@ static int read_status(struct usb_device* usbdev, uint32_t expected_tag)
 
     struct usb_packet status_packet = {
         .type         = PACKET_IN,
-        .endpoint     = msc->bulk_ep_in->endpoint_address,
+        .endpoint     = msc->bulk_ep_in,
         .data         = csw,
         .length       = 0x0D,
-        .datatoggle   = 0,
         .type_of_data = USB_TOD_STATUS,
     };
 
@@ -271,7 +269,8 @@ static int read_status(struct usb_device* usbdev, uint32_t expected_tag)
         (csw->csw_tag != expected_tag) || csw->csw_status)
     {
         dprintf("0x%08X %i==%i 0x%08X\n", csw->csw_signature, csw->csw_tag,
-            expected_tag, csw->csw_status);
+            expected_tag,
+            csw->csw_status);
         return USB_STATUS_ERROR;
     }
 
@@ -309,10 +308,9 @@ static int msd_get_capacity(struct usb_device* usbdev, uint32_t* block_size,
 
     struct usb_packet in_packet = {
         .type         = PACKET_IN,
-        .endpoint     = msc->bulk_ep_in->endpoint_address,
+        .endpoint     = msc->bulk_ep_in,
         .data         = cap,
         .length       = sizeof(*cap),
-        .datatoggle   = 0,
         .type_of_data = USB_TOD_DATA_IN,
     };
 
@@ -415,7 +413,7 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     struct command_block_wrapper _cbw;
     struct command_block_wrapper* cbw = &_cbw;
     uint32_t expected_tag;
-    int error, i, ep_size;
+    int error;
 
     if (!buffer || !length) {
         return USB_TRIVIAL_ERROR;
@@ -445,22 +443,15 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
 
     struct usb_packet in_packet = {
         .type         = PACKET_IN,
-        .endpoint     = msc->bulk_ep_in->endpoint_address,
+        .endpoint     = msc->bulk_ep_in,
         .data         = buffer,
-        .length       = 0,
-        .datatoggle   = 0,
+        .length       = length,
         .type_of_data = USB_TOD_DATA_IN,
     };
 
-    ep_size = msc->bulk_ep_in->max_packet_size;
-    for (i = 0; i < length; i += ep_size) {
-        in_packet.length = (length - i > ep_size) ? ep_size : length - i;
-        error = usb_do_packet(usbdev, &in_packet);
-        if (error != USB_NO_ERROR) {
-            return error;
-        }
-        in_packet.data += ep_size;
-        in_packet.datatoggle ^= 1;
+    error = usb_do_packet(usbdev, &in_packet);
+    if (error != USB_NO_ERROR) {
+        return error;
     }
 
     error = read_status(usbdev, expected_tag);
@@ -547,14 +538,12 @@ static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
 
     struct usb_packet out_packet = {
         .type         = PACKET_OUT,
-        .endpoint     = msc->bulk_ep_out->endpoint_address,
+        .endpoint     = msc->bulk_ep_out,
         .data         = buffer,
         .length       = 0,
-        .datatoggle   = 0,
         .type_of_data = USB_TOD_DATA_OUT,
     };
 
-    //Transaktionen eintragen
     ep_size = msc->bulk_ep_out->max_packet_size;
     for (i = 0; i < length; i += ep_size) {
         out_packet.length = (length - i > ep_size) ? ep_size : length - i;
@@ -563,7 +552,6 @@ static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
             return error;
         }
         out_packet.data += ep_size;
-        out_packet.datatoggle ^= 1;
     }
 
     error = read_status(usbdev, expected_tag);
@@ -593,7 +581,7 @@ static void get_partitions(struct cdi_storage_device* cdistrg)
     dprintf("Partitionen auf %s:", cdistrg->dev.name);
     for (i = 0; i < 4; i++) {
         if (partition[i].type && partition[i].size &&
-            (partition[i].start + partition[i].size < cdistrg->block_count))
+            (partition[i].start + partition[i].size <= cdistrg->block_count))
         {
             cdimsd = malloc(sizeof(struct cdi_msd));
             if (cdimsd == NULL) {
@@ -608,7 +596,8 @@ static void get_partitions(struct cdi_storage_device* cdistrg)
                 break;
             }
             sprintf((char*) cdimsd->cdi_device.dev.name, "%sp%i",
-                cdistrg->dev.name, j++);
+                cdistrg->dev.name,
+                j++);
             cdimsd->cdi_device.block_size = base_cdimsd->cdi_device.block_size;
             cdimsd->cdi_device.block_count = partition[i].size;
             _dprintf(" %s", cdimsd->cdi_device.dev.name);
