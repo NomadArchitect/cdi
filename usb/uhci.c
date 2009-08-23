@@ -225,6 +225,8 @@ static int uhci_do_packet(struct usb_device* usbdev,
     uintptr_t ptd, pqh;
     struct transfer* addr;
     int timeout;
+    void* data;
+    uintptr_t phys_data;
 
     int frame = (usbdev->hci->get_frame(usbdev->hci) + 3) & 0x3FF;
 
@@ -238,6 +240,19 @@ static int uhci_do_packet(struct usb_device* usbdev,
     {
         return USB_TRIVIAL_ERROR;
     }
+
+    if (packet->length == 0) {
+        data = NULL;
+        phys_data = 0;
+    } else {
+        if (cdi_alloc_phys_mem(packet->length, &data, (void**) &phys_data) == -1) {
+            return USB_TRIVIAL_ERROR;
+        }
+        if (packet->type != PACKET_IN) {
+            memcpy(data, packet->data, packet->length);
+        }
+    }
+
     while (tsl(&locked)) {
 #ifndef CDI_STANDALONE
         __asm__ __volatile__ ("hlt");
@@ -256,7 +271,7 @@ static int uhci_do_packet(struct usb_device* usbdev,
     td->device = usbdev->id;
     td->endpoint = packet->endpoint;
     td->maxlen = packet->length ? packet->length - 1 : 0x7FF;
-    td->buffer = packet->phys_data;
+    td->buffer = phys_data;
     addr = malloc(sizeof(struct transfer));
     addr->virt = td;
     addr->phys = ptd;
@@ -273,6 +288,9 @@ static int uhci_do_packet(struct usb_device* usbdev,
     }
     uhci->frame_list[frame] = 1;
     locked = 0;
+    if (packet->type == PACKET_IN) {
+        memcpy(packet->data, data, packet->length);
+    }
     return addr->error;
 }
 

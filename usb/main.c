@@ -142,26 +142,17 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
     int length, int rtype, int recipient, int request, int value,
     int index)
 {
-    void* rbuf;
     int rval, no_data;
-    struct setup_packet* setup;
-    uintptr_t pbuf, psetup;
+    struct setup_packet _setup;
+    struct setup_packet* setup = &_setup;
 
     no_data = direction & NO_DATA;
-    if (!no_data &&
-        (cdi_alloc_phys_mem(length, &rbuf, (void**) &pbuf) == -1))
-    {
-        return NULL;
-    }
-    if (cdi_alloc_phys_mem(sizeof(struct setup_packet), (void**) &setup,
-            (void**) &psetup) == -1)
-    {
-        return NULL;
-    }
     direction &= 0x80;
-    if ((direction == HOST_TO_DEV) && length && (buffer != NULL)) {
-        memcpy(rbuf, buffer, length);
+
+    if ((direction != HOST_TO_DEV) || !length || (buffer == NULL)) {
+        buffer = malloc(length);
     }
+
     setup->request_type = direction | (rtype & 0x60) | (recipient & 0x1F);
     setup->request = request;
     setup->value = value;
@@ -171,7 +162,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
     struct usb_packet setup_packet = {
         .type         = PACKET_SETUP,
         .endpoint     = 0,
-        .phys_data    = psetup,
+        .data         = setup,
         .length       = sizeof(*setup),
         .datatoggle   = 0,
         .type_of_data = USB_TOD_SETUP,
@@ -184,12 +175,12 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
 
     if (no_data) {
         rval = USB_NO_ERROR;
-        rbuf = (void*) 0xFFFFFFFF;      //Kein Fehler, aber auch keine Daten
+        buffer = (void*) 0xFFFFFFFF;      //Kein Fehler, aber auch keine Daten
     } else {
         struct usb_packet data_packet = {
             .type         = (direction == DEV_TO_HOST ? PACKET_IN : PACKET_OUT),
             .endpoint     = 0,
-            .phys_data    = pbuf,
+            .data         = buffer,
             .length       = length,
             .datatoggle   = 1,
             .type_of_data =
@@ -203,7 +194,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
     if (rval == USB_NO_ERROR) {
         struct usb_packet ack_packet = {
             .endpoint   = 0,
-            .phys_data  = 0,
+            .data       = NULL,
             .length     = 0,
             .datatoggle = 1,
         };
@@ -218,7 +209,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
 
         rval = usb_do_packet(device, &ack_packet);
     }
-    return (rval == USB_NO_ERROR) ? rbuf : NULL;
+    return (rval == USB_NO_ERROR) ? buffer: NULL;
 }
 
 static void usb_init(void)

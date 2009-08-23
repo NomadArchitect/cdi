@@ -266,8 +266,8 @@ struct usb_packet {
     enum usb_packet_type type;
     /// Der gewuenschte Endpoint (0 bis 15)
     int endpoint;
-    /// Die physische Adresse des zu verwendenden Datenpuffers
-    uintptr_t phys_data;
+    /// Zeiger auf den Datenpuffer
+    void* data;
     /// Die Laenge des Puffers
     int length;
     /// Gibt an, ob DATA0 (0) oder DATA1 (1) verwendet werden soll
