@@ -367,10 +367,12 @@ static inline int tsl(volatile int* variable)
 }
 
 static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
-    uint16_t sectors, void* buffer, size_t length);
+    uint16_t sectors, void* buffer,
+    size_t length);
 
 static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
-    uint64_t count, void* buffer)
+    uint64_t count,
+    void* buffer)
 {
     int bs = strgdev->block_size, error;
 #ifdef WAIT_FOR_MSD_READY
@@ -394,7 +396,6 @@ static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
     for (i = 0; !msd_ready(usbdev) && (i < 10); i++) {
         cdi_sleep_ms(20);
     }
-
 #endif
     error = msd_read(usbdev, start, count, buffer, count * bs);
     if (error != USB_NO_ERROR) {
@@ -407,7 +408,8 @@ static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
 }
 
 static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
-    uint16_t sectors, void* buffer, size_t length)
+    uint16_t sectors, void* buffer,
+    size_t length)
 {
     struct msclass_data* msc;
     struct command_block_wrapper _cbw;
@@ -415,10 +417,9 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     uint32_t expected_tag;
     int error;
 
-    if (!buffer || !length) {
+    if ((buffer == NULL) || !length) {
         return USB_TRIVIAL_ERROR;
     }
-
     msc = (struct msclass_data*) usbdev->classd;
     memset(cbw, 0, 0x1F);
     cbw->cbw_signature = CBW_SIGNATURE;
@@ -463,57 +464,59 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
 }
 
 static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
-    uint16_t sectors, void* buffer, size_t length);
+    uint16_t sectors, void* buffer,
+    size_t length);
 
 static int msd_cdi_write(struct cdi_storage_device* strgdev, uint64_t start,
-    uint64_t count, void* buffer)
+    uint64_t count,
+    void* buffer)
 {
     int bs = strgdev->block_size, error;
 #ifdef WAIT_FOR_MSD_READY
-    int j;
+    int i;
 #endif
-    uint32_t i;
     struct usb_device* usbdev = ((struct cdi_msd*) strgdev)->usb_device;
 
     fdprintf("write(%i, %i)\n", (int) start, (int) count);
     start += ((struct cdi_msd*) strgdev)->offset;
 
+    if (!count) {
+        dprintf("Leere Schreibanfrage.\n");
+        return 0;
+    }
     while (tsl(&usbdev->locked)) {
 #ifndef CDI_STANDALONE
         __asm__ __volatile__ ("hlt");
 #endif
     }
-    for (i = 0; i < count; i++) {
 #ifdef WAIT_FOR_MSD_READY
-        for (j = 0; !msd_ready(usbdev) && (j < 10); j++) {
-            cdi_sleep_ms(20);
-        }
-
+    for (i = 0; !msd_ready(usbdev) && (i < 10); i++) {
+        cdi_sleep_ms(20);
+    }
 #endif
-        error = msd_write(usbdev, start + i, 1, buffer + i * bs, bs);
-        if (error != USB_NO_ERROR) {
-            dprintf("Schreibfehler 0x%X bei Block %i.\n", error, i);
-            usbdev->locked = 0;
-            return -1;
-        }
+    error = msd_write(usbdev, start, count, buffer, count * bs);
+    if (error != USB_NO_ERROR) {
+        dprintf("Schreibfehler 0x%X bei Block %i.\n", error, start);
+        usbdev->locked = 0;
+        return -1;
     }
     usbdev->locked = 0;
     return 0;
 }
 
 static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
-    uint16_t sectors, void* buffer, size_t length)
+    uint16_t sectors, void* buffer,
+    size_t length)
 {
     struct msclass_data* msc;
     struct command_block_wrapper _cbw;
     struct command_block_wrapper* cbw = &_cbw;
     uint32_t expected_tag;
-    int error, i, ep_size;
+    int error;
 
-    if (!buffer || !length) {
+    if ((buffer == NULL) || !length) {
         return USB_TRIVIAL_ERROR;
     }
-
     msc = (struct msclass_data*) usbdev->classd;
     memset(cbw, 0, 0x1F);
     cbw->cbw_signature = CBW_SIGNATURE;
@@ -540,18 +543,13 @@ static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
         .type         = PACKET_OUT,
         .endpoint     = msc->bulk_ep_out,
         .data         = buffer,
-        .length       = 0,
+        .length       = length,
         .type_of_data = USB_TOD_DATA_OUT,
     };
 
-    ep_size = msc->bulk_ep_out->max_packet_size;
-    for (i = 0; i < length; i += ep_size) {
-        out_packet.length = (length - i > ep_size) ? ep_size : length - i;
-        error = usb_do_packet(usbdev, &out_packet);
-        if (error != USB_NO_ERROR) {
-            return error;
-        }
-        out_packet.data += ep_size;
+    error = usb_do_packet(usbdev, &out_packet);
+    if (error != USB_NO_ERROR) {
+        return error;
     }
 
     error = read_status(usbdev, expected_tag);

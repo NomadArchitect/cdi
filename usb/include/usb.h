@@ -242,6 +242,7 @@ struct class_data {
 
 struct usb_device {
     struct hci* hci;
+    struct usb_device* hub;
     int id;
     int port;
     int low_speed;
@@ -254,6 +255,7 @@ struct usb_device {
     int locked;
     int expects;
     int data_toggle;
+    void (* reset)(struct usb_device* device);
 };
 
 struct msclass_data {

@@ -142,8 +142,12 @@ int usb_do_packet(struct usb_device* device, struct usb_packet* packet)
                 cdi_sleep_ms(5);
             }
         }
-        device->data_toggle ^= 1;
-        send_packet.data += mps;
+        if (error != USB_NO_ERROR) {
+            i -= mps;
+        } else {
+            device->data_toggle ^= 1;
+            send_packet.data += mps;
+        }
         if (error == USB_STALLED) {
             printf("[usb] ENDPOINT %i DES GERÄTS %i STALLED!\n",
                 packet->endpoint->endpoint_address,
@@ -167,11 +171,9 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
 
     no_data = direction & NO_DATA;
     direction &= 0x80;
-
     if ((direction != HOST_TO_DEV) || !length || (buffer == NULL)) {
         buffer = malloc(length);
     }
-
     setup->request_type = direction | (rtype & 0x60) | (recipient & 0x1F);
     setup->request = request;
     setup->value = value;
@@ -192,7 +194,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
 
     if (no_data) {
         rval = USB_NO_ERROR;
-        buffer = (void*) 0xFFFFFFFF;      //Kein Fehler, aber auch keine Daten
+        buffer = (void*) 0xFFFFFFFF;    //Kein Fehler, aber auch keine Daten
     } else {
         struct usb_packet data_packet = {
             .type         = (direction == DEV_TO_HOST ? PACKET_IN : PACKET_OUT),
@@ -225,7 +227,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
 
         rval = usb_do_packet(device, &ack_packet);
     }
-    return (rval == USB_NO_ERROR) ? buffer: NULL;
+    return (rval == USB_NO_ERROR) ? buffer : NULL;
 }
 
 static void usb_init(void)
@@ -325,6 +327,9 @@ static void enum_device(struct usb_device* usbdev)
     usbdev->ep0->max_packet_size = 8;
     usbdev->ep0->interval = 0;
 
+    //Resetten
+    usbdev->reset(usbdev);
+
     //Erste acht Bytes des Device-Descriptors abrufen und die maximale Paketgröße von EP0 feststellen
     dev_desc =
         do_control(usbdev, DEV_TO_HOST, NULL, 8, STD_REQUEST, REC_DEVICE,
@@ -336,12 +341,16 @@ static void enum_device(struct usb_device* usbdev)
     }
     usbdev->ep0->max_packet_size = dev_desc->max_packet_size0;
 
+    //Nochmals resetten
+    usbdev->reset(usbdev);
+
     //USB-Adresse zuweisen
     do_control(usbdev, HOST_TO_DEV | NO_DATA, NULL, 0, STD_REQUEST, REC_DEVICE,
         SET_ADDRESS, (id = usb_dev_ids++),
         0);
     usbdev->id = id;
 
+    //Den ganzen Device-Descriptor einlesen
     dev_desc =
         do_control(usbdev, DEV_TO_HOST, NULL, sizeof(*dev_desc), STD_REQUEST,
             REC_DEVICE, GET_DESCRIPTOR, DESC_DEVICE << 8,
@@ -454,6 +463,14 @@ static void enum_device(struct usb_device* usbdev)
     }
 }
 
+static void reset_hub_device(struct usb_device* usbdev)
+{
+    do_control(usbdev->hub, HOST_TO_DEV, NULL, 0, CLS_REQUEST, REC_OTHER,
+        SET_FEATURE, PORTF_RESET,
+        usbdev->port + 1);
+    cdi_sleep_ms(20);
+}
+
 static void enumerate_hub(struct usb_device* usbdev)
 {
     struct hub_desc* hub_desc;
@@ -481,17 +498,13 @@ static void enumerate_hub(struct usb_device* usbdev)
             SET_FEATURE, PORTF_POWER,
             i + 1);
         cdi_sleep_ms(hub_desc->pwron2pwrgood * 2);
-        //Resetten
-        do_control(usbdev, HOST_TO_DEV, NULL, 0, CLS_REQUEST, REC_OTHER,
-            SET_FEATURE, PORTF_RESET,
-            i + 1);
-        //Reset sollte jetzt eigtl. schon beendet sein
-        //(do_control wartet ja 50 ms)
         down = malloc(sizeof(struct usb_device));
         down->hci = usbdev->hci;
+        down->hub = usbdev;
         down->id = 0;
         down->port = i;
         down->low_speed = (port_status[0] & PORT_LOWSPEED) && 1;
+        down->reset = &reset_hub_device;
         enum_device(down);
     }
 }

@@ -59,6 +59,7 @@ static void activate_device(struct hci* gen_hci, struct usb_device* device);
 static int get_current_frame(struct hci* gen_hci);
 static void uhci_deinit(struct cdi_device* cdi_hci);
 static void uhci_kill(struct cdi_driver* cdi_hcd);
+static void uhci_reset_device(struct usb_device* device);
 
 
 struct cdi_driver* init_uhcd()
@@ -184,10 +185,20 @@ static cdi_list_t get_devices(struct hci* gen_hci)
         dev->port = i;
         dev->low_speed =
             (cdi_inw(uhci->pbase + UHCI_RPORTS + 2 * i) & RPORT_LOSPD) && 1;
+        dev->reset = &uhci_reset_device;
         cdi_list_push(dlist, dev);
     }
     _dprintf("\n");
     return dlist;
+}
+
+static void uhci_reset_device(struct usb_device* device)
+{
+    struct uhci* uhci = (struct uhci*) device->hci;
+
+    cdi_outw(uhci->pbase + UHCI_RPORTS + 2 * device->port,
+        RPORT_ENABLE | RPORT_RESET | RPORT_CSC);
+    cdi_sleep_ms(20);
 }
 
 static void activate_device(struct hci* gen_hci, struct usb_device* device)
@@ -196,7 +207,7 @@ static void activate_device(struct hci* gen_hci, struct usb_device* device)
 
     dprintf("Gerät an Port %i wird aktiviert.\n", device->port);
     cdi_outw(uhci->pbase + UHCI_RPORTS + 2 * device->port,
-        RPORT_RESET | RPORT_ENABLE | RPORT_CSC);
+        RPORT_ENABLE | RPORT_CSC);
     cdi_sleep_ms(20);
 }
 
@@ -243,7 +254,9 @@ static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
         data = NULL;
         phys_data = 0;
     } else {
-        if (cdi_alloc_phys_mem(packet->length, &data, (void**) &phys_data) == -1) {
+        if (cdi_alloc_phys_mem(packet->length, &data,
+                (void**) &phys_data) == -1)
+        {
             return USB_TRIVIAL_ERROR;
         }
         if (packet->type != PACKET_IN) {
