@@ -30,6 +30,7 @@
 
 #include "uhci.h"
 #include "usb.h"
+#include "mempool.h"
 
 #define DEBUG
 
@@ -94,8 +95,7 @@ void uhci_init(struct cdi_device* cdi_hci)
     struct uhci* uhci = (struct uhci*) gen_hci;
     struct cdi_pci_resource* res;
     int i, size = 0x14;
-    void* nbuf;
-    uintptr_t npbuf;
+    size_t request_size;
 
     uhci->pbase = 0;
     for (i = 0; (res = cdi_list_get(gen_hci->pcidev->resources, i)) != NULL;
@@ -115,12 +115,19 @@ void uhci_init(struct cdi_device* cdi_hci)
         dprintf("I/O-Basis nicht gefunden!\n");
         return;
     }
-    if (cdi_alloc_phys_mem(4096, (void**) &uhci->frame_list,
-            (void**) &uhci->phys_frame_list) == -1)
-    {
-        dprintf("Frame List konnte nicht allociert werden!\n");
+
+    request_size =
+        // Maximale Paketlaenge (TODO Stimmt das?)
+        1024 +
+        // Transferdeskriptor
+        sizeof(struct uhci_td);
+
+    uhci->buffers = mempool_create(8192, request_size);
+    if (uhci->buffers == NULL) {
+        dprintf("Speicherpool konnte nicht erzeugt werden\n");
         return;
     }
+
     if (cdi_alloc_phys_mem(sizeof(*uhci->queue_heads) * 1024,
             (void**) &uhci->queue_heads,
             (void**) &uhci->phys_queue_heads) == -1)
@@ -128,30 +135,13 @@ void uhci_init(struct cdi_device* cdi_hci)
         dprintf("QH-Speicher konnte nicht allociert werden!\n");
         return;
     }
-    if (cdi_alloc_phys_mem(sizeof(*uhci->transfer_descs) * 1024,
-            (void**) &uhci->transfer_descs,
-            (void**) &uhci->phys_transfer_descs) == -1)
+    if (cdi_alloc_phys_mem(4096, (void**) &uhci->frame_list,
+            (void**) &uhci->phys_frame_list) == -1)
     {
-        dprintf("TD-Speicher konnte nicht allociert werden!\n");
+        dprintf("Frame List konnte nicht allociert werden!\n");
         return;
     }
-    //FIXME Das tut dermaßen weh.
-    uhci->data_buffers = malloc(sizeof(void*) * 1024);
-    uhci->phys_data_buffers = malloc(sizeof(uintptr_t) * 1024);
-    for (i = 0; i < 1024; i += 4) {
-        if (cdi_alloc_phys_mem(4096, &nbuf, (void**) &npbuf) == -1) {
-            dprintf("Paketspeicher konnte nicht allociert werden!\n");
-            return;
-        }
-        uhci->data_buffers[i + 0] = nbuf + 0x000;
-        uhci->data_buffers[i + 1] = nbuf + 0x400;
-        uhci->data_buffers[i + 2] = nbuf + 0x800;
-        uhci->data_buffers[i + 3] = nbuf + 0xC00;
-        uhci->phys_data_buffers[i + 0] = npbuf + 0x000;
-        uhci->phys_data_buffers[i + 1] = npbuf + 0x400;
-        uhci->phys_data_buffers[i + 2] = npbuf + 0x800;
-        uhci->phys_data_buffers[i + 3] = npbuf + 0xC00;
-    }
+
     cdi_register_irq(gen_hci->pcidev->irq, &uhci_handler, cdi_hci);
     uhci->root_ports = (size - 0x10) >> 1;
     if (uhci->root_ports > 7) { //Laut Linuxkernel ist das so "weird", dass da was nicht stimmen kann...
@@ -269,6 +259,9 @@ static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
     struct transfer addr;
     int timeout, frame;
 
+    void* buf;
+    uintptr_t pbuf;
+
     memset(&td, 0, sizeof(td));
     td.next = 1; //Invalid
     td.active = 1;
@@ -290,21 +283,34 @@ static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
         frame++;
         frame &= 0x3FF;
     }
+
+   if (mempool_get(uhci->buffers, &buf, &pbuf) < 0) {
+       // FIXME Oder sowas
+       return USB_NAK;
+   }
+
+    addr.virt = buf;
+    addr.phys = pbuf;
+    addr.error = 0xFFFF;
+
+    buf = (void*)((uintptr_t) buf + sizeof(td));
+    pbuf += sizeof(td);
+
     if (!packet->length) {
         td.buffer = 0;
     } else {
-        td.buffer = uhci->phys_data_buffers[frame];
+        td.buffer = pbuf;
         if (packet->type != PACKET_IN) {
-            memcpy(uhci->data_buffers[frame], packet->data, packet->length);
+            memcpy(buf, packet->data, packet->length);
         }
     }
-    memcpy(&uhci->transfer_descs[frame], &td, sizeof(td));
-    uhci->queue_heads[frame].transfer =
-        (uintptr_t) &uhci->phys_transfer_descs[frame];
-    addr.virt = &uhci->transfer_descs[frame];
-    addr.phys = (uintptr_t) &uhci->phys_transfer_descs[frame];
-    addr.error = 0xFFFF;
+
+    memcpy(addr.virt, &td, sizeof(td));
+
+
+    uhci->queue_heads[frame].transfer = addr.phys;
     cdi_list_push(active_transfers, &addr);
+
     locked = 0;
     for (timeout = 0;
          !(uhci->queue_heads[frame].transfer & 1) && (timeout < 1000);
@@ -318,11 +324,14 @@ static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
 #endif
     }
     if (packet->type == PACKET_IN) {
-        memcpy(packet->data, uhci->data_buffers[frame], packet->length);
+        memcpy(packet->data, buf, packet->length);
     }
     if (addr.error == 0xFFFF) {
         addr.error = USB_TIMEOUT;
     }
+
+    mempool_put(uhci->buffers, addr.virt);
+
     return addr.error;
 }
 

@@ -508,7 +508,7 @@ static int msd_cdi_write(struct cdi_storage_device* strgdev, uint64_t start,
         bbs = (count - j > MAX_ACCESS_BLOCKS) ? MAX_ACCESS_BLOCKS : count - j;
         error = msd_write(usbdev, start + j, bbs, buffer + j * bs, bbs * bs);
         if (error != USB_NO_ERROR) {
-            dprintf("Schreibfehler 0x%X bei Block %i.\n", error, start + j);
+            dprintf("Schreibfehler 0x%X bei Block %lld.\n", error, start + j);
             usbdev->locked = 0;
             return -1;
         }

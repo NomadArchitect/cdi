@@ -104,11 +104,9 @@ struct uhci {
     int root_ports;
     struct uhci_qh* queue_heads;
     struct uhci_qh* phys_queue_heads;
-    struct uhci_td* transfer_descs;
-    struct uhci_td* phys_transfer_descs;
-    //FIXME Das tut einfach nur weh.
-    void** data_buffers;
-    uintptr_t* phys_data_buffers;
+
+
+    struct mempool* buffers;
 };
 
 #endif
