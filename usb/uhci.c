@@ -94,6 +94,8 @@ void uhci_init(struct cdi_device* cdi_hci)
     struct uhci* uhci = (struct uhci*) gen_hci;
     struct cdi_pci_resource* res;
     int i, size = 0x14;
+    void* nbuf;
+    uintptr_t npbuf;
 
     uhci->pbase = 0;
     for (i = 0; (res = cdi_list_get(gen_hci->pcidev->resources, i)) != NULL;
@@ -136,13 +138,19 @@ void uhci_init(struct cdi_device* cdi_hci)
     //FIXME Das tut dermaßen weh.
     uhci->data_buffers = malloc(sizeof(void*) * 1024);
     uhci->phys_data_buffers = malloc(sizeof(uintptr_t) * 1024);
-    for (i = 0; i < 1024; i++) {
-        if (cdi_alloc_phys_mem(1024, &uhci->data_buffers[i],
-                (void**) &uhci->phys_data_buffers[i]) == -1)
-        {
+    for (i = 0; i < 1024; i += 4) {
+        if (cdi_alloc_phys_mem(4096, &nbuf, (void**) &npbuf) == -1) {
             dprintf("Paketspeicher konnte nicht allociert werden!\n");
             return;
         }
+        uhci->data_buffers[i + 0] = nbuf + 0x000;
+        uhci->data_buffers[i + 1] = nbuf + 0x400;
+        uhci->data_buffers[i + 2] = nbuf + 0x800;
+        uhci->data_buffers[i + 3] = nbuf + 0xC00;
+        uhci->phys_data_buffers[i + 0] = npbuf + 0x000;
+        uhci->phys_data_buffers[i + 1] = npbuf + 0x400;
+        uhci->phys_data_buffers[i + 2] = npbuf + 0x800;
+        uhci->phys_data_buffers[i + 3] = npbuf + 0xC00;
     }
     cdi_register_irq(gen_hci->pcidev->irq, &uhci_handler, cdi_hci);
     uhci->root_ports = (size - 0x10) >> 1;
