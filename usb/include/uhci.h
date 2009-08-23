@@ -53,17 +53,10 @@
 #define RPORT_DEVICE   0x0001
 
 
-struct uhci {
-    struct hci gen_hci;
-    uint16_t pbase;
-    uintptr_t phys_frame_list;
-    uint32_t* frame_list;
-    int root_ports;
-};
-
 struct uhci_qh {
     volatile uint32_t next;
     volatile uint32_t transfer;
+    uint32_t align[2]; //Fürs korrekte Alignment (an 16 Bytes)
 } __attribute__((packed));
 
 struct uhci_td {
@@ -101,6 +94,21 @@ struct transfer {
     void* virt;
     uintptr_t phys;
     volatile int error;
+};
+
+struct uhci {
+    struct hci gen_hci;
+    uint16_t pbase;
+    uintptr_t phys_frame_list;
+    uint32_t* frame_list;
+    int root_ports;
+    struct uhci_qh* queue_heads;
+    struct uhci_qh* phys_queue_heads;
+    struct uhci_td* transfer_descs;
+    struct uhci_td* phys_transfer_descs;
+    //FIXME Das tut einfach nur weh.
+    void** data_buffers;
+    uintptr_t* phys_data_buffers;
 };
 
 #endif

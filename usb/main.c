@@ -52,6 +52,9 @@ static int usb_dev_ids = 1;
 
 static void usb_init(void);
 static void enumerate_hub(struct usb_device* usbdev);
+static void* do_control(struct usb_device* device, int direction, void* buffer,
+    int length, int rtype, int recipient, int request, int value,
+    int index);
 
 #ifdef CDI_STANDALONE
 int main(void)
@@ -119,11 +122,6 @@ int usb_do_packet(struct usb_device* device, struct usb_packet* packet)
     //dprintf("TOD: %s\n", tod_name[tod_short]);
     device->expects = next_data_type[tod_short];
     packet->type &= 0xFF;
-    if (device->stalled) {
-        //TODO: Irgendwie entstallen, evtl.? oO
-        dprintf("Zugriff auf stalled-Gerät verweigert.\n");
-        return USB_STALLED;
-    }
 
     struct usb_packet send_packet = {
         .type      = packet->type,
@@ -152,10 +150,9 @@ int usb_do_packet(struct usb_device* device, struct usb_packet* packet)
             printf("[usb] ENDPOINT %i DES GERÄTS %i STALLED!\n",
                 packet->endpoint->endpoint_address,
                 device->id);
-            for (;;) {
-            }
-            device->stalled = 1;
-            break;
+            do_control(device, HOST_TO_DEV | NO_DATA, NULL, 0, STD_REQUEST,
+                REC_ENDPOINT, CLEAR_FEATURE, 0,
+                packet->endpoint->endpoint_address);
         }
     }
     return error;
@@ -171,9 +168,11 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
 
     no_data = direction & NO_DATA;
     direction &= 0x80;
+
     if ((direction != HOST_TO_DEV) || !length || (buffer == NULL)) {
         buffer = malloc(length);
     }
+
     setup->request_type = direction | (rtype & 0x60) | (recipient & 0x1F);
     setup->request = request;
     setup->value = value;
@@ -315,7 +314,6 @@ static void enum_device(struct usb_device* usbdev)
     int i, id;
 
     //Gerät und EP0 initialisieren
-    usbdev->stalled = 0;
     usbdev->locked = 0;
     usbdev->expects = USB_TOD_SETUP | USB_TOD_COMMAND;
     usbdev->data_toggle = 0;

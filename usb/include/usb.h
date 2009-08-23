@@ -251,7 +251,6 @@ struct usb_device {
     struct config_desc* config;
     struct interface_desc* interface;
     struct class_data* classd;
-    int stalled;
     int locked;
     int expects;
     int data_toggle;

@@ -95,7 +95,6 @@ void uhci_init(struct cdi_device* cdi_hci)
     struct cdi_pci_resource* res;
     int i, size = 0x14;
 
-    //cdi_pci_alloc_ioports(gen_hci->pcidev);
     uhci->pbase = 0;
     for (i = 0; (res = cdi_list_get(gen_hci->pcidev->resources, i)) != NULL;
          i++)
@@ -120,16 +119,45 @@ void uhci_init(struct cdi_device* cdi_hci)
         dprintf("Frame List konnte nicht allociert werden!\n");
         return;
     }
+    if (cdi_alloc_phys_mem(sizeof(*uhci->queue_heads) * 1024,
+            (void**) &uhci->queue_heads,
+            (void**) &uhci->phys_queue_heads) == -1)
+    {
+        dprintf("QH-Speicher konnte nicht allociert werden!\n");
+        return;
+    }
+    if (cdi_alloc_phys_mem(sizeof(*uhci->transfer_descs) * 1024,
+            (void**) &uhci->transfer_descs,
+            (void**) &uhci->phys_transfer_descs) == -1)
+    {
+        dprintf("TD-Speicher konnte nicht allociert werden!\n");
+        return;
+    }
+    //FIXME Das tut dermaßen weh.
+    uhci->data_buffers = malloc(sizeof(void*) * 1024);
+    uhci->phys_data_buffers = malloc(sizeof(uintptr_t) * 1024);
+    for (i = 0; i < 1024; i++) {
+        if (cdi_alloc_phys_mem(1024, &uhci->data_buffers[i],
+                (void**) &uhci->phys_data_buffers[i]) == -1)
+        {
+            dprintf("Paketspeicher konnte nicht allociert werden!\n");
+            return;
+        }
+    }
     cdi_register_irq(gen_hci->pcidev->irq, &uhci_handler, cdi_hci);
     uhci->root_ports = (size - 0x10) >> 1;
-    if (uhci->root_ports > 7) {                         //Laut Linuxkernel ist das so "weird", dass da was nicht stimmen kann...
+    if (uhci->root_ports > 7) { //Laut Linuxkernel ist das so "weird", dass da was nicht stimmen kann...
         uhci->root_ports = 2;
     }
     dprintf("UHC mit I/O 0x%04X (%i Ports) und IRQ %i\n", uhci->pbase,
         uhci->root_ports,
         gen_hci->pcidev->irq);
     for (i = 0; i < 1024; i++) {
-        uhci->frame_list[i] = 1; //Invalid
+        uhci->queue_heads[i].next = 1; //Invalid
+        uhci->queue_heads[i].transfer = 1; //Invalid
+    }
+    for (i = 0; i < 1024; i++) {
+        uhci->frame_list[i] = (uintptr_t) &uhci->phys_queue_heads[i] | 2;
     }
     dprintf("Resetten...\n");
     //HC zurücksetzen
@@ -229,80 +257,65 @@ static volatile int locked = 0;
 static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
 {
     struct uhci* uhci = (struct uhci*) usbdev->hci;
-    struct uhci_td* td;
-    struct uhci_qh* qh;
-    uintptr_t ptd, pqh;
-    struct transfer* addr;
-    int timeout;
-    void* data;
-    uintptr_t phys_data;
+    struct uhci_td td;
+    struct transfer addr;
+    int timeout, frame;
 
-    int frame = (usbdev->hci->get_frame(usbdev->hci) + 3) & 0x3FF;
-
-    if (cdi_alloc_phys_mem(sizeof(struct uhci_td), (void**) &td,
-            (void**) &ptd) == -1)
-    {
-        return USB_TRIVIAL_ERROR;
-    }
-    if (cdi_alloc_phys_mem(sizeof(struct uhci_qh), (void**) &qh,
-            (void**) &pqh) == -1)
-    {
-        return USB_TRIVIAL_ERROR;
-    }
-
-    if (packet->length == 0) {
-        data = NULL;
-        phys_data = 0;
-    } else {
-        if (cdi_alloc_phys_mem(packet->length, &data,
-                (void**) &phys_data) == -1)
-        {
-            return USB_TRIVIAL_ERROR;
-        }
-        if (packet->type != PACKET_IN) {
-            memcpy(data, packet->data, packet->length);
-        }
-    }
-
+    memset(&td, 0, sizeof(td));
+    td.next = 1; //Invalid
+    td.active = 1;
+    td.ioc = 1;
+    td.data_toggle = usbdev->data_toggle;
+    td.low_speed = usbdev->low_speed;
+    td.errors = 1;
+    td.pid = packet->type;
+    td.device = usbdev->id;
+    td.endpoint = packet->endpoint->endpoint_address & 0x07;
+    td.maxlen = packet->length ? packet->length - 1 : 0x7FF;
     while (tsl(&locked)) {
 #ifndef CDI_STANDALONE
         __asm__ __volatile__ ("hlt");
 #endif
     }
-    qh->next = 1; //Invalid
-    qh->transfer = ptd;
-    memset(td, 0, sizeof(struct uhci_td));
-    td->next = 1; //Invalid
-    td->active = 1;
-    td->ioc = 1;
-    td->data_toggle = usbdev->data_toggle;
-    td->low_speed = usbdev->low_speed;
-    td->errors = 1;
-    td->pid = packet->type;
-    td->device = usbdev->id;
-    td->endpoint = packet->endpoint->endpoint_address & 0x07;
-    td->maxlen = packet->length ? packet->length - 1 : 0x7FF;
-    td->buffer = phys_data;
-    addr = malloc(sizeof(struct transfer));
-    addr->virt = td;
-    addr->phys = ptd;
-    addr->error = 0xFFFF;
-    cdi_list_push(active_transfers, addr);
-    uhci->frame_list[frame] = pqh | 2;
-    for (timeout = 0; !(qh->transfer & 1) && (timeout < 1000); timeout++) {
+    frame = (cdi_inw(uhci->pbase + UHCI_FRNUM) + 5) & 0x3FF;
+    while (!(uhci->queue_heads[frame].transfer & 1)) {
+        frame++;
+        frame &= 0x3FF;
+    }
+    if (!packet->length) {
+        td.buffer = 0;
+    } else {
+        td.buffer = uhci->phys_data_buffers[frame];
+        if (packet->type != PACKET_IN) {
+            memcpy(uhci->data_buffers[frame], packet->data, packet->length);
+        }
+    }
+    memcpy(&uhci->transfer_descs[frame], &td, sizeof(td));
+    uhci->queue_heads[frame].transfer =
+        (uintptr_t) &uhci->phys_transfer_descs[frame];
+    addr.virt = &uhci->transfer_descs[frame];
+    addr.phys = (uintptr_t) &uhci->phys_transfer_descs[frame];
+    addr.error = 0xFFFF;
+    cdi_list_push(active_transfers, &addr);
+    locked = 0;
+    for (timeout = 0;
+         !(uhci->queue_heads[frame].transfer & 1) && (timeout < 1000);
+         timeout++)
+    {
         cdi_sleep_ms(1);
     }
-    while ((timeout < 1000) && (addr->error == 0xFFFF)) {
+    while ((timeout < 1000) && (addr.error == 0xFFFF)) {
 #ifndef CDI_STANDALONE
         __asm__ __volatile__ ("hlt");
 #endif
     }
-    uhci->frame_list[frame] = 1;
-    locked = 0;
     if (packet->type == PACKET_IN) {
-        memcpy(packet->data, data, packet->length);
+        memcpy(packet->data, uhci->data_buffers[frame], packet->length);
     }
-    return addr->error;
+    if (addr.error == 0xFFFF) {
+        addr.error = USB_TIMEOUT;
+    }
+    return addr.error;
 }
 
 static void uhci_handler(struct cdi_device* cdi_hci)
@@ -312,7 +325,7 @@ static void uhci_handler(struct cdi_device* cdi_hci)
     struct transfer* addr;
     struct uhci_td* td;
 
-    if (!status) {                         //Also, von hier kommt der IRQ nicht.
+    if (!status) { //Also, von hier kommt der IRQ nicht.
         return;
     }
     if (status & ~0x0001) {
@@ -320,7 +333,7 @@ static void uhci_handler(struct cdi_device* cdi_hci)
     }
     if (status & 0x10) {
         printf("[uhci] SCHWERWIEGENDER FEHLER - HC WIRD ANGEHALTEN\n");
-        cdi_outw(uhci->pbase + UHCI_USBCMD, MAXP | HCRESET);    //FU!
+        cdi_outw(uhci->pbase + UHCI_USBCMD, MAXP | HCRESET); //FU!
     } else {
         for (i = 0; (addr = cdi_list_get(active_transfers, i)) != NULL; i++) {
             td = addr->virt;

@@ -366,6 +366,8 @@ static inline int tsl(volatile int* variable)
     return rval;
 }
 
+#define MAX_ACCESS_BLOCKS 32
+
 static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     uint16_t sectors, void* buffer,
     size_t length);
@@ -379,6 +381,7 @@ static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
     int i;
 #endif
     struct usb_device* usbdev = ((struct cdi_msd*) strgdev)->usb_device;
+    int j, bbs;
 
     fdprintf("read(%i, %i)\n", (int) start, (int) count);
     start += ((struct cdi_msd*) strgdev)->offset;
@@ -392,17 +395,23 @@ static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
         __asm__ __volatile__ ("hlt");
 #endif
     }
+    for (j = 0; j < count; j += MAX_ACCESS_BLOCKS) {
 #ifdef WAIT_FOR_MSD_READY
-    for (i = 0; !msd_ready(usbdev) && (i < 10); i++) {
-        cdi_sleep_ms(20);
-    }
+        for (i = 0; !msd_ready(usbdev) && (i < 10); i++) {
+            cdi_sleep_ms(20);
+        }
 #endif
-    error = msd_read(usbdev, start, count, buffer, count * bs);
-    if (error != USB_NO_ERROR) {
-        dprintf("Lesefehler 0x%X bei Block %lld.\n", error, start);
-        usbdev->locked = 0;
-        return -1;
+        bbs = (count - j > MAX_ACCESS_BLOCKS) ? MAX_ACCESS_BLOCKS : count - j;
+        _dprintf("/");
+        error = msd_read(usbdev, start + j, bbs, buffer + j * bs, bbs * bs);
+        _dprintf("\\");
+        if (error != USB_NO_ERROR) {
+            dprintf("Lesefehler 0x%X bei Block %lld.\n", error, start + j);
+            usbdev->locked = 0;
+            return -1;
+        }
     }
+    _dprintf("\n");
     usbdev->locked = 0;
     return 0;
 }
@@ -476,6 +485,7 @@ static int msd_cdi_write(struct cdi_storage_device* strgdev, uint64_t start,
     int i;
 #endif
     struct usb_device* usbdev = ((struct cdi_msd*) strgdev)->usb_device;
+    int j, bbs;
 
     fdprintf("write(%i, %i)\n", (int) start, (int) count);
     start += ((struct cdi_msd*) strgdev)->offset;
@@ -489,16 +499,19 @@ static int msd_cdi_write(struct cdi_storage_device* strgdev, uint64_t start,
         __asm__ __volatile__ ("hlt");
 #endif
     }
+    for (j = 0; j < count; j += MAX_ACCESS_BLOCKS) {
 #ifdef WAIT_FOR_MSD_READY
-    for (i = 0; !msd_ready(usbdev) && (i < 10); i++) {
-        cdi_sleep_ms(20);
-    }
+        for (i = 0; !msd_ready(usbdev) && (i < 10); i++) {
+            cdi_sleep_ms(20);
+        }
 #endif
-    error = msd_write(usbdev, start, count, buffer, count * bs);
-    if (error != USB_NO_ERROR) {
-        dprintf("Schreibfehler 0x%X bei Block %i.\n", error, start);
-        usbdev->locked = 0;
-        return -1;
+        bbs = (count - j > MAX_ACCESS_BLOCKS) ? MAX_ACCESS_BLOCKS : count - j;
+        error = msd_write(usbdev, start + j, bbs, buffer + j * bs, bbs * bs);
+        if (error != USB_NO_ERROR) {
+            dprintf("Schreibfehler 0x%X bei Block %i.\n", error, start + j);
+            usbdev->locked = 0;
+            return -1;
+        }
     }
     usbdev->locked = 0;
     return 0;
