@@ -138,14 +138,44 @@ struct cdi_hci {
 
 struct usb_device;
 struct usb_packet;
+struct usb_pipe;
 
 struct hci {
     struct cdi_pci_device* pcidev;
     hci_type_t type;
-    cdi_list_t (* find_devices)(struct hci*);
-    void (* activate_device)(struct hci*, struct usb_device*);
-    int (* do_packet)(struct usb_device*, struct usb_packet* packet);
-    int (* get_frame)(struct hci*);
+
+    /**
+      * Listet alle Geräte auf, die an den Rootports hängen
+      *
+      * @param hci Das HCI
+      *
+      * @return Die List der Geräte (nur NULL, wenn cdi_list_create()
+      *         fehlgeschlagen ist)
+      */
+    cdi_list_t (* find_devices)(struct hci* hci);
+
+    /**
+      * Aktiviert den zum angegebenen Gerät gehörigen Rootport
+      *
+      * @param device Das USB-Gerät (muss an einem Rootport hängen)
+      */
+    void (* activate_device)(struct usb_device* device);
+
+    /**
+      * Verarbeitet ein USB-Paket
+      *
+      * @param packet Das Paket
+      *
+      * @return Gibt den Status an (z. B. USB_NO_ERROR für keinen Fehler)
+      */
+    int (* do_packet)(struct usb_packet* packet);
+
+    /**
+      * Erstellt eine neue Pipe
+      *
+      * @param pipe Die Pipe
+      */
+    void (* add_pipe)(struct usb_pipe* pipe);
 };
 
 struct setup_packet {
@@ -246,29 +276,34 @@ struct usb_device {
     int id;
     int port;
     int low_speed;
-    struct endpoint_desc* ep0;
+    struct usb_pipe* ep0;
     struct device_desc* device;
     struct config_desc* config;
     struct interface_desc* interface;
     struct class_data* classd;
     int locked;
     int expects;
-    int data_toggle;
+
+    /**
+      * Setzt das Gerät zurück (muss vom Hub- oder HC-Driver gesetzt werden)
+      *
+      * @param device Das Gerät
+      */
     void (* reset)(struct usb_device* device);
 };
 
 struct msclass_data {
     struct class_data gen_class;
-    struct endpoint_desc* bulk_ep_in;
-    struct endpoint_desc* bulk_ep_out;
+    struct usb_pipe* bulk_in;
+    struct usb_pipe* bulk_out;
 };
 
 /** Beschreibt ein USB-Paket */
 struct usb_packet {
+    /// Die gewuenschte Pipe
+    struct usb_pipe* pipe;
     /// Der Typ des Pakets (PACKET_IN, PACKET_OUT, PACKET_SETUP)
     enum usb_packet_type type;
-    /// Der gewuenschte Endpoint
-    struct endpoint_desc* endpoint;
     /// Zeiger auf den Datenpuffer
     void* data;
     /// Die Laenge des Puffers
@@ -277,14 +312,28 @@ struct usb_packet {
     int type_of_data;
 };
 
+/// Beschreibt eine Pipe
+struct usb_pipe {
+    /// Ziel
+    struct usb_device* device;
+    /// Der Endpoint
+    struct endpoint_desc* endpoint;
+    /// Data-Toggle
+    int data_toggle;
+};
 
+
+#include "ohci.h"
 #include "uhci.h"
 
 
-#define HCI_STRUCT_SIZE sizeof(struct uhci)
+#ifndef max
+#define max(v1, v2) (((v1) > (v2)) ? (v1) : (v2))
+#endif
+#define HCI_STRUCT_SIZE max(sizeof(struct ohci), sizeof(struct uhci))
 
 
-int usb_do_packet(struct usb_device* device, struct usb_packet* packet);
+int usb_do_packet(struct usb_packet* packet);
 void enumerate_hci(struct hci*);
 struct cdi_driver* init_uhcd(void);
 void init_msc_driver(void);

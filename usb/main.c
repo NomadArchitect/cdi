@@ -28,6 +28,8 @@
 #include "cdi/misc.h"
 #include "cdi/pci.h"
 
+#include "ohci.h"
+#include "uhci.h"
 #include "usb.h"
 
 #define DEBUG
@@ -100,14 +102,16 @@ static const int next_data_type[9] = {
 /**
   * Verarbeitet ein USB-Paket.
   *
-  * @param device Das USB-Gerät
+  * @param packet Das Paket
   */
 
-int usb_do_packet(struct usb_device* device, struct usb_packet* packet)
+int usb_do_packet(struct usb_packet* packet)
 {
     int error = USB_NAK;
     int tod_short, tod = packet->type_of_data;
     int i = 0, mps;
+    struct usb_pipe* pipe = packet->pipe;
+    struct usb_device* device = pipe->device;
 
     if (!(device->expects & tod)) {
         dprintf("0x%04X erwartet, 0x%04X bekommen...?\n", device->expects, tod);
@@ -124,18 +128,18 @@ int usb_do_packet(struct usb_device* device, struct usb_packet* packet)
     packet->type &= 0xFF;
 
     struct usb_packet send_packet = {
+        .pipe      = packet->pipe,
         .type      = packet->type,
-        .endpoint  = packet->endpoint,
         .data      = packet->data
     };
-    mps = packet->endpoint->max_packet_size;
+    mps = pipe->endpoint->max_packet_size;
 
     for (i = 0; (i < packet->length) || (!i && !packet->length); i += mps) {
         send_packet.length =
             (packet->length - i > mps) ? mps : (packet->length - i);
         error = USB_NAK;
         while (error == USB_NAK) {
-            error = device->hci->do_packet(device, &send_packet);
+            error = device->hci->do_packet(&send_packet);
             if (error == USB_NAK) {
                 cdi_sleep_ms(5);
             }
@@ -143,16 +147,16 @@ int usb_do_packet(struct usb_device* device, struct usb_packet* packet)
         if (error != USB_NO_ERROR) {
             i -= mps;
         } else {
-            device->data_toggle ^= 1;
+            pipe->data_toggle ^= 1;
             send_packet.data += mps;
         }
         if (error == USB_STALLED) {
-            printf("[usb] ENDPOINT %i DES GERÄTS %i STALLED!\n",
-                packet->endpoint->endpoint_address,
+            printf("[usb] ENDPOINT 0x%02X DES GERÄTS %i STALLED!\n",
+                pipe->endpoint->endpoint_address,
                 device->id);
             do_control(device, HOST_TO_DEV | NO_DATA, NULL, 0, STD_REQUEST,
                 REC_ENDPOINT, CLEAR_FEATURE, 0,
-                packet->endpoint->endpoint_address);
+                pipe->endpoint->endpoint_address);
         }
     }
     return error;
@@ -180,14 +184,14 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
     setup->length = length;
 
     struct usb_packet setup_packet = {
+        .pipe         = device->ep0,
         .type         = PACKET_SETUP,
-        .endpoint     = device->ep0,
         .data         = setup,
         .length       = sizeof(*setup),
         .type_of_data = USB_TOD_SETUP,
     };
 
-    if (usb_do_packet(device, &setup_packet)) {
+    if (usb_do_packet(&setup_packet)) {
         return NULL;
     }
 
@@ -196,8 +200,8 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
         buffer = (void*) 0xFFFFFFFF;    //Kein Fehler, aber auch keine Daten
     } else {
         struct usb_packet data_packet = {
+            .pipe         = device->ep0,
             .type         = (direction == DEV_TO_HOST ? PACKET_IN : PACKET_OUT),
-            .endpoint     = device->ep0,
             .data         = buffer,
             .length       = length,
             .type_of_data =
@@ -205,16 +209,16 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
                  DEV_TO_HOST ? USB_TOD_SETUP_DATA_IN : USB_TOD_SETUP_DATA_OUT),
         };
 
-        rval = usb_do_packet(device, &data_packet);
+        rval = usb_do_packet(&data_packet);
     }
 
     if (rval == USB_NO_ERROR) {
         struct usb_packet ack_packet = {
-            .endpoint   = device->ep0,
+            .pipe       = device->ep0,
             .data       = NULL,
             .length     = 0,
         };
-        device->data_toggle = 1;
+        device->ep0->data_toggle = 1;
 
         if (no_data || (direction == HOST_TO_DEV)) {
             ack_packet.type = PACKET_IN;
@@ -224,7 +228,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
             ack_packet.type_of_data = USB_TOD_SETUP_ACK_OUT;
         }
 
-        rval = usb_do_packet(device, &ack_packet);
+        rval = usb_do_packet(&ack_packet);
     }
     return (rval == USB_NO_ERROR) ? buffer : NULL;
 }
@@ -234,7 +238,7 @@ static void usb_init(void)
     struct cdi_pci_device* dev;
     struct hci* hci;
     struct cdi_hci* cdi_hci;
-    struct cdi_driver* uhcd;
+    struct cdi_driver* uhcd, * ohcd;
     char* dev_name;
     int i;
 
@@ -283,6 +287,7 @@ static void usb_init(void)
             ehci), cdi_list_size(ohci), cdi_list_size(uhci));
 
     uhcd = init_uhcd();
+    ohcd = init_ohcd();
 
     for (i = 0; (hci = cdi_list_pop(uhci)) != NULL; i++) {
         cdi_hci = malloc(sizeof(struct cdi_hci));
@@ -297,6 +302,20 @@ static void usb_init(void)
         dprintf("%s registriert.\n", dev_name);
         cdi_hci->cdi_device.driver = uhcd;
         uhci_init(&cdi_hci->cdi_device);
+    }
+
+    for (i = 0; (hci = cdi_list_pop(ohci)) != NULL; i++) {
+        cdi_hci = malloc(sizeof(struct cdi_hci));
+        cdi_hci->cdi_device.type = CDI_UNKNOWN;
+        dev_name = malloc(10);
+        sprintf(dev_name, "ohci%i", i);
+        cdi_hci->cdi_device.name = dev_name;
+        hci->find_devices = NULL;
+        cdi_hci->hci = hci;
+        //cdi_list_push(ohcd->devices, cdi_hci);
+        dprintf("%s registriert.\n", dev_name);
+        cdi_hci->cdi_device.driver = uhcd;
+        ohci_init(&cdi_hci->cdi_device);
     }
 
     cdi_list_destroy(ehci);
@@ -316,14 +335,16 @@ static void enum_device(struct usb_device* usbdev)
     //Gerät und EP0 initialisieren
     usbdev->locked = 0;
     usbdev->expects = USB_TOD_SETUP | USB_TOD_COMMAND;
-    usbdev->data_toggle = 0;
     usbdev->ep0 = malloc(sizeof(*usbdev->ep0));
-    usbdev->ep0->length = sizeof(*usbdev->ep0);
-    usbdev->ep0->descriptor_type = DESC_ENDPOINT;
-    usbdev->ep0->endpoint_address = 0;
-    usbdev->ep0->attributes = 0;
-    usbdev->ep0->max_packet_size = 8;
-    usbdev->ep0->interval = 0;
+    usbdev->ep0->endpoint = malloc(sizeof(*usbdev->ep0->endpoint));
+    usbdev->ep0->endpoint->length = sizeof(*usbdev->ep0->endpoint);
+    usbdev->ep0->endpoint->descriptor_type = DESC_ENDPOINT;
+    usbdev->ep0->endpoint->endpoint_address = 0;
+    usbdev->ep0->endpoint->attributes = 0;
+    usbdev->ep0->endpoint->max_packet_size = 8;
+    usbdev->ep0->endpoint->interval = 0;
+    usbdev->ep0->device = usbdev;
+    usbdev->ep0->data_toggle = 0;
 
     //Resetten
     usbdev->reset(usbdev);
@@ -337,7 +358,7 @@ static void enum_device(struct usb_device* usbdev)
     if (dev_desc == NULL) {
         return;
     }
-    usbdev->ep0->max_packet_size = dev_desc->max_packet_size0;
+    usbdev->ep0->endpoint->max_packet_size = dev_desc->max_packet_size0;
 
     //Nochmals resetten
     usbdev->reset(usbdev);
@@ -515,7 +536,7 @@ void enumerate_hci(struct hci* hci)
     if (hci->find_devices != NULL) {
         usb_devices = hci->find_devices(hci);
         while ((usbdev = cdi_list_pop(usb_devices)) != NULL) {
-            hci->activate_device(hci, usbdev);
+            hci->activate_device(usbdev);
             cdi_sleep_ms(50);
             enum_device(usbdev);
         }

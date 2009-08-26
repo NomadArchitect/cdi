@@ -28,9 +28,9 @@
 #include "cdi/misc.h"
 #include "cdi/pci.h"
 
+#include "mempool.h"
 #include "uhci.h"
 #include "usb.h"
-#include "mempool.h"
 
 #define DEBUG
 
@@ -48,19 +48,19 @@ static int dprintf(const char* fmt, ...)
 #define _dprintf(fmt, args...) dprintf(fmt, ## args)
 #endif
 
-static const char* driver_name = "uhci";
+static const char* driver_name = "uhcd";
 
 static struct cdi_driver cdi_driver;
 static cdi_list_t active_transfers;
 
 static void uhci_handler(struct cdi_device* dev);
-static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet);
+static int uhci_do_packet(struct usb_packet* packet);
 static cdi_list_t get_devices(struct hci* gen_hci);
-static void activate_device(struct hci* gen_hci, struct usb_device* device);
-static int get_current_frame(struct hci* gen_hci);
+static void activate_device(struct usb_device* device);
 static void uhci_deinit(struct cdi_device* cdi_hci);
 static void uhci_kill(struct cdi_driver* cdi_hcd);
 static void uhci_reset_device(struct usb_device* device);
+static void uhci_establish_pipe(struct usb_pipe* pipe);
 
 
 struct cdi_driver* init_uhcd()
@@ -115,10 +115,9 @@ void uhci_init(struct cdi_device* cdi_hci)
         dprintf("I/O-Basis nicht gefunden!\n");
         return;
     }
-
     request_size =
-        // Maximale Paketlaenge (TODO Stimmt das?)
-        1024 +
+        // Maximale Paketlänge (Full Speed)
+        1023 +
         // Transferdeskriptor
         sizeof(struct uhci_td);
 
@@ -135,10 +134,11 @@ void uhci_init(struct cdi_device* cdi_hci)
         dprintf("QH-Speicher konnte nicht allociert werden!\n");
         return;
     }
+
     if (cdi_alloc_phys_mem(4096, (void**) &uhci->frame_list,
             (void**) &uhci->phys_frame_list) == -1)
     {
-        dprintf("Frame List konnte nicht allociert werden!\n");
+        dprintf("Frame List konnte nicht allokiert werden!\n");
         return;
     }
 
@@ -185,7 +185,7 @@ void uhci_init(struct cdi_device* cdi_hci)
     gen_hci->find_devices = &get_devices;
     gen_hci->activate_device = &activate_device;
     gen_hci->do_packet = &uhci_do_packet;
-    gen_hci->get_frame = &get_current_frame;
+    gen_hci->add_pipe = &uhci_establish_pipe;
 
     enumerate_hci(gen_hci);
 }
@@ -227,19 +227,14 @@ static void uhci_reset_device(struct usb_device* device)
     cdi_sleep_ms(20);
 }
 
-static void activate_device(struct hci* gen_hci, struct usb_device* device)
+static void activate_device(struct usb_device* device)
 {
-    struct uhci* uhci = (struct uhci*) gen_hci;
+    struct uhci* uhci = (struct uhci*) device->hci;
 
     dprintf("Gerät an Port %i wird aktiviert.\n", device->port);
     cdi_outw(uhci->pbase + UHCI_RPORTS + 2 * device->port,
         RPORT_ENABLE | RPORT_CSC);
     cdi_sleep_ms(20);
-}
-
-static int get_current_frame(struct hci* gen_hci)
-{
-    return cdi_inw(((struct uhci*) gen_hci)->pbase + UHCI_FRNUM);
 }
 
 static inline int tsl(volatile int* variable)
@@ -252,8 +247,9 @@ static inline int tsl(volatile int* variable)
 
 static volatile int locked = 0;
 
-static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
+static int uhci_do_packet(struct usb_packet* packet)
 {
+    struct usb_device* usbdev = packet->pipe->device;
     struct uhci* uhci = (struct uhci*) usbdev->hci;
     struct uhci_td td;
     struct transfer addr;
@@ -266,12 +262,12 @@ static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
     td.next = 1; //Invalid
     td.active = 1;
     td.ioc = 1;
-    td.data_toggle = usbdev->data_toggle;
+    td.data_toggle = packet->pipe->data_toggle;
     td.low_speed = usbdev->low_speed;
     td.errors = 1;
     td.pid = packet->type;
     td.device = usbdev->id;
-    td.endpoint = packet->endpoint->endpoint_address & 0x07;
+    td.endpoint = packet->pipe->endpoint->endpoint_address & 0x07;
     td.maxlen = packet->length ? packet->length - 1 : 0x7FF;
     while (tsl(&locked)) {
 #ifndef CDI_STANDALONE
@@ -284,16 +280,15 @@ static int uhci_do_packet(struct usb_device* usbdev, struct usb_packet* packet)
         frame &= 0x3FF;
     }
 
-   if (mempool_get(uhci->buffers, &buf, &pbuf) < 0) {
-       // FIXME Oder sowas
-       return USB_NAK;
-   }
+    if (mempool_get(uhci->buffers, &buf, &pbuf) < 0) {
+        return USB_TRIVIAL_ERROR;
+    }
 
     addr.virt = buf;
     addr.phys = pbuf;
     addr.error = 0xFFFF;
 
-    buf = (void*)((uintptr_t) buf + sizeof(td));
+    buf = (void*) ((uintptr_t) buf + sizeof(td));
     pbuf += sizeof(td);
 
     if (!packet->length) {
@@ -387,4 +382,9 @@ static void uhci_handler(struct cdi_device* cdi_hci)
         }
     }
     cdi_outw(uhci->pbase + UHCI_USBSTS, status);
+}
+
+static void uhci_establish_pipe(struct usb_pipe* pipe)
+{
+    //Macht nix, weil das bei UHCI nicht nötig ist
 }

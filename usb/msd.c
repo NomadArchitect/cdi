@@ -163,26 +163,35 @@ void register_msd(struct usb_device* usbdev)
         return;
     }
     usbdev->classd = (struct class_data*) msc;
-    msc->bulk_ep_in = NULL;
-    msc->bulk_ep_out = NULL;
+    msc->bulk_in = malloc(sizeof(*msc->bulk_in));
+    msc->bulk_in->device = usbdev;
+    msc->bulk_in->endpoint = NULL;
+    msc->bulk_in->data_toggle = 0;
+    msc->bulk_out = malloc(sizeof(*msc->bulk_out));
+    msc->bulk_out->device = usbdev;
+    msc->bulk_out->endpoint = NULL;
+    msc->bulk_out->data_toggle = 0;
     address = (void*) usbdev->interface + sizeof(struct interface_desc);
     for (i = 0; i < usbdev->interface->num_endpoints; i++) {
         ep_desc = address;
         if ((ep_desc->endpoint_address & 0x80) &&
-            (ep_desc->attributes == 0x02) && (msc->bulk_ep_in == NULL))
+            (ep_desc->attributes == 0x02) &&
+            (msc->bulk_in->endpoint == NULL))
         {
             //BULK-IN
-            msc->bulk_ep_in = ep_desc;
+            msc->bulk_in->endpoint = ep_desc;
         } else if (!(ep_desc->endpoint_address & 0x80) &&
                    (ep_desc->attributes == 0x02) &&
-                   (msc->bulk_ep_out == NULL))
+                   (msc->bulk_out->endpoint == NULL))
         {
             //BULK-OUT
-            msc->bulk_ep_out = ep_desc;
+            msc->bulk_out->endpoint = ep_desc;
         }
         address += sizeof(struct endpoint_desc);
     }
-    if ((msc->bulk_ep_in == NULL) || (msc->bulk_ep_out == NULL)) {
+    if ((msc->bulk_in->endpoint == NULL) ||
+        (msc->bulk_out->endpoint == NULL))
+    {
         dprintf("Nicht genügend Endpoints gefunden.\n");
         return;
     }
@@ -197,10 +206,6 @@ void register_msd(struct usb_device* usbdev)
         size *= bc;
         dprintf("%s: %i * %i B (ca. %lld MB).\n", strgdev->dev.name, bc, bs,
             size >> 20);
-        dprintf("EP %i: %i; EP %i: %i\n", msc->bulk_ep_in->endpoint_address,
-            msc->bulk_ep_in->max_packet_size,
-            msc->bulk_ep_out->endpoint_address,
-            msc->bulk_ep_out->max_packet_size);
     }
     cdi_storage_device_init(strgdev);
     cdi_list_push(cdi_driver.drv.devices, strgdev);
@@ -227,14 +232,14 @@ static int write_cmd(struct usb_device* usbdev, void* src)
 {
     struct msclass_data* msc = (struct msclass_data*) usbdev->classd;
     struct usb_packet cmd_packet = {
+        .pipe         = msc->bulk_out,
         .type         = PACKET_OUT,
-        .endpoint     = msc->bulk_ep_out,
         .data         = src,
         .length       = 0x1F,
         .type_of_data = USB_TOD_COMMAND,
     };
 
-    return usb_do_packet(usbdev, &cmd_packet);
+    return usb_do_packet(&cmd_packet);
 }
 
 /**
@@ -254,14 +259,14 @@ static int read_status(struct usb_device* usbdev, uint32_t expected_tag)
     int error;
 
     struct usb_packet status_packet = {
+        .pipe         = msc->bulk_in,
         .type         = PACKET_IN,
-        .endpoint     = msc->bulk_ep_in,
         .data         = csw,
         .length       = 0x0D,
         .type_of_data = USB_TOD_STATUS,
     };
 
-    error = usb_do_packet(usbdev, &status_packet);
+    error = usb_do_packet(&status_packet);
     if (error != USB_NO_ERROR) {
         return error;
     }
@@ -307,14 +312,14 @@ static int msd_get_capacity(struct usb_device* usbdev, uint32_t* block_size,
     }
 
     struct usb_packet in_packet = {
+        .pipe         = msc->bulk_in,
         .type         = PACKET_IN,
-        .endpoint     = msc->bulk_ep_in,
         .data         = cap,
         .length       = sizeof(*cap),
         .type_of_data = USB_TOD_DATA_IN,
     };
 
-    if (usb_do_packet(usbdev, &in_packet) != USB_NO_ERROR) {
+    if (usb_do_packet(&in_packet) != USB_NO_ERROR) {
         return 0;
     }
 
@@ -402,16 +407,13 @@ static int msd_cdi_read(struct cdi_storage_device* strgdev, uint64_t start,
         }
 #endif
         bbs = (count - j > MAX_ACCESS_BLOCKS) ? MAX_ACCESS_BLOCKS : count - j;
-        _dprintf("/");
         error = msd_read(usbdev, start + j, bbs, buffer + j * bs, bbs * bs);
-        _dprintf("\\");
         if (error != USB_NO_ERROR) {
             dprintf("Lesefehler 0x%X bei Block %lld.\n", error, start + j);
             usbdev->locked = 0;
             return -1;
         }
     }
-    _dprintf("\n");
     usbdev->locked = 0;
     return 0;
 }
@@ -452,14 +454,14 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     }
 
     struct usb_packet in_packet = {
+        .pipe         = msc->bulk_in,
         .type         = PACKET_IN,
-        .endpoint     = msc->bulk_ep_in,
         .data         = buffer,
         .length       = length,
         .type_of_data = USB_TOD_DATA_IN,
     };
 
-    error = usb_do_packet(usbdev, &in_packet);
+    error = usb_do_packet(&in_packet);
     if (error != USB_NO_ERROR) {
         return error;
     }
@@ -553,14 +555,14 @@ static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
     }
 
     struct usb_packet out_packet = {
+        .pipe         = msc->bulk_out,
         .type         = PACKET_OUT,
-        .endpoint     = msc->bulk_ep_out,
         .data         = buffer,
         .length       = length,
         .type_of_data = USB_TOD_DATA_OUT,
     };
 
-    error = usb_do_packet(usbdev, &out_packet);
+    error = usb_do_packet(&out_packet);
     if (error != USB_NO_ERROR) {
         return error;
     }
