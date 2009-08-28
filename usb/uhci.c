@@ -116,8 +116,8 @@ void uhci_init(struct cdi_device* cdi_hci)
         return;
     }
     request_size =
-        // Maximale Paketlänge (Full Speed)
-        1023 +
+        // Maximale Paketlänge (Full Speed) ist 1023, Alignment außerdem
+        1024 +
         // Transferdeskriptor
         sizeof(struct uhci_td);
 

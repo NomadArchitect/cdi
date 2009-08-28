@@ -25,6 +25,8 @@
 
 #include <stdint.h>
 
+#include "cdi/lists.h"
+
 #include "mempool.h"
 #include "usb.h"
 
@@ -174,6 +176,8 @@ struct ohci {
 
     struct mempool* ed_pool;
     struct mempool* transfer_pool;
+
+    cdi_list_t ed_list;
 };
 
 #define OHC_ED_DIR_TD  0 //Richtung im TD definiert
@@ -190,8 +194,20 @@ struct ohci_ed {
     unsigned mps : 11; //Maximale Paketgröße
     unsigned user : 5; //Für uns frei verfügbar
     uint32_t td_queue_tail; //Letzter TD in der Warteschlange
-    uint32_t td_queue_head; //Nächster TD in der Warteschlange
+    volatile uint32_t td_queue_head; //Nächster TD in der Warteschlange
     uint32_t next_ed; //Nächster ED
+} __attribute__((packed));
+
+struct ohci_ed_desc {
+    struct ohci_ed* virt;
+    uintptr_t phys;
+    int function;
+    int endpoint;
+    cdi_list_t transfers;
+    enum {
+        USB_CONTROL,
+        USB_BULK
+    } type;
 } __attribute__((packed));
 
 #define OHC_TD_DIR_SETUP 0
@@ -208,13 +224,20 @@ struct ohci_td {
                      //warten soll
     unsigned toggle : 2; //Datatoggle (00b oder 01b - Wert muss aus dem ED
                          //ermittelt werden, 10b = DATA0, 11b = DATA1)
-    unsigned error : 2; //Anzahl der aufgetretenen Fehler - bei 11b wird der
-                        //Status im "condition"-Feld gespeichert
-    unsigned condition : 4; //Status
-    uint32_t current_buffer_pointer; //Pointer zu den Daten (bei 0 wurden alle
-                                     //Daten übertragen)
+    volatile unsigned error : 2; //Anzahl der aufgetretenen Fehler - bei 11b
+                                 //wird der Status im "condition"-Feld
+                                 //gespeichert.
+    volatile unsigned condition : 4; //Status
+    volatile uint32_t current_buffer_pointer; //Pointer zu den Daten (bei 0
+                                              //wurden alle Daten übertragen)
     uint32_t next_td; //Nächster TD
     uint32_t buffer_end; //Letztes Datenbyte des Puffers
+} __attribute__((packed));
+
+struct ohci_td_desc {
+    struct ohci_td* virt;
+    uintptr_t phys;
+    struct ohci_ed_desc* endpoint;
 } __attribute__((packed));
 
 struct cdi_driver* init_ohcd(void);

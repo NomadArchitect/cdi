@@ -349,6 +349,8 @@ static void enum_device(struct usb_device* usbdev)
     //Resetten
     usbdev->reset(usbdev);
 
+    usbdev->hci->add_pipe(usbdev->ep0);
+
     //Erste acht Bytes des Device-Descriptors abrufen und die maximale Paketgröße von EP0 feststellen
     dev_desc =
         do_control(usbdev, DEV_TO_HOST, NULL, 8, STD_REQUEST, REC_DEVICE,
@@ -368,6 +370,8 @@ static void enum_device(struct usb_device* usbdev)
         SET_ADDRESS, (id = usb_dev_ids++),
         0);
     usbdev->id = id;
+
+    usbdev->hci->add_pipe(usbdev->ep0);
 
     //Den ganzen Device-Descriptor einlesen
     dev_desc =

@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 
+#include "cdi/lists.h"
 #include "cdi/misc.h"
 #include "cdi/pci.h"
 

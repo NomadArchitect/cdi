@@ -195,6 +195,8 @@ void register_msd(struct usb_device* usbdev)
         dprintf("Nicht genügend Endpoints gefunden.\n");
         return;
     }
+    usbdev->hci->add_pipe(msc->bulk_in);
+    usbdev->hci->add_pipe(msc->bulk_out);
     if (!msd_get_capacity(usbdev, &bs, &bc)) {
         strgdev->block_size = 0;
         strgdev->block_count = 0;
