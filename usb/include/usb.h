@@ -334,7 +334,7 @@ struct usb_pipe {
 #define HCI_STRUCT_SIZE max(sizeof(struct ohci), sizeof(struct uhci))
 
 
-int usb_do_packet(struct usb_packet* packet);
+int usb_do_packet(struct usb_packet* packets, int num_packets);
 void enumerate_hci(struct hci*);
 struct cdi_driver* init_uhcd(void);
 void init_msc_driver(void);

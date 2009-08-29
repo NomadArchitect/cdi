@@ -241,7 +241,7 @@ static int write_cmd(struct usb_device* usbdev, void* src)
         .type_of_data = USB_TOD_COMMAND,
     };
 
-    return usb_do_packet(&cmd_packet);
+    return usb_do_packet(&cmd_packet, 1);
 }
 
 /**
@@ -268,7 +268,7 @@ static int read_status(struct usb_device* usbdev, uint32_t expected_tag)
         .type_of_data = USB_TOD_STATUS,
     };
 
-    error = usb_do_packet(&status_packet);
+    error = usb_do_packet(&status_packet, 1);
     if (error != USB_NO_ERROR) {
         return error;
     }
@@ -321,7 +321,7 @@ static int msd_get_capacity(struct usb_device* usbdev, uint32_t* block_size,
         .type_of_data = USB_TOD_DATA_IN,
     };
 
-    if (usb_do_packet(&in_packet) != USB_NO_ERROR) {
+    if (usb_do_packet(&in_packet, 1) != USB_NO_ERROR) {
         return 0;
     }
 
@@ -463,7 +463,7 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
         .type_of_data = USB_TOD_DATA_IN,
     };
 
-    error = usb_do_packet(&in_packet);
+    error = usb_do_packet(&in_packet, 1);
     if (error != USB_NO_ERROR) {
         return error;
     }
@@ -564,7 +564,7 @@ static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
         .type_of_data = USB_TOD_DATA_OUT,
     };
 
-    error = usb_do_packet(&out_packet);
+    error = usb_do_packet(&out_packet, 1);
     if (error != USB_NO_ERROR) {
         return error;
     }

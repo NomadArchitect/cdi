@@ -99,20 +99,38 @@ static const int next_data_type[9] = {
     "STATUS"
    };*/
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 /**
   * Verarbeitet ein USB-Paket.
   *
   * @param packet Das Paket
   */
 
-int usb_do_packet(struct usb_packet* packet)
+int usb_do_packet(struct usb_packet* packets, int num_packets)
 {
     int error = USB_NAK;
-    int tod_short, tod = packet->type_of_data;
+    int tod_short, tod;
     int i = 0, mps;
-    struct usb_pipe* pipe = packet->pipe;
-    struct usb_device* device = pipe->device;
+    int num_out_packets;
+    struct usb_pipe* pipe;
+    struct usb_device* device;
+    struct usb_packet* out_packets;
 
+    if (num_packets < 1) {
+        return USB_TRIVIAL_ERROR;
+    }
+
+    // Alle Pakete muessen vom selben Typ sein und dieselbe Pipe benutzen
+    tod = packets[0].type_of_data;
+    pipe = packets[0].pipe;
+    for (i = 1; i < num_packets; i++) {
+        if ((packets[i].type_of_data != tod) || (packets[i].pipe != pipe)) {
+            return USB_TRIVIAL_ERROR;
+        }
+    }
+
+    device = pipe->device;
     if (!(device->expects & tod)) {
         dprintf("0x%04X erwartet, 0x%04X bekommen...?\n", device->expects, tod);
         // FIXME Das ist keine elegante Loesung des Problems
@@ -125,31 +143,63 @@ int usb_do_packet(struct usb_packet* packet)
     }
     //dprintf("TOD: %s\n", tod_name[tod_short]);
     device->expects = next_data_type[tod_short];
-    packet->type &= 0xFF;
 
-    struct usb_packet send_packet = {
-        .pipe      = packet->pipe,
-        .type      = packet->type,
-        .data      = packet->data
-    };
+    // Pruefen, wie viele Pakete wir draus machen muessen
     mps = pipe->endpoint->max_packet_size;
+    num_out_packets = 0;
+    for (i = 0; i < num_packets; i++) {
+        int num = (packets[i].length + mps - 1) / mps;
+        if (num > 0) {
+            num_out_packets += num;
+        } else {
+            // Pakete ohne Daten wollen auch gesendet werden
+            num_out_packets++;
+        }
+    }
 
-    for (i = 0; (i < packet->length) || (!i && !packet->length); i += mps) {
-        send_packet.length =
-            (packet->length - i > mps) ? mps : (packet->length - i);
+    // Ggf. Pakete kopieren und splitten
+    if (num_out_packets == num_packets) {
+        out_packets = packets;
+    } else {
+        int j;
+        int cur = 0;
+
+        out_packets = calloc(num_out_packets, sizeof(*out_packets));
+        for (i = 0; i < num_packets; i++) {
+            int num = (packets[i].length + mps - 1) / mps;
+            if (num == 0) {
+                num = 1;
+            }
+
+            for (j = 0; j < num; j++) {
+                out_packets[cur].pipe = pipe;
+                out_packets[cur].type = packets[i].type;
+                out_packets[cur].data = packets[i].data;
+                out_packets[cur].length = MIN(packets[i].length, mps);
+                out_packets[cur].type_of_data = tod;
+
+                packets[i].data += out_packets[cur].length;
+                packets[i].length -= out_packets[cur].length;
+                cur++;
+            }
+        }
+    }
+
+    // Pakete (FIXME: einzeln) senden
+    for (i = 0; i < num_out_packets; i++) {
         error = USB_NAK;
         while (error == USB_NAK) {
-            error = device->hci->do_packet(&send_packet);
+            error = device->hci->do_packet(&out_packets[i]);
             if (error == USB_NAK) {
                 cdi_sleep_ms(5);
             }
         }
         if (error != USB_NO_ERROR) {
-            i -= mps;
+            i--;
         } else {
             pipe->data_toggle ^= 1;
-            send_packet.data += mps;
         }
+
         if (error == USB_STALLED) {
             printf("[usb] ENDPOINT 0x%02X DES GERÄTS %i STALLED!\n",
                 pipe->endpoint->endpoint_address,
@@ -159,6 +209,11 @@ int usb_do_packet(struct usb_packet* packet)
                 pipe->endpoint->endpoint_address);
         }
     }
+
+    if (out_packets != packets) {
+        free(out_packets);
+    }
+
     return error;
 }
 
@@ -191,7 +246,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
         .type_of_data = USB_TOD_SETUP,
     };
 
-    if (usb_do_packet(&setup_packet)) {
+    if (usb_do_packet(&setup_packet, 1)) {
         return NULL;
     }
 
@@ -209,7 +264,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
                  DEV_TO_HOST ? USB_TOD_SETUP_DATA_IN : USB_TOD_SETUP_DATA_OUT),
         };
 
-        rval = usb_do_packet(&data_packet);
+        rval = usb_do_packet(&data_packet, 1);
     }
 
     if (rval == USB_NO_ERROR) {
@@ -228,7 +283,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
             ack_packet.type_of_data = USB_TOD_SETUP_ACK_OUT;
         }
 
-        rval = usb_do_packet(&ack_packet);
+        rval = usb_do_packet(&ack_packet, 1);
     }
     return (rval == USB_NO_ERROR) ? buffer : NULL;
 }
