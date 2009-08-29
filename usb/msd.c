@@ -34,7 +34,7 @@
 //DEBUG definieren, um einige Debugmeldungen anzuzeigen
 #define DEBUG
 //FULLDEBUG definieren, um ALLE Debugmeldungen anzuzeigen
-#define FULLDEBUG
+//#define FULLDEBUG
 
 #if defined FULLDEBUG && !defined DEBUG
 #define DEBUG
@@ -239,6 +239,7 @@ static int write_cmd(struct usb_device* usbdev, void* src)
         .data         = src,
         .length       = 0x1F,
         .type_of_data = USB_TOD_COMMAND,
+        .use_toggle   = TOGGLE_UNSPECIFIC
     };
 
     return usb_do_packet(&cmd_packet, 1);
@@ -266,6 +267,7 @@ static int read_status(struct usb_device* usbdev, uint32_t expected_tag)
         .data         = csw,
         .length       = 0x0D,
         .type_of_data = USB_TOD_STATUS,
+        .use_toggle   = TOGGLE_UNSPECIFIC
     };
 
     error = usb_do_packet(&status_packet, 1);
@@ -319,6 +321,7 @@ static int msd_get_capacity(struct usb_device* usbdev, uint32_t* block_size,
         .data         = cap,
         .length       = sizeof(*cap),
         .type_of_data = USB_TOD_DATA_IN,
+        .use_toggle   = TOGGLE_UNSPECIFIC
     };
 
     if (usb_do_packet(&in_packet, 1) != USB_NO_ERROR) {
@@ -373,7 +376,7 @@ static inline int tsl(volatile int* variable)
     return rval;
 }
 
-#define MAX_ACCESS_BLOCKS 32
+#define MAX_ACCESS_BLOCKS 4
 
 static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     uint16_t sectors, void* buffer,
@@ -461,6 +464,7 @@ static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
         .data         = buffer,
         .length       = length,
         .type_of_data = USB_TOD_DATA_IN,
+        .use_toggle   = TOGGLE_UNSPECIFIC
     };
 
     error = usb_do_packet(&in_packet, 1);
@@ -562,6 +566,7 @@ static uint32_t msd_write(struct usb_device* usbdev, uint32_t lba,
         .data         = buffer,
         .length       = length,
         .type_of_data = USB_TOD_DATA_OUT,
+        .use_toggle   = TOGGLE_UNSPECIFIC
     };
 
     error = usb_do_packet(&out_packet, 1);

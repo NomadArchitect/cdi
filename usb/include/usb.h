@@ -169,7 +169,7 @@ struct hci {
       *
       * @return Gibt den Status an (z. B. USB_NO_ERROR für keinen Fehler)
       */
-    int (* do_packet)(struct usb_packet* packet);
+    int (* do_packets)(struct usb_packet* packets, int num_packets);
 
     /**
       * Erstellt eine neue Pipe
@@ -299,6 +299,12 @@ struct msclass_data {
     struct usb_pipe* bulk_out;
 };
 
+enum usb_toggle {
+    TOGGLE_UNSPECIFIC = 0,
+    TOGGLE_0 = 1,
+    TOGGLE_1 = 2
+};
+
 /** Beschreibt ein USB-Paket */
 struct usb_packet {
     /// Die gewuenschte Pipe
@@ -311,6 +317,10 @@ struct usb_packet {
     int length;
     /// Typ der Daten (zur Sicherheit, damit es kein doofes STALL gibt)
     int type_of_data;
+    /// Fehlertyp (oder USB_NO_ERROR)
+    int condition;
+    /// Bestimmtes Data-Toggle benuten
+    enum usb_toggle use_toggle;
 };
 
 /// Beschreibt eine Pipe

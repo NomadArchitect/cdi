@@ -54,7 +54,7 @@ static struct cdi_driver cdi_driver;
 static cdi_list_t active_transfers;
 
 static void uhci_handler(struct cdi_device* dev);
-static int uhci_do_packet(struct usb_packet* packet);
+static int uhci_do_packets(struct usb_packet* packets, int num_packets);
 static cdi_list_t get_devices(struct hci* gen_hci);
 static void activate_device(struct usb_device* device);
 static void uhci_deinit(struct cdi_device* cdi_hci);
@@ -184,7 +184,7 @@ void uhci_init(struct cdi_device* cdi_hci)
     dprintf("  Fertig\n");
     gen_hci->find_devices = &get_devices;
     gen_hci->activate_device = &activate_device;
-    gen_hci->do_packet = &uhci_do_packet;
+    gen_hci->do_packets = &uhci_do_packets;
     gen_hci->add_pipe = &uhci_establish_pipe;
 
     enumerate_hci(gen_hci);
@@ -262,7 +262,13 @@ static int uhci_do_packet(struct usb_packet* packet)
     td.next = 1; //Invalid
     td.active = 1;
     td.ioc = 1;
+    if (packet->use_toggle == TOGGLE_0) {
+        packet->pipe->data_toggle = 0;
+    } else if (packet->use_toggle == TOGGLE_1) {
+        packet->pipe->data_toggle = 1;
+    }
     td.data_toggle = packet->pipe->data_toggle;
+    packet->pipe->data_toggle ^= 1;
     td.low_speed = usbdev->low_speed;
     td.errors = 1;
     td.pid = packet->type;
@@ -328,6 +334,19 @@ static int uhci_do_packet(struct usb_packet* packet)
     mempool_put(uhci->buffers, addr.virt);
 
     return addr.error;
+}
+
+static int uhci_do_packets(struct usb_packet* packet, int num_packets)
+{
+    int i, cond = 0;
+
+    //TODO
+    for (i = 0; i < num_packets; i++) {
+        packet[i].condition = uhci_do_packet(&packet[i]);
+        cond |= packet[i].condition;
+    }
+
+    return cond;
 }
 
 static void uhci_handler(struct cdi_device* cdi_hci)

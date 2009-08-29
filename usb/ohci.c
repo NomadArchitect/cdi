@@ -53,7 +53,7 @@ static void ohci_kill(struct cdi_driver* cdi_hcd);
 static void ohci_deinit(struct cdi_device* cdi_hci);
 void ohci_init(struct cdi_device* cdi_hci);
 static void ohci_handler(struct cdi_device* dev);
-static int ohci_do_packet(struct usb_packet* packet);
+static int ohci_do_packets(struct usb_packet* packet, int num_packets);
 static cdi_list_t get_devices(struct hci* gen_hci);
 static void activate_device(struct usb_device* device);
 static void ohci_reset_device(struct usb_device* device);
@@ -109,7 +109,7 @@ void ohci_init(struct cdi_device* cdi_hci)
         dprintf("Speicher nicht gefunden!\n");
         return;
     }
-    dprintf("Speicher @ 0x%08x\n", (uintptr_t) ohci->memory);
+    dprintf("Speicher @ 0x%08X\n", (uintptr_t) ohci->memory);
     if ((ohci->memory->hc_revision & 0xFF) != 0x10) {
         dprintf(
             "Dieses OHCI könnte inkompatibel mit dem Treiber sein (HCI %i.%i, HCD 1.0)\n",
@@ -134,7 +134,7 @@ void ohci_init(struct cdi_device* cdi_hci)
         return;
     }
 
-    ohci->transfer_pool = mempool_create(32 * (1024 + sizeof(struct ohci_td)),
+    ohci->transfer_pool = mempool_create(56 * (1024 + sizeof(struct ohci_td)),
         1024 + sizeof(struct ohci_td));
     if (ohci->transfer_pool == NULL) {
         dprintf("Transfer-Speicherpool konnte nicht erzeugt werden!\n");
@@ -229,24 +229,33 @@ void ohci_init(struct cdi_device* cdi_hci)
 
     gen_hci->find_devices = &get_devices;
     gen_hci->activate_device = &activate_device;
-    gen_hci->do_packet = &ohci_do_packet;
+    gen_hci->do_packets = &ohci_do_packets;
     gen_hci->add_pipe = &ohci_establish_pipe;
 
     enumerate_hci(gen_hci);
 }
 
-static int ohci_do_packet(struct usb_packet* packet)
+static inline int tsl(volatile int* variable)
+{
+    int rval;
+    rval = *variable;
+    *variable = 1;
+    return rval;
+}
+
+static int ohci_do_packets(struct usb_packet* packets, int num_packets)
 {
     struct ohci_ed_desc* edsc;
     struct ohci_td_desc* tdsc, * otdsc;
-    int i, cond;
-    struct ohci* ohci = (struct ohci*) packet->pipe->device->hci;
-    struct ohci_td* vtd;
-    uintptr_t ptd;
+    int i, j, cond, toggle, done_packets;
+    struct ohci* ohci = (struct ohci*) packets[0].pipe->device->hci;
+    struct ohci_td* vtd[num_packets];
+    uintptr_t ptd[num_packets];
+    static volatile int locked = 0;
 
     for (i = 0; (edsc = cdi_list_get(ohci->ed_list, i)) != NULL; i++) {
-        if ((edsc->function == packet->pipe->device->id) &&
-            (edsc->endpoint == packet->pipe->endpoint->endpoint_address))
+        if ((edsc->function == packets[0].pipe->device->id) &&
+            (edsc->endpoint == packets[0].pipe->endpoint->endpoint_address))
         {
             break;
         }
@@ -254,100 +263,143 @@ static int ohci_do_packet(struct usb_packet* packet)
     if (edsc == NULL) {
         return USB_TIMEOUT; //Genau das würde passieren
     }
-    if (mempool_get(ohci->transfer_pool, (void**) &vtd, &ptd) == -1) {
-        return USB_TRIVIAL_ERROR;
+    toggle = packets[0].pipe->data_toggle;
+    for (i = 0; i < num_packets; i++) {
+        if (mempool_get(ohci->transfer_pool, (void**) &vtd[i],
+                &ptd[i]) == -1)
+        {
+            return USB_TRIVIAL_ERROR;
+        }
+        if ((packets[i].data != NULL) && (packets[i].type != PACKET_IN)) {
+            memcpy((void*) vtd[i] + sizeof(struct ohci_td), packets[i].data,
+                packets[i].length);
+        }
+        vtd[i]->rounding = 1; //Warum nicht
+        switch (packets[i].type) {
+            case PACKET_SETUP:
+                vtd[i]->direction = OHC_TD_DIR_SETUP;
+                break;
+            case PACKET_IN:
+                vtd[i]->direction = OHC_TD_DIR_IN;
+                break;
+            case PACKET_OUT:
+                vtd[i]->direction = OHC_TD_DIR_OUT;
+                break;
+            default: //Hm, passt nicht ganz
+                for (j = 0; j <= i; j++) {
+                    mempool_put(ohci->transfer_pool, vtd[j]);
+                }
+                return USB_TRIVIAL_ERROR;
+        }
+        vtd[i]->di = 0;
+        if (packets[i].use_toggle == TOGGLE_0) {
+            toggle = 0;
+        } else if (packets[i].use_toggle == TOGGLE_1) {
+            toggle = 1;
+        }
+        vtd[i]->toggle = 0x2 | toggle;
+        toggle ^= 1;
+        vtd[i]->error = 0;
+        vtd[i]->condition = 15;
+        if ((packets[i].data == NULL) || !packets[i].length) {
+            vtd[i]->current_buffer_pointer = 0;
+            vtd[i]->buffer_end = 0;
+        } else {
+            vtd[i]->current_buffer_pointer = ptd[i] + sizeof(struct ohci_td);
+            vtd[i]->buffer_end = ptd[i] + sizeof(struct ohci_td) +
+                                 packets[i].length - 1;
+        }
+        vtd[i]->next_td = 0;
+        tdsc = malloc(sizeof(*tdsc));
+        if (tdsc == NULL) {
+            for (j = 0; j <= i; j++) {
+                mempool_put(ohci->transfer_pool, vtd[j]);
+            }
+            return USB_TRIVIAL_ERROR;
+        }
+        tdsc->virt = vtd[i];
+        tdsc->phys = ptd[i];
+        tdsc->endpoint = edsc;
+
+        while (tsl(&locked)) {
+#ifndef CDI_STANDALONE
+            __asm__ __volatile__ ("hlt");
+#endif
+        }
+        if (cdi_list_size(edsc->transfers)) {
+            otdsc = cdi_list_get(edsc->transfers, 0);
+            otdsc->virt->next_td = ptd[i];
+        }
+        if (!edsc->virt->td_queue_head) {
+            edsc->virt->td_queue_head = ptd[i];
+        }
+        locked = 0;
+
+        cdi_list_push(edsc->transfers, tdsc);
     }
-    if ((packet->data != NULL) && (packet->type != PACKET_IN)) {
-        memcpy((void*) vtd + sizeof(struct ohci_td), packet->data,
-            packet->length);
-    }
-    vtd->rounding = 1; //Warum nicht
-    switch (packet->type) {
-        case PACKET_SETUP:
-            vtd->direction = OHC_TD_DIR_SETUP;
-            break;
-        case PACKET_IN:
-            vtd->direction = OHC_TD_DIR_IN;
-            break;
-        case PACKET_OUT:
-            vtd->direction = OHC_TD_DIR_OUT;
-            break;
-        default:
-            mempool_put(ohci->transfer_pool, vtd);
-            return USB_TRIVIAL_ERROR; //Hm, passt nicht ganz
-    }
-    vtd->di = 0;
-    vtd->toggle = 0x2 | packet->pipe->data_toggle;
-    vtd->error = 0;
-    vtd->condition = 15;
-    if ((packet->data == NULL) || !packet->length) {
-        vtd->current_buffer_pointer = 0;
-        vtd->buffer_end = 0;
-    } else {
-        vtd->current_buffer_pointer = ptd + sizeof(struct ohci_td);
-        vtd->buffer_end = ptd + sizeof(struct ohci_td) + packet->length - 1;
-    }
-    vtd->next_td = 0;
-    tdsc = malloc(sizeof(*tdsc));
-    if (tdsc == NULL) {
-        mempool_put(ohci->transfer_pool, vtd);
-        return USB_TRIVIAL_ERROR;
-    }
-    tdsc->virt = vtd;
-    tdsc->phys = ptd;
-    tdsc->endpoint = edsc;
-    if (cdi_list_size(edsc->transfers)) {
-        otdsc = cdi_list_get(edsc->transfers, cdi_list_size(
-                edsc->transfers) - 1);
-        otdsc->virt->next_td = ptd;
-    }
-    cdi_list_insert(edsc->transfers, cdi_list_size(edsc->transfers), tdsc);
-    if (!edsc->virt->td_queue_head) {
-        edsc->virt->td_queue_head = ptd;
-    }
+    packets[0].pipe->data_toggle = toggle;
     if (edsc->type == USB_CONTROL) {
         ohci->memory->hc_command_status |= OHC_CMST_CLF;
     } else if (edsc->type == USB_BULK) {
         ohci->memory->hc_command_status |= OHC_CMST_BLF;
     }
-    while (vtd->condition == 15) {
+    done_packets = 0;
+    cond = USB_NO_ERROR;
+    while (done_packets < num_packets) {
         cdi_sleep_ms(1);
+        for (i = 0; i < num_packets; i++) {
+            if (vtd[i]->condition != 15) {
+                done_packets++;
+                switch (vtd[i]->condition) {
+                    case 0x00:
+                        packets[i].condition = USB_NO_ERROR;
+                        break;
+                    case 0x02:
+                        packets[i].condition = USB_BITSTUFF;
+                        break;
+                    case 0x04:
+                        packets[i].condition = USB_STALLED;
+                        for (j = 0; j < num_packets; j++) {
+                            vtd[j]->condition = 0x04; //Allet, was nicht fertig ist, ist STALLed
+                        }
+                        break;
+                    case 0x05:
+                        packets[i].condition = USB_TIMEOUT;
+                        break;
+                    case 0x08:
+                        packets[i].condition = USB_BABBLE;
+                        break;
+                    case 0x0C:
+                    case 0x0D:
+                        packets[i].condition = USB_BUFFER_ERROR;
+                        break;
+                    default:
+                        packets[i].condition = USB_CRC;
+                        break;
+                }
+                cond |= packets[i].condition;
+                vtd[i]->condition = 15; //Nicht nochmal überprüfen
+            }
+        }
     }
-    cond = vtd->condition;
-    if ((packet->data != NULL) && (packet->type == PACKET_IN)) {
-        memcpy(packet->data, (void*) vtd + sizeof(struct ohci_td),
-            packet->length);
+    for (i = 0; i < num_packets; i++) {
+        if ((packets[i].data != NULL) && (packets[i].type == PACKET_IN)) {
+            memcpy(packets[i].data, (void*) vtd[i] + sizeof(struct ohci_td),
+                packets[i].length);
+        }
+        if (vtd[i]->next_td == 0) {
+            edsc->virt->td_queue_head = 0;
+        }
+        mempool_put(ohci->transfer_pool, vtd[i]);
     }
-    if (vtd->next_td == 0) {
+    if (cond & USB_STALLED) { //Transferliste für diesen Endpoint leeren
         edsc->virt->td_queue_head = 0;
+        while ((tdsc = cdi_list_pop(edsc->transfers)) != NULL) {
+            free(tdsc);
+        }
+        edsc->virt->td_queue_tail = 0; //Weitermachen
     }
-    mempool_put(ohci->transfer_pool, vtd);
-    switch (cond) {
-        case 0x00:
-            return USB_NO_ERROR;
-        case 0x01:
-            return USB_CRC;
-        case 0x02:
-            return USB_BITSTUFF;
-        case 0x03: //Datatoggle-Fehler
-            return USB_CRC;
-        case 0x04:
-            return USB_STALLED;
-        case 0x05:
-            return USB_TIMEOUT;
-        case 0x06: //PID-Fehler
-        case 0x07: //Ebenso
-            return USB_CRC;
-        case 0x08:
-            return USB_BABBLE;
-        case 0x09: //Data underrun
-            return USB_CRC;
-        case 0x0C: //Buffer overrun
-        case 0x0D: //Buffer underrun
-            return USB_BUFFER_ERROR;
-        default: //Öhm...
-            return USB_CRC;
-    }
+    return cond;
 }
 
 static cdi_list_t get_devices(struct hci* gen_hci)
@@ -440,13 +492,6 @@ static void ohci_establish_pipe(struct usb_pipe* pipe)
     dsc->transfers = cdi_list_create();
     cdi_list_push(ohci->ed_list, dsc);
 
-    dprintf(
-        "%s-Endpoint %i (Gerät %i) hinzugefügt (%s)\n",
-        iscontrol ? "Control" : "Bulk", ved->endpoint, ved->function,
-        (ved->direction ==
-         OHC_ED_DIR_TD) ? "IN/OUT/SETUP" : ((ved->direction ==
-                                             OHC_ED_DIR_IN) ? "IN" : "OUT"));
-
     if (iscontrol) {
         ohci->memory->hc_control_head_ed = ped;
     } else {
@@ -485,6 +530,7 @@ static void ohci_handler(struct cdi_device* dev)
             {
                 if (tdsc->phys == phys) { //Das ist der fertige Transfer
                     cdi_list_remove(edsc->transfers, j);
+                    free(tdsc);
                     break;
                 }
             }

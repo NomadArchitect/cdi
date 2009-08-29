@@ -177,6 +177,7 @@ int usb_do_packet(struct usb_packet* packets, int num_packets)
                 out_packets[cur].data = packets[i].data;
                 out_packets[cur].length = MIN(packets[i].length, mps);
                 out_packets[cur].type_of_data = tod;
+                out_packets[cur].condition = USB_NAK;
 
                 packets[i].data += out_packets[cur].length;
                 packets[i].length -= out_packets[cur].length;
@@ -185,28 +186,27 @@ int usb_do_packet(struct usb_packet* packets, int num_packets)
         }
     }
 
-    // Pakete (FIXME: einzeln) senden
-    for (i = 0; i < num_out_packets; i++) {
-        error = USB_NAK;
-        while (error == USB_NAK) {
-            error = device->hci->do_packet(&out_packets[i]);
-            if (error == USB_NAK) {
-                cdi_sleep_ms(5);
+    error = device->hci->do_packets(out_packets, num_out_packets);
+    if (error & USB_STALLED) {
+        printf("[usb] ENDPOINT 0x%02X DES GERÄTS %i STALLED!\n",
+            pipe->endpoint->endpoint_address,
+            device->id);
+        do_control(device, HOST_TO_DEV | NO_DATA, NULL, 0, STD_REQUEST,
+            REC_ENDPOINT, CLEAR_FEATURE, 0,
+            pipe->endpoint->endpoint_address);
+    } else if (error & USB_NAK) {
+        // Nicht angenommene Pakete (FIXME: einzeln) senden
+        for (i = 0; i < num_out_packets; i++) {
+            if (!(out_packets[i].condition & USB_NAK)) {
+                continue;
             }
-        }
-        if (error != USB_NO_ERROR) {
-            i--;
-        } else {
-            pipe->data_toggle ^= 1;
-        }
-
-        if (error == USB_STALLED) {
-            printf("[usb] ENDPOINT 0x%02X DES GERÄTS %i STALLED!\n",
-                pipe->endpoint->endpoint_address,
-                device->id);
-            do_control(device, HOST_TO_DEV | NO_DATA, NULL, 0, STD_REQUEST,
-                REC_ENDPOINT, CLEAR_FEATURE, 0,
-                pipe->endpoint->endpoint_address);
+            error = USB_NAK;
+            while (error & USB_NAK) {
+                error = device->hci->do_packets(&out_packets[i], 1);
+                if (error & USB_NAK) {
+                    cdi_sleep_ms(5);
+                }
+            }
         }
     }
 
@@ -244,6 +244,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
         .data         = setup,
         .length       = sizeof(*setup),
         .type_of_data = USB_TOD_SETUP,
+        .use_toggle   = TOGGLE_UNSPECIFIC
     };
 
     if (usb_do_packet(&setup_packet, 1)) {
@@ -262,6 +263,7 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
             .type_of_data =
                 (direction ==
                  DEV_TO_HOST ? USB_TOD_SETUP_DATA_IN : USB_TOD_SETUP_DATA_OUT),
+            .use_toggle   = TOGGLE_UNSPECIFIC
         };
 
         rval = usb_do_packet(&data_packet, 1);
@@ -272,8 +274,8 @@ static void* do_control(struct usb_device* device, int direction, void* buffer,
             .pipe       = device->ep0,
             .data       = NULL,
             .length     = 0,
+            .use_toggle = TOGGLE_1
         };
-        device->ep0->data_toggle = 1;
 
         if (no_data || (direction == HOST_TO_DEV)) {
             ack_packet.type = PACKET_IN;
