@@ -109,7 +109,7 @@ void ohci_init(struct cdi_device* cdi_hci)
         dprintf("Speicher nicht gefunden!\n");
         return;
     }
-    dprintf("Speicher @ 0x%08X\n", ohci->memory);
+    dprintf("Speicher @ 0x%08x\n", (uintptr_t) ohci->memory);
     if ((ohci->memory->hc_revision & 0xFF) != 0x10) {
         dprintf(
             "Dieses OHCI könnte inkompatibel mit dem Treiber sein (HCI %i.%i, HCD 1.0)\n",
