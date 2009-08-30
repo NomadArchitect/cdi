@@ -376,7 +376,7 @@ static inline int tsl(volatile int* variable)
     return rval;
 }
 
-#define MAX_ACCESS_BLOCKS 4
+#define MAX_ACCESS_BLOCKS 32
 
 static uint32_t msd_read(struct usb_device* usbdev, uint32_t lba,
     uint16_t sectors, void* buffer,

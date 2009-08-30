@@ -53,7 +53,8 @@ static void ohci_kill(struct cdi_driver* cdi_hcd);
 static void ohci_deinit(struct cdi_device* cdi_hci);
 void ohci_init(struct cdi_device* cdi_hci);
 static void ohci_handler(struct cdi_device* dev);
-static int ohci_do_packets(struct usb_packet* packet, int num_packets);
+static int ohci_do_all_packets(struct usb_packet* packet, int num_packets);
+static int ohci_do_some_packets(struct usb_packet* packets, int num_packets);
 static cdi_list_t get_devices(struct hci* gen_hci);
 static void activate_device(struct usb_device* device);
 static void ohci_reset_device(struct usb_device* device);
@@ -229,7 +230,7 @@ void ohci_init(struct cdi_device* cdi_hci)
 
     gen_hci->find_devices = &get_devices;
     gen_hci->activate_device = &activate_device;
-    gen_hci->do_packets = &ohci_do_packets;
+    gen_hci->do_packets = &ohci_do_all_packets;
     gen_hci->add_pipe = &ohci_establish_pipe;
 
     enumerate_hci(gen_hci);
@@ -243,7 +244,22 @@ static inline int tsl(volatile int* variable)
     return rval;
 }
 
-static int ohci_do_packets(struct usb_packet* packets, int num_packets)
+static int ohci_do_all_packets(struct usb_packet* packets, int num_packets)
+{
+    int error = USB_NO_ERROR;
+
+    //Mehr als 48 sind wohl nicht ratsam (vor allem wegen des Mempools)
+    while ((num_packets > 0) && (error == USB_NO_ERROR)) {
+        error = ohci_do_some_packets(packets,
+            (num_packets > 48) ? 48 : num_packets);
+        packets = &packets[48];
+        num_packets -= (num_packets > 48) ? 48 : num_packets;
+    }
+
+    return error;
+}
+
+static int ohci_do_some_packets(struct usb_packet* packets, int num_packets)
 {
     struct ohci_ed_desc* edsc;
     struct ohci_td_desc* tdsc, * otdsc;

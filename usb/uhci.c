@@ -341,9 +341,9 @@ static int uhci_do_packets(struct usb_packet* packet, int num_packets)
     int i, cond = 0;
 
     //TODO
-    for (i = 0; i < num_packets; i++) {
+    for (i = 0; (i < num_packets) && !cond; i++) {
         packet[i].condition = uhci_do_packet(&packet[i]);
-        cond |= packet[i].condition;
+        cond = packet[i].condition;
     }
 
     return cond;
