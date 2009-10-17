@@ -14,4 +14,10 @@ all: $(OBJS)
 clean:
 	rm $(OBJS)
 
-.PHONY: clean
+doc:
+	for lang in german english; do \
+		sed -e "s/%LANG%/$$lang/g#" doc/doxyfile.in > doc/doxyfile; \
+		doxygen doc/doxyfile; \
+	done
+
+.PHONY: clean doc
