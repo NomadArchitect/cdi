@@ -306,7 +306,9 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
     pcnet_write_csr(netcard, CSR_STATUS, STATUS_INIT | STATUS_INTERRUPT_ENABLE);
     
     // Wait until initialization completed, NOTE: see pcnet_handle_interrupt()
-    while (netcard->init_wait_for_irq != 0);
+    int irq = cdi_wait_irq(netcard->pci->irq, 1000);
+    if(irq < 0 || netcard->init_wait_for_irq == 1)
+        printf("pcnet: waiting for IRQ failed: %d\n", irq);
     
     // CSR4 Enable transmit auto-padding and receive automatic padding removal
     // TODO DMAPLUS? 
