@@ -153,7 +153,7 @@ struct e1000_device {
 
     struct e1000_rx_descriptor  rx_desc[RX_BUFFER_NUM];
     uint8_t                     rx_buffer[RX_BUFFER_NUM * RX_BUFFER_SIZE];
-    int                         rx_cur_buffer;
+    uint32_t                    rx_cur_buffer;
 
     void*                       mem_base;
     uint8_t                     revision;

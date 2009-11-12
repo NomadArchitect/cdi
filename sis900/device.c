@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "cdi.h"
 #include "cdi/misc.h"

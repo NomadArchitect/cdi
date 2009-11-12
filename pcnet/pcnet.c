@@ -31,6 +31,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 static void pcnet_handle_interrupt(struct cdi_device* device);
 static void pcnet_reset(struct pcnet_device *netcard);
@@ -238,9 +239,9 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
         printf("pcnet: descriptor region at 0x%p virtual and 0x%p physical\n", virt_desc_region, phys_desc_region);
     #endif
     netcard->receive_descriptor = virt_desc_region;
-    netcard->transmit_descriptor = virt_desc_region + 2 * 1024;
+    netcard->transmit_descriptor = (struct transmit_descriptor*) (((char*)virt_desc_region) + 2 * 1024);
     netcard->phys_receive_descriptor = phys_desc_region;
-    netcard->phys_transmit_descriptor = phys_desc_region + 2 * 1024;
+    netcard->phys_transmit_descriptor = (void*) (((char*)phys_desc_region) + 2 * 1024);
 
     // Fill the initialization block
     // NOTE: Transmit and receive buffer contain 8 entries
@@ -274,7 +275,7 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
             return;
         }
         netcard->receive_buffer[2 * i] = virt_buffer;
-        netcard->receive_buffer[2 * i + 1] = virt_buffer + 2048;
+        netcard->receive_buffer[2 * i + 1] = ((char*)virt_buffer) + 2048;
         netcard->receive_descriptor[2 * i].address = (uint32_t) phys_buffer;
         netcard->receive_descriptor[2 * i].flags = DESCRIPTOR_OWN | 0xF7FF;
         netcard->receive_descriptor[2 * i].flags2 = 0;
@@ -290,7 +291,7 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
             return;
         }
         netcard->transmit_buffer[2 * i] = virt_buffer;
-        netcard->transmit_buffer[2 * i + 1] = virt_buffer + 2048;
+        netcard->transmit_buffer[2 * i + 1] = ((char*)virt_buffer) + 2048;
         netcard->transmit_descriptor[2 * i].address = (uint32_t) phys_buffer;
         netcard->transmit_descriptor[2 * i + 1].address = (uint32_t) phys_buffer + 2048;
     }
