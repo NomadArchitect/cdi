@@ -25,6 +25,11 @@ typedef enum {
     CDI_NETWORK         = 1,
     CDI_STORAGE         = 2,
     CDI_SCSI            = 3,
+    CDI_VIDEO           = 4,
+    CDI_AUDIO           = 5,
+    CDI_AUDIO_MIXER     = 6,
+    CDI_USB_HCD         = 7,
+    CDI_USB             = 8,
 } cdi_device_type_t;
 
 struct cdi_driver;
