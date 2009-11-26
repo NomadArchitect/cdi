@@ -35,13 +35,13 @@
 
 #include "ramdisk_cdi.h"
 
+#define DRIVER_NAME "ramdisk"
+
 struct ramdisk_driver {
     struct cdi_fs_driver fs;
 };
 
 static struct ramdisk_driver ramdisk_driver;
-static const char* driver_name = "ramdisk";
-
 static int ramdisk_driver_init(struct ramdisk_driver* driver);
 static void ramdisk_driver_destroy(struct cdi_driver* driver);
 
@@ -71,12 +71,6 @@ static int ramdisk_driver_init(struct ramdisk_driver* driver)
     // Konstruktor der Vaterklasse
     cdi_fs_driver_init((struct cdi_fs_driver*) driver);
 
-    // Namen setzen
-    driver->fs.drv.name = driver_name;
-    driver->fs.fs_init = ramdisk_fs_init;
-    driver->fs.fs_destroy = ramdisk_fs_destroy;
-
-    driver->fs.drv.destroy = ramdisk_driver_destroy;
     return 0;
 }
 
@@ -87,3 +81,17 @@ static void ramdisk_driver_destroy(struct cdi_driver* driver)
 {
     cdi_fs_driver_destroy((struct cdi_fs_driver*) driver);
 }
+
+
+static struct ramdisk_driver ramdisk_driver = {
+    .fs =  {
+        .drv = {
+            .name           = DRIVER_NAME,
+            .destroy        = ramdisk_driver_destroy,
+        },
+        .fs_init            = ramdisk_fs_init,
+        .fs_destroy         = ramdisk_fs_destroy,
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, ramdisk_driver)

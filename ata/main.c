@@ -37,10 +37,11 @@
 
 #include "device.h"
 
+#define DRIVER_STORAGE_NAME "ata"
+#define DRIVER_SCSI_NAME "atapi"
+
 static struct cdi_storage_driver driver_storage;
 static struct cdi_scsi_driver driver_scsi;
-static const char* driver_storage_name = "ata";
-static const char* driver_scsi_name = "atapi";
 static cdi_list_t controller_list = NULL;
 
 static void ata_driver_init(int argc, char* argv[]);
@@ -78,23 +79,7 @@ static void ata_driver_init(int argc, char* argv[])
     // Konstruktor der Vaterklasse
     cdi_storage_driver_init((struct cdi_storage_driver*) &driver_storage);
     cdi_scsi_driver_init((struct cdi_scsi_driver*) &driver_scsi);
-    
-    // Namen setzen
-    driver_storage.drv.name = driver_storage_name;
-    driver_scsi.drv.name = driver_scsi_name;
 
-    // Funktionspointer initialisieren
-    driver_storage.drv.destroy          = ata_driver_destroy;
-    driver_storage.drv.init_device      = ata_init_device;
-    driver_storage.drv.remove_device    = ata_remove_device;
-    driver_storage.read_blocks          = ata_read_blocks;
-    driver_storage.write_blocks         = ata_write_blocks;
-
-    driver_scsi.drv.destroy             = atapi_driver_destroy;
-    driver_scsi.drv.init_device         = atapi_init_device;
-    driver_scsi.drv.remove_device       = atapi_remove_device;
-    driver_scsi.request                 = atapi_request;
-    
     // Liste mit Controllern initialisieren
     controller_list = cdi_list_create();
 
@@ -180,3 +165,28 @@ static void atapi_driver_destroy(struct cdi_driver* driver)
 {
     cdi_scsi_driver_destroy((struct cdi_scsi_driver*) driver);
 }
+
+
+static struct cdi_storage_driver driver_storage = {
+    .drv = {
+        .name           = DRIVER_STORAGE_NAME,
+        .destroy        = ata_driver_destroy,
+        .init_device    = ata_init_device,
+        .remove_device  = ata_remove_device,
+    },
+    .read_blocks        = ata_read_blocks,
+    .write_blocks       = ata_write_blocks,
+};
+
+static struct cdi_scsi_driver driver_scsi = {
+    .drv = {
+        .name           = DRIVER_SCSI_NAME,
+        .destroy        = atapi_driver_destroy,
+        .init_device    = atapi_init_device,
+        .remove_device  = atapi_remove_device,
+    },
+    .request            = atapi_request,
+};
+
+CDI_DRIVER(DRIVER_STORAGE_NAME, driver_storage)
+CDI_DRIVER(DRIVER_SCSI_NAME, driver_scsi)

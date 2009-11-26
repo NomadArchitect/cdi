@@ -37,13 +37,13 @@
 
 #include "device.h"
 
+#define DRIVER_NAME "e1000"
+
 struct e1000_driver {
     struct cdi_net_driver net;
 };
 
 static struct e1000_driver driver;
-static const char* driver_name = "e1000";
-
 static void e1000_driver_init(void);
 static void e1000_driver_destroy(struct cdi_driver* driver);
 
@@ -70,14 +70,6 @@ static void e1000_driver_init()
 {
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &driver);
-
-    // Namen setzen
-    driver.net.drv.name = driver_name;
-
-    // Funktionspointer initialisieren
-    driver.net.drv.destroy         = e1000_driver_destroy;
-    driver.net.drv.init_device     = e1000_init_device;
-    driver.net.drv.remove_device   = e1000_remove_device;
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -117,3 +109,17 @@ static void e1000_driver_destroy(struct cdi_driver* driver)
 
     // TODO Alle Karten deinitialisieren
 }
+
+
+static struct e1000_driver driver = {
+    .net =  {
+        .drv = {
+            .name           = DRIVER_NAME,
+            .destroy        = e1000_driver_destroy,
+            .init_device    = e1000_init_device,
+            .remove_device  = e1000_remove_device,
+        },
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, driver)

@@ -37,13 +37,13 @@
 
 #include "device.h"
 
+#define DRIVER_NAME "sis900"
+
 struct sis900_driver {
     struct cdi_net_driver net;
 };
 
-static struct sis900_driver driver;
-static const char* driver_name = "sis900";
-
+static struct sis900_driver sis900_driver;
 static void sis900_driver_init(int argc, char* argv[]);
 static void sis900_driver_destroy(struct cdi_driver* driver);
 
@@ -56,7 +56,7 @@ int init_sis900(int argc, char* argv[])
     cdi_init();
 
     sis900_driver_init(argc, argv);
-    cdi_driver_register((struct cdi_driver*) &driver);
+    cdi_driver_register((struct cdi_driver*) &sis900_driver);
 
     cdi_run_drivers();
 
@@ -69,15 +69,7 @@ int init_sis900(int argc, char* argv[])
 static void sis900_driver_init(int argc, char* argv[])
 {
     // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) &driver);
-    
-    // Namen setzen
-    driver.net.drv.name = driver_name;
-
-    // Funktionspointer initialisieren
-    driver.net.drv.destroy         = sis900_driver_destroy;
-    driver.net.drv.init_device     = sis900_init_device;
-    driver.net.drv.remove_device   = sis900_remove_device;
+    cdi_net_driver_init((struct cdi_net_driver*) &sis900_driver);
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -96,14 +88,14 @@ static void sis900_driver_init(int argc, char* argv[])
 
             device->phys = phys_device;
             device->pci = dev;
-            cdi_list_push(driver.net.drv.devices, device);
+            cdi_list_push(sis900_driver.net.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
     }
 
-    printf("sis900: %d Karten gefunden.\n", 
-        cdi_list_size(driver.net.drv.devices));
+    printf("sis900: %d Karten gefunden.\n",
+        cdi_list_size(sis900_driver.net.drv.devices));
 
     cdi_list_destroy(pci_devices);
 }
@@ -117,3 +109,17 @@ static void sis900_driver_destroy(struct cdi_driver* driver)
 
     // TODO Alle Karten deinitialisieren
 }
+
+
+static struct sis900_driver sis900_driver = {
+    .net =  {
+        .drv = {
+            .name           = DRIVER_NAME,
+            .destroy        = sis900_driver_destroy,
+            .init_device    = sis900_init_device,
+            .remove_device  = sis900_remove_device,
+        },
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, sis900_driver)

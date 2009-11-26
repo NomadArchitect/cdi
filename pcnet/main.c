@@ -36,16 +36,17 @@
 
 #include "pcnet.h"
 
+#define DRIVER_NAME "pcnet"
+
 struct module_options {
     uint32_t ip;
 };
 
-static struct {
+struct pcnet_driver {
     struct cdi_net_driver net;
-} driver;
+};
 
-static const char* driver_name = "pcnet";
-
+static struct pcnet_driver driver;
 static int pcnet_driver_init(int argc, char* argv[]);
 static void pcnet_driver_destroy(struct cdi_driver* driver);
 
@@ -72,14 +73,6 @@ static int pcnet_driver_init(int argc, char* argv[])
 
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &driver);
-
-    // Namen setzen
-    driver.net.drv.name = driver_name;
-
-    // Funktionspointer initialisieren
-    driver.net.drv.destroy         = pcnet_driver_destroy;
-    driver.net.drv.init_device     = pcnet_init_device;
-    driver.net.drv.remove_device   = pcnet_remove_device;
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -115,3 +108,17 @@ static void pcnet_driver_destroy(struct cdi_driver* driver)
 
     // TODO Alle Karten deinitialisieren
 }
+
+
+static struct pcnet_driver driver = {
+    .net =  {
+        .drv = {
+            .name           = DRIVER_NAME,
+            .destroy        = pcnet_driver_destroy,
+            .init_device    = pcnet_init_device,
+            .remove_device  = pcnet_remove_device,
+        },
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, driver)

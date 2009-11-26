@@ -41,13 +41,13 @@
 
 #include "ext2_cdi.h"
 
+#define DRIVER_NAME "ext2"
+
 struct ext2_driver {
     struct cdi_fs_driver fs;
 };
 
 static struct ext2_driver ext2_driver;
-static const char* driver_name = "ext2";
-
 static int ext2_driver_init(struct ext2_driver* driver);
 static void ext2_driver_destroy(struct cdi_driver* driver);
 
@@ -77,12 +77,6 @@ static int ext2_driver_init(struct ext2_driver* driver)
     // Konstruktor der Vaterklasse
     cdi_fs_driver_init((struct cdi_fs_driver*) driver);
 
-    // Namen setzen
-    driver->fs.drv.name = driver_name;
-    driver->fs.fs_init = ext2_fs_init;
-    driver->fs.fs_destroy = ext2_fs_destroy;
-
-    driver->fs.drv.destroy = ext2_driver_destroy;
     return 0;
 }
 
@@ -93,3 +87,17 @@ static void ext2_driver_destroy(struct cdi_driver* driver)
 {
     cdi_fs_driver_destroy((struct cdi_fs_driver*) driver);
 }
+
+
+static struct ext2_driver ext2_driver = {
+    .fs = {
+        .drv = {
+            .name       = DRIVER_NAME,
+            .destroy    = ext2_driver_destroy,
+        },
+        .fs_init        = ext2_fs_init,
+        .fs_destroy     = ext2_fs_destroy,
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, ext2_driver)

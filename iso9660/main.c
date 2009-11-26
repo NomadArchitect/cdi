@@ -24,13 +24,13 @@
 #include "iso9660_cdi.h"
 #include "iso9660def.h"
 
+#define DRIVER_NAME "iso9660"
+
 struct iso9660_driver {
   struct cdi_fs_driver drv;
 };
 
 static struct iso9660_driver iso9660_driver;
-static const char* driver_name = "iso9660";
-
 static int iso9660_driver_init(struct iso9660_driver *driver);
 static void iso9660_driver_destroy(struct cdi_driver* driver);
 
@@ -57,11 +57,6 @@ static int iso9660_driver_init(struct iso9660_driver *driver) {
     // Konstruktor der Vaterklasse
     cdi_fs_driver_init((struct cdi_fs_driver*)driver);
 
-    // Namen setzen
-    driver->drv.drv.name = driver_name;
-    driver->drv.fs_init = iso9660_fs_init;
-    driver->drv.fs_destroy = iso9660_fs_destroy;
-    driver->drv.drv.destroy = iso9660_driver_destroy;
     return 0;
 }
 
@@ -91,3 +86,17 @@ int debug(const char *fmt,...) {
   return 0;
 #endif
 }
+
+
+static struct iso9660_driver iso9660_driver = {
+    .drv =  {
+        .drv = {
+            .name           = DRIVER_NAME,
+            .destroy        = iso9660_driver_destroy,
+        },
+        .fs_init            = iso9660_fs_init,
+        .fs_destroy         = iso9660_fs_destroy,
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, iso9660_driver)

@@ -35,6 +35,8 @@
 
 #include "device.h"
 
+#define DRIVER_NAME "floppy"
+
 struct floppy_driver {
     struct cdi_storage_driver storage;
 };
@@ -44,8 +46,6 @@ static struct floppy_controller floppy_controller = {
     // Standardmaessig DMA benutzen
     .use_dma = 1
 };
-
-static const char* driver_name = "floppy";
 
 static int floppy_driver_init(struct floppy_driver* driver);
 static void floppy_driver_destroy(struct cdi_driver* driver);
@@ -78,16 +78,6 @@ static int floppy_driver_init(struct floppy_driver* driver)
 
     // Konstruktor der Vaterklasse
     cdi_storage_driver_init((struct cdi_storage_driver*) driver);
-    
-    // Namen setzen
-    driver->storage.drv.name = driver_name;
-
-    // Funktionspointer initialisieren
-    driver->storage.drv.destroy         = floppy_driver_destroy;
-    driver->storage.drv.init_device     = floppy_init_device;
-    driver->storage.drv.remove_device   = floppy_remove_device;
-    driver->storage.read_blocks         = floppy_read_blocks; 
-    driver->storage.write_blocks        = floppy_write_blocks;
     
     // Geraete erstellen (TODO: Was wenn eines oder beide nicht vorhanden
     // sind?)
@@ -131,3 +121,19 @@ static void floppy_driver_destroy(struct cdi_driver* driver)
 
     // TODO Alle Laufwerke deinitialisieren
 }
+
+
+static struct floppy_driver floppy_driver = {
+    .storage = {
+        .drv = {
+            .name           = DRIVER_NAME,
+            .destroy        = floppy_driver_destroy,
+            .init_device    = floppy_init_device,
+            .remove_device  = floppy_remove_device,
+        },
+        .read_blocks        = floppy_read_blocks,
+        .write_blocks       = floppy_write_blocks,
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, floppy_driver)

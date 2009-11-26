@@ -35,13 +35,13 @@
 
 #include "serial_cdi.h"
 
+#define DRIVER_NAME "serial"
+
 struct serial_driver {
     struct cdi_fs_driver fs;
 };
 
 static struct serial_driver serial_driver;
-static const char* driver_name = "serial";
-
 static int serial_driver_init(struct serial_driver* driver);
 static void serial_driver_destroy(struct cdi_driver* driver);
 
@@ -71,12 +71,6 @@ static int serial_driver_init(struct serial_driver* driver)
     // Konstruktor der Vaterklasse
     cdi_fs_driver_init((struct cdi_fs_driver*) driver);
 
-    // Namen setzen
-    driver->fs.drv.name = driver_name;
-    driver->fs.fs_init = serial_fs_init;
-    driver->fs.fs_destroy = serial_fs_destroy;
-
-    driver->fs.drv.destroy = serial_driver_destroy;
     return 0;
 }
 
@@ -87,3 +81,17 @@ static void serial_driver_destroy(struct cdi_driver* driver)
 {
     cdi_fs_driver_destroy((struct cdi_fs_driver*) driver);
 }
+
+
+static struct serial_driver serial_driver = {
+    .fs = {
+        .drv = {
+            .name       = DRIVER_NAME,
+            .destroy    = serial_driver_destroy,
+        },
+        .fs_init        = serial_fs_init,
+        .fs_destroy     = serial_fs_destroy,
+    },
+};
+
+CDI_DRIVER(DRIVER_NAME, serial_driver)
