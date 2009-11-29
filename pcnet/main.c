@@ -47,26 +47,8 @@ struct pcnet_driver {
 };
 
 static struct pcnet_driver driver;
-static int pcnet_driver_init(int argc, char* argv[]);
-static void pcnet_driver_destroy(struct cdi_driver* driver);
 
-#ifdef CDI_STANDALONE
-int main(int argc, char* argv[])
-#else
-int init_pcnet(int argc, char* argv[])
-#endif
-{
-    cdi_init();
-
-    pcnet_driver_init(argc, argv);
-    cdi_driver_register((struct cdi_driver*) &driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
-
-static int pcnet_driver_init(int argc, char* argv[])
+static int pcnet_driver_init(void)
 {
     // TODO Auf pci-Service warten
     // TODO Auf tcpip-Service warten
@@ -113,7 +95,9 @@ static void pcnet_driver_destroy(struct cdi_driver* driver)
 static struct pcnet_driver driver = {
     .net =  {
         .drv = {
+            .type           = CDI_NETWORK,
             .name           = DRIVER_NAME,
+            .init           = pcnet_driver_init,
             .destroy        = pcnet_driver_destroy,
             .init_device    = pcnet_init_device,
             .remove_device  = pcnet_remove_device,

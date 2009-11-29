@@ -42,26 +42,8 @@ struct ne2k_driver {
 };
 
 static struct ne2k_driver driver;
-static int ne2k_driver_init(int argc, char* argv[]);
-static void ne2k_driver_destroy(struct cdi_driver* driver);
 
-#ifdef CDI_STANDALONE
-int main(int argc, char* argv[])
-#else
-int init_ne2k(int argc, char* argv[])
-#endif
-{
-    cdi_init();
-
-    ne2k_driver_init(argc, argv);
-    cdi_driver_register((struct cdi_driver*) &driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
-
-static int ne2k_driver_init(int argc, char* argv[])
+static int ne2k_driver_init(void)
 {
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &driver);
@@ -108,7 +90,9 @@ static void ne2k_driver_destroy(struct cdi_driver* driver)
 static struct ne2k_driver ne2k_driver = {
     .net =  {
         .drv = {
+            .type           = CDI_NETWORK,
             .name           = DRIVER_NAME,
+            .init           = ne2k_driver_init,
             .destroy        = ne2k_driver_destroy,
             .init_device    = ne2k_init_device,
             .remove_device  = ne2k_remove_device,

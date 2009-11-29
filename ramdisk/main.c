@@ -42,34 +42,14 @@ struct ramdisk_driver {
 };
 
 static struct ramdisk_driver ramdisk_driver;
-static int ramdisk_driver_init(struct ramdisk_driver* driver);
-static void ramdisk_driver_destroy(struct cdi_driver* driver);
-
-#ifdef CDI_STANDALONE
-int main(void)
-#else
-int init_ramdisk(void)
-#endif
-{
-    cdi_init();
-
-    if (ramdisk_driver_init(&ramdisk_driver) != 0) {
-        return -1;
-    }
-    cdi_fs_driver_register((struct cdi_fs_driver*) &ramdisk_driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
 
 /**
  * Initialisiert die Datenstrukturen fuer den ramdisk-Treiber
  */
-static int ramdisk_driver_init(struct ramdisk_driver* driver)
+static int ramdisk_driver_init(void)
 {
     // Konstruktor der Vaterklasse
-    cdi_fs_driver_init((struct cdi_fs_driver*) driver);
+    cdi_fs_driver_init((struct cdi_fs_driver*) &ramdisk_driver);
 
     return 0;
 }
@@ -86,7 +66,9 @@ static void ramdisk_driver_destroy(struct cdi_driver* driver)
 static struct ramdisk_driver ramdisk_driver = {
     .fs =  {
         .drv = {
+            .type           = CDI_FILESYSTEM,
             .name           = DRIVER_NAME,
+            .init           = ramdisk_driver_init,
             .destroy        = ramdisk_driver_destroy,
         },
         .fs_init            = ramdisk_fs_init,

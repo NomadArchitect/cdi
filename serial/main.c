@@ -42,34 +42,14 @@ struct serial_driver {
 };
 
 static struct serial_driver serial_driver;
-static int serial_driver_init(struct serial_driver* driver);
-static void serial_driver_destroy(struct cdi_driver* driver);
-
-#ifdef CDI_STANDALONE
-int main(void)
-#else
-int init_serial(void)
-#endif
-{
-    cdi_init();
-
-    if (serial_driver_init(&serial_driver) != 0) {
-        return -1;
-    }
-    cdi_fs_driver_register((struct cdi_fs_driver*) &serial_driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
 
 /**
  * Initialisiert die Datenstrukturen fuer den serial-Treiber
  */
-static int serial_driver_init(struct serial_driver* driver)
+static int serial_driver_init(void)
 {
     // Konstruktor der Vaterklasse
-    cdi_fs_driver_init((struct cdi_fs_driver*) driver);
+    cdi_fs_driver_init((struct cdi_fs_driver*) &serial_driver);
 
     return 0;
 }
@@ -86,7 +66,9 @@ static void serial_driver_destroy(struct cdi_driver* driver)
 static struct serial_driver serial_driver = {
     .fs = {
         .drv = {
+            .type       = CDI_FILESYSTEM,
             .name       = DRIVER_NAME,
+            .init       = serial_driver_init,
             .destroy    = serial_driver_destroy,
         },
         .fs_init        = serial_fs_init,

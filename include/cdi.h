@@ -29,6 +29,7 @@ typedef enum {
     CDI_AUDIO_MIXER     = 6,
     CDI_USB_HCD         = 7,
     CDI_USB             = 8,
+    CDI_FILESYSTEM      = 9,
 } cdi_device_type_t;
 
 struct cdi_driver;
@@ -49,13 +50,14 @@ struct cdi_driver {
     void (*init_device)(struct cdi_device* device);
     void (*remove_device)(struct cdi_device* device);
 
+    int (*init)(void);
     void (*destroy)(struct cdi_driver* driver);
 };
 
 /**
  * Muss vor dem ersten Aufruf einer anderen CDI-Funktion aufgerufen werden.
  * Initialisiert interne Datenstruktur der Implementierung fuer das jeweilige
- * Betriebssystem.
+ * Betriebssystem und startet anschliessend alle Treiber.
  *
  * Ein wiederholter Aufruf bleibt ohne Effekt.
  */

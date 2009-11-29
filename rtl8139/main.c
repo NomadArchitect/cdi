@@ -45,26 +45,8 @@ static struct rtl8139_driver {
     struct cdi_net_driver net;
 } driver;
 
-static int rtl8139_driver_init(int argc, char* argv[]);
-static void rtl8139_driver_destroy(struct cdi_driver* driver);
 
-#ifdef CDI_STANDALONE
-int main(int argc, char* argv[])
-#else
-int init_rtl8139(int argc, char* argv[])
-#endif
-{
-    cdi_init();
-
-    rtl8139_driver_init(argc, argv);
-    cdi_driver_register((struct cdi_driver*) &driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
-
-static int rtl8139_driver_init(int argc, char* argv[])
+static int rtl8139_driver_init(void)
 {
     // TODO Auf pci-Service warten
     // TODO Auf tcpip-Service warten
@@ -114,7 +96,9 @@ static void rtl8139_driver_destroy(struct cdi_driver* driver)
 static struct rtl8139_driver driver = {
     .net =  {
         .drv = {
+            .type           = CDI_NETWORK,
             .name           = DRIVER_NAME,
+            .init           = rtl8139_driver_init,
             .destroy        = rtl8139_driver_destroy,
             .init_device    = rtl8139_init_device,
             .remove_device  = rtl8139_remove_device,

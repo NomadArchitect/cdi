@@ -47,34 +47,14 @@ static struct floppy_controller floppy_controller = {
     .use_dma = 1
 };
 
-static int floppy_driver_init(struct floppy_driver* driver);
-static void floppy_driver_destroy(struct cdi_driver* driver);
-
-#ifdef CDI_STANDALONE
-int main(void)
-#else
-int init_floppy(void)
-#endif
-{
-    cdi_init();
-
-    if (floppy_driver_init(&floppy_driver) != 0) {
-        return -1;
-    }
-    cdi_storage_driver_register((struct cdi_storage_driver*) &floppy_driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
-
 /**
  * Initialisiert die Datenstrukturen fuer den floppy-Treiber
  */
-static int floppy_driver_init(struct floppy_driver* driver)
+static int floppy_driver_init(void)
 {
     int i;
     struct floppy_device* device;
+    struct floppy_driver* driver = &floppy_driver;
 
     // Konstruktor der Vaterklasse
     cdi_storage_driver_init((struct cdi_storage_driver*) driver);
@@ -126,7 +106,9 @@ static void floppy_driver_destroy(struct cdi_driver* driver)
 static struct floppy_driver floppy_driver = {
     .storage = {
         .drv = {
+            .type           = CDI_STORAGE,
             .name           = DRIVER_NAME,
+            .init           = floppy_driver_init,
             .destroy        = floppy_driver_destroy,
             .init_device    = floppy_init_device,
             .remove_device  = floppy_remove_device,

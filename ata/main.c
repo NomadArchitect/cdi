@@ -44,22 +44,19 @@ static struct cdi_storage_driver driver_storage;
 static struct cdi_scsi_driver driver_scsi;
 static cdi_list_t controller_list = NULL;
 
-static void ata_driver_init(int argc, char* argv[]);
-static void ata_driver_destroy(struct cdi_driver* driver);
-static void atapi_driver_destroy(struct cdi_driver* driver);
+static int argc;
+static char** argv;
 
 #ifdef CDI_STANDALONE
-int main(int argc, char* argv[])
+int main(int _argc, char* _argv[])
 #else
-int init_ata(int argc, char* argv[])
+int init_ata(int _argc, char* _argv[])
 #endif
 {
-    cdi_init();
-    ata_driver_init(argc, argv);
-    cdi_storage_driver_register((struct cdi_storage_driver*) &driver_storage);
-    cdi_scsi_driver_register((struct cdi_scsi_driver*) &driver_scsi);
+    argc = _argc;
+    argv = _argv;
 
-    cdi_run_drivers();
+    cdi_init();
 
     return 0;
 }
@@ -67,7 +64,7 @@ int init_ata(int argc, char* argv[])
 /**
  * Initialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void ata_driver_init(int argc, char* argv[])
+static int ata_driver_init(void)
 {
     struct ata_controller* controller;
     uint16_t busmaster_regbase = 0;
@@ -149,6 +146,8 @@ static void ata_driver_init(int argc, char* argv[])
     controller->scsi = (struct cdi_scsi_driver*) &driver_scsi;
     ata_init_controller(controller);
     cdi_list_push(controller_list, controller);
+
+    return 0;
 }
 
 /**
@@ -161,6 +160,12 @@ static void ata_driver_destroy(struct cdi_driver* driver)
     // TODO Alle Karten deinitialisieren
 }
 
+static int atapi_driver_init(void)
+{
+    // TODO ATAPI-Initialisierungscode hierher verschieben
+    return 0;
+}
+
 static void atapi_driver_destroy(struct cdi_driver* driver)
 {
     cdi_scsi_driver_destroy((struct cdi_scsi_driver*) driver);
@@ -169,7 +174,9 @@ static void atapi_driver_destroy(struct cdi_driver* driver)
 
 static struct cdi_storage_driver driver_storage = {
     .drv = {
+        .type           = CDI_STORAGE,
         .name           = DRIVER_STORAGE_NAME,
+        .init           = ata_driver_init,
         .destroy        = ata_driver_destroy,
         .init_device    = ata_init_device,
         .remove_device  = ata_remove_device,
@@ -180,7 +187,9 @@ static struct cdi_storage_driver driver_storage = {
 
 static struct cdi_scsi_driver driver_scsi = {
     .drv = {
+        .type           = CDI_SCSI,
         .name           = DRIVER_SCSI_NAME,
+        .init           = atapi_driver_init,
         .destroy        = atapi_driver_destroy,
         .init_device    = atapi_init_device,
         .remove_device  = atapi_remove_device,

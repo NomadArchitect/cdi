@@ -44,29 +44,11 @@ struct sis900_driver {
 };
 
 static struct sis900_driver sis900_driver;
-static void sis900_driver_init(int argc, char* argv[]);
-static void sis900_driver_destroy(struct cdi_driver* driver);
-
-#ifdef CDI_STANDALONE
-int main(int argc, char* argv[])
-#else
-int init_sis900(int argc, char* argv[])
-#endif
-{
-    cdi_init();
-
-    sis900_driver_init(argc, argv);
-    cdi_driver_register((struct cdi_driver*) &sis900_driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
 
 /**
  * Initialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void sis900_driver_init(int argc, char* argv[])
+static int sis900_driver_init(void)
 {
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &sis900_driver);
@@ -98,6 +80,8 @@ static void sis900_driver_init(int argc, char* argv[])
         cdi_list_size(sis900_driver.net.drv.devices));
 
     cdi_list_destroy(pci_devices);
+
+    return 0;
 }
 
 /**
@@ -114,7 +98,9 @@ static void sis900_driver_destroy(struct cdi_driver* driver)
 static struct sis900_driver sis900_driver = {
     .net =  {
         .drv = {
+            .type           = CDI_NETWORK,
             .name           = DRIVER_NAME,
+            .init           = sis900_driver_init,
             .destroy        = sis900_driver_destroy,
             .init_device    = sis900_init_device,
             .remove_device  = sis900_remove_device,

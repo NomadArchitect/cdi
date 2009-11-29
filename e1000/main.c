@@ -44,29 +44,11 @@ struct e1000_driver {
 };
 
 static struct e1000_driver driver;
-static void e1000_driver_init(void);
-static void e1000_driver_destroy(struct cdi_driver* driver);
-
-#ifdef CDI_STANDALONE
-int main(void)
-#else
-int init_e1000(void)
-#endif
-{
-    cdi_init();
-
-    e1000_driver_init();
-    cdi_driver_register((struct cdi_driver*) &driver);
-
-    cdi_run_drivers();
-
-    return 0;
-}
 
 /**
  * Initialisiert die Datenstrukturen fuer den e1000-Treiber
  */
-static void e1000_driver_init()
+static int e1000_driver_init(void)
 {
     // Konstruktor der Vaterklasse
     cdi_net_driver_init((struct cdi_net_driver*) &driver);
@@ -98,6 +80,8 @@ static void e1000_driver_init()
         cdi_list_size(driver.net.drv.devices));
 
     cdi_list_destroy(pci_devices);
+
+    return 0;
 }
 
 /**
@@ -114,7 +98,9 @@ static void e1000_driver_destroy(struct cdi_driver* driver)
 static struct e1000_driver driver = {
     .net =  {
         .drv = {
+            .type           = CDI_NETWORK,
             .name           = DRIVER_NAME,
+            .init           = e1000_driver_init,
             .destroy        = e1000_driver_destroy,
             .init_device    = e1000_init_device,
             .remove_device  = e1000_remove_device,
