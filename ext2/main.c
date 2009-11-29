@@ -43,11 +43,7 @@
 
 #define DRIVER_NAME "ext2"
 
-struct ext2_driver {
-    struct cdi_fs_driver fs;
-};
-
-static struct ext2_driver ext2_driver;
+static struct cdi_fs_driver ext2_driver;
 
 /**
  * Initialisiert die Datenstrukturen fuer den ext2-Treiber
@@ -62,23 +58,22 @@ static int ext2_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void ext2_driver_destroy(struct cdi_driver* driver)
+static int ext2_driver_destroy(void)
 {
-    cdi_fs_driver_destroy((struct cdi_fs_driver*) driver);
+    cdi_fs_driver_destroy(&ext2_driver);
+    return 0;
 }
 
 
-static struct ext2_driver ext2_driver = {
-    .fs = {
-        .drv = {
-            .type       = CDI_FILESYSTEM,
-            .name       = DRIVER_NAME,
-            .init       = ext2_driver_init,
-            .destroy    = ext2_driver_destroy,
-        },
-        .fs_init        = ext2_fs_init,
-        .fs_destroy     = ext2_fs_destroy,
+static struct cdi_fs_driver ext2_driver = {
+    .drv = {
+        .type       = CDI_FILESYSTEM,
+        .name       = DRIVER_NAME,
+        .init       = ext2_driver_init,
+        .destroy    = ext2_driver_destroy,
     },
+    .fs_init        = ext2_fs_init,
+    .fs_destroy     = ext2_fs_destroy,
 };
 
 CDI_DRIVER(DRIVER_NAME, ext2_driver)

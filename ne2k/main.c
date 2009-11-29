@@ -37,16 +37,12 @@
 
 #define DRIVER_NAME "ne2k"
 
-struct ne2k_driver {
-    struct cdi_net_driver net;
-};
-
-static struct ne2k_driver driver;
+static struct cdi_net_driver ne2k_driver;
 
 static int ne2k_driver_init(void)
 {
     // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) &driver);
+    cdi_net_driver_init(&ne2k_driver);
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -65,7 +61,7 @@ static int ne2k_driver_init(void)
 
             device->phys = phys_device;
             device->pci = dev;
-            cdi_list_push(driver.net.drv.devices, device);
+            cdi_list_push(ne2k_driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
@@ -79,24 +75,24 @@ static int ne2k_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den ne2k-Treiber
  */
-static void ne2k_driver_destroy(struct cdi_driver* driver)
+static int ne2k_driver_destroy(void)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
+    cdi_net_driver_destroy(&ne2k_driver);
 
     // TODO Alle Karten deinitialisieren
+
+    return 0;
 }
 
 
-static struct ne2k_driver ne2k_driver = {
-    .net =  {
-        .drv = {
-            .type           = CDI_NETWORK,
-            .name           = DRIVER_NAME,
-            .init           = ne2k_driver_init,
-            .destroy        = ne2k_driver_destroy,
-            .init_device    = ne2k_init_device,
-            .remove_device  = ne2k_remove_device,
-        },
+static struct cdi_net_driver ne2k_driver = {
+    .drv = {
+        .type           = CDI_NETWORK,
+        .name           = DRIVER_NAME,
+        .init           = ne2k_driver_init,
+        .destroy        = ne2k_driver_destroy,
+        .init_device    = ne2k_init_device,
+        .remove_device  = ne2k_remove_device,
     },
 };
 

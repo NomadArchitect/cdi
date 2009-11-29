@@ -38,15 +38,7 @@
 
 #define DRIVER_NAME "pcnet"
 
-struct module_options {
-    uint32_t ip;
-};
-
-struct pcnet_driver {
-    struct cdi_net_driver net;
-};
-
-static struct pcnet_driver driver;
+static struct cdi_net_driver pcnet_driver;
 
 static int pcnet_driver_init(void)
 {
@@ -54,7 +46,7 @@ static int pcnet_driver_init(void)
     // TODO Auf tcpip-Service warten
 
     // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) &driver);
+    cdi_net_driver_init(&pcnet_driver);
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -70,7 +62,7 @@ static int pcnet_driver_init(void)
             memset(device, 0, sizeof(struct pcnet_device));
 
             device->pci = dev;
-            cdi_list_push(driver.net.drv.devices, device);
+            cdi_list_push(pcnet_driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
@@ -84,25 +76,25 @@ static int pcnet_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den pcnet-Treiber
  */
-static void pcnet_driver_destroy(struct cdi_driver* driver)
+static int pcnet_driver_destroy(void)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
+    cdi_net_driver_destroy(&pcnet_driver);
 
     // TODO Alle Karten deinitialisieren
+
+    return 0;
 }
 
 
-static struct pcnet_driver driver = {
-    .net =  {
-        .drv = {
-            .type           = CDI_NETWORK,
-            .name           = DRIVER_NAME,
-            .init           = pcnet_driver_init,
-            .destroy        = pcnet_driver_destroy,
-            .init_device    = pcnet_init_device,
-            .remove_device  = pcnet_remove_device,
-        },
+static struct cdi_net_driver pcnet_driver = {
+    .drv = {
+        .type           = CDI_NETWORK,
+        .name           = DRIVER_NAME,
+        .init           = pcnet_driver_init,
+        .destroy        = pcnet_driver_destroy,
+        .init_device    = pcnet_init_device,
+        .remove_device  = pcnet_remove_device,
     },
 };
 
-CDI_DRIVER(DRIVER_NAME, driver)
+CDI_DRIVER(DRIVER_NAME, pcnet_driver)

@@ -51,7 +51,7 @@ struct cdi_driver {
     void (*remove_device)(struct cdi_device* device);
 
     int (*init)(void);
-    void (*destroy)(struct cdi_driver* driver);
+    int (*destroy)(void);
 };
 
 /**

@@ -153,11 +153,13 @@ static int ata_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den ata-Treiber
  */
-static void ata_driver_destroy(struct cdi_driver* driver)
+static int ata_driver_destroy(void)
 {
-    cdi_storage_driver_destroy((struct cdi_storage_driver*) driver);
+    cdi_storage_driver_destroy(&driver_storage);
 
     // TODO Alle Karten deinitialisieren
+
+    return 0;
 }
 
 static int atapi_driver_init(void)
@@ -166,9 +168,10 @@ static int atapi_driver_init(void)
     return 0;
 }
 
-static void atapi_driver_destroy(struct cdi_driver* driver)
+static int atapi_driver_destroy(void)
 {
-    cdi_scsi_driver_destroy((struct cdi_scsi_driver*) driver);
+    cdi_scsi_driver_destroy(&driver_scsi);
+    return 0;
 }
 
 

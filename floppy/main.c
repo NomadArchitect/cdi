@@ -37,11 +37,8 @@
 
 #define DRIVER_NAME "floppy"
 
-struct floppy_driver {
-    struct cdi_storage_driver storage;
-};
+static struct cdi_storage_driver floppy_driver;
 
-static struct floppy_driver floppy_driver;
 static struct floppy_controller floppy_controller = {
     // Standardmaessig DMA benutzen
     .use_dma = 1
@@ -54,10 +51,9 @@ static int floppy_driver_init(void)
 {
     int i;
     struct floppy_device* device;
-    struct floppy_driver* driver = &floppy_driver;
 
     // Konstruktor der Vaterklasse
-    cdi_storage_driver_init((struct cdi_storage_driver*) driver);
+    cdi_storage_driver_init(&floppy_driver);
     
     // Geraete erstellen (TODO: Was wenn eines oder beide nicht vorhanden
     // sind?)
@@ -72,7 +68,7 @@ static int floppy_driver_init(void)
 
         // Geraet nur eintragen wenn es existiert
         if (floppy_device_probe(device) != 0) {
-            cdi_list_push(driver->storage.drv.devices, device);
+            cdi_list_push(floppy_driver.drv.devices, device);
         } else {
             free(device);
         }
@@ -81,7 +77,7 @@ static int floppy_driver_init(void)
     // IRQ fuer FDC registrieren(ist hier egal fuer welches Geraet, da er eh
     // nur in der Controller-Struktur etwas macht).
     cdi_register_irq(6, floppy_handle_interrupt, (struct cdi_device*)
-        cdi_list_get(driver->storage.drv.devices, 0));
+        cdi_list_get(floppy_driver.drv.devices, 0));
 
     // Kontroller initialisieren, falls dabei ein Fehler auftritt kann der
     // Treiber gleich wieder beendet werden
@@ -95,27 +91,27 @@ static int floppy_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void floppy_driver_destroy(struct cdi_driver* driver)
+static int floppy_driver_destroy(void)
 {
-    cdi_storage_driver_destroy((struct cdi_storage_driver*) driver);
+    cdi_storage_driver_destroy(&floppy_driver);
 
     // TODO Alle Laufwerke deinitialisieren
+
+    return 0;
 }
 
 
-static struct floppy_driver floppy_driver = {
-    .storage = {
-        .drv = {
-            .type           = CDI_STORAGE,
-            .name           = DRIVER_NAME,
-            .init           = floppy_driver_init,
-            .destroy        = floppy_driver_destroy,
-            .init_device    = floppy_init_device,
-            .remove_device  = floppy_remove_device,
-        },
-        .read_blocks        = floppy_read_blocks,
-        .write_blocks       = floppy_write_blocks,
+static struct cdi_storage_driver floppy_driver = {
+    .drv = {
+        .type           = CDI_STORAGE,
+        .name           = DRIVER_NAME,
+        .init           = floppy_driver_init,
+        .destroy        = floppy_driver_destroy,
+        .init_device    = floppy_init_device,
+        .remove_device  = floppy_remove_device,
     },
+    .read_blocks        = floppy_read_blocks,
+    .write_blocks       = floppy_write_blocks,
 };
 
 CDI_DRIVER(DRIVER_NAME, floppy_driver)

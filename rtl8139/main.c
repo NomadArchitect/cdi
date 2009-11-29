@@ -37,14 +37,7 @@
 
 #define DRIVER_NAME "rtl8139"
 
-struct module_options {
-    uint32_t ip;
-};
-
-static struct rtl8139_driver {
-    struct cdi_net_driver net;
-} driver;
-
+static struct cdi_net_driver rtl8139_driver;
 
 static int rtl8139_driver_init(void)
 {
@@ -52,7 +45,7 @@ static int rtl8139_driver_init(void)
     // TODO Auf tcpip-Service warten
 
     // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) &driver);
+    cdi_net_driver_init(&rtl8139_driver);
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -71,7 +64,7 @@ static int rtl8139_driver_init(void)
 
             device->phys = phys_device;
             device->pci = dev;
-            cdi_list_push(driver.net.drv.devices, device);
+            cdi_list_push(rtl8139_driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
@@ -85,25 +78,25 @@ static int rtl8139_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den rtl8139-Treiber
  */
-static void rtl8139_driver_destroy(struct cdi_driver* driver)
+static int rtl8139_driver_destroy(void)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
+    cdi_net_driver_destroy(&rtl8139_driver);
 
     // TODO Alle Karten deinitialisieren
+
+    return 0;
 }
 
 
-static struct rtl8139_driver driver = {
-    .net =  {
-        .drv = {
-            .type           = CDI_NETWORK,
-            .name           = DRIVER_NAME,
-            .init           = rtl8139_driver_init,
-            .destroy        = rtl8139_driver_destroy,
-            .init_device    = rtl8139_init_device,
-            .remove_device  = rtl8139_remove_device,
-        },
+static struct cdi_net_driver rtl8139_driver = {
+    .drv = {
+        .type           = CDI_NETWORK,
+        .name           = DRIVER_NAME,
+        .init           = rtl8139_driver_init,
+        .destroy        = rtl8139_driver_destroy,
+        .init_device    = rtl8139_init_device,
+        .remove_device  = rtl8139_remove_device,
     },
 };
 
-CDI_DRIVER(DRIVER_NAME, driver)
+CDI_DRIVER(DRIVER_NAME, rtl8139_driver)

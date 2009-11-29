@@ -39,11 +39,7 @@
 
 #define DRIVER_NAME "sis900"
 
-struct sis900_driver {
-    struct cdi_net_driver net;
-};
-
-static struct sis900_driver sis900_driver;
+static struct cdi_net_driver sis900_driver;
 
 /**
  * Initialisiert die Datenstrukturen fuer den sis900-Treiber
@@ -51,7 +47,7 @@ static struct sis900_driver sis900_driver;
 static int sis900_driver_init(void)
 {
     // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) &sis900_driver);
+    cdi_net_driver_init(&sis900_driver);
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -70,14 +66,14 @@ static int sis900_driver_init(void)
 
             device->phys = phys_device;
             device->pci = dev;
-            cdi_list_push(sis900_driver.net.drv.devices, device);
+            cdi_list_push(sis900_driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
     }
 
     printf("sis900: %d Karten gefunden.\n",
-        cdi_list_size(sis900_driver.net.drv.devices));
+        cdi_list_size(sis900_driver.drv.devices));
 
     cdi_list_destroy(pci_devices);
 
@@ -87,24 +83,24 @@ static int sis900_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den sis900-Treiber
  */
-static void sis900_driver_destroy(struct cdi_driver* driver)
+static int sis900_driver_destroy(void)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
+    cdi_net_driver_destroy(&sis900_driver);
 
     // TODO Alle Karten deinitialisieren
+
+    return 0;
 }
 
 
-static struct sis900_driver sis900_driver = {
-    .net =  {
-        .drv = {
-            .type           = CDI_NETWORK,
-            .name           = DRIVER_NAME,
-            .init           = sis900_driver_init,
-            .destroy        = sis900_driver_destroy,
-            .init_device    = sis900_init_device,
-            .remove_device  = sis900_remove_device,
-        },
+static struct cdi_net_driver sis900_driver = {
+    .drv = {
+        .type           = CDI_NETWORK,
+        .name           = DRIVER_NAME,
+        .init           = sis900_driver_init,
+        .destroy        = sis900_driver_destroy,
+        .init_device    = sis900_init_device,
+        .remove_device  = sis900_remove_device,
     },
 };
 

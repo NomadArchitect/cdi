@@ -26,18 +26,14 @@
 
 #define DRIVER_NAME "iso9660"
 
-struct iso9660_driver {
-  struct cdi_fs_driver drv;
-};
-
-static struct iso9660_driver iso9660_driver;
+static struct cdi_fs_driver iso9660_driver;
 
 /**
  * Initializes the data structures for the iso9660 driver
  */
 static int iso9660_driver_init(void) {
     // Konstruktor der Vaterklasse
-    cdi_fs_driver_init((struct cdi_fs_driver*) &iso9660_driver);
+    cdi_fs_driver_init(&iso9660_driver);
 
     return 0;
 }
@@ -45,9 +41,10 @@ static int iso9660_driver_init(void) {
 /**
  * Deinitialize the data structures for the iso9660 driver
  */
-static void iso9660_driver_destroy(struct cdi_driver* driver)
+static int iso9660_driver_destroy(void)
 {
-    cdi_fs_driver_destroy((struct cdi_fs_driver*)driver);
+    cdi_fs_driver_destroy(&iso9660_driver);
+    return 0;
 }
 
 /**
@@ -70,17 +67,15 @@ int debug(const char *fmt,...) {
 }
 
 
-static struct iso9660_driver iso9660_driver = {
-    .drv =  {
-        .drv = {
-            .type           = CDI_FILESYSTEM,
-            .name           = DRIVER_NAME,
-            .init           = iso9660_driver_init,
-            .destroy        = iso9660_driver_destroy,
-        },
-        .fs_init            = iso9660_fs_init,
-        .fs_destroy         = iso9660_fs_destroy,
+static struct cdi_fs_driver iso9660_driver = {
+    .drv = {
+        .type           = CDI_FILESYSTEM,
+        .name           = DRIVER_NAME,
+        .init           = iso9660_driver_init,
+        .destroy        = iso9660_driver_destroy,
     },
+    .fs_init            = iso9660_fs_init,
+    .fs_destroy         = iso9660_fs_destroy,
 };
 
 CDI_DRIVER(DRIVER_NAME, iso9660_driver)

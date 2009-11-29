@@ -39,11 +39,7 @@
 
 #define DRIVER_NAME "e1000"
 
-struct e1000_driver {
-    struct cdi_net_driver net;
-};
-
-static struct e1000_driver driver;
+static struct cdi_net_driver driver;
 
 /**
  * Initialisiert die Datenstrukturen fuer den e1000-Treiber
@@ -51,7 +47,7 @@ static struct e1000_driver driver;
 static int e1000_driver_init(void)
 {
     // Konstruktor der Vaterklasse
-    cdi_net_driver_init((struct cdi_net_driver*) &driver);
+    cdi_net_driver_init(&driver);
 
     // Passende PCI-Geraete suchen
     cdi_list_t pci_devices = cdi_list_create();
@@ -70,14 +66,14 @@ static int e1000_driver_init(void)
 
             device->phys = phys_device;
             device->pci = dev;
-            cdi_list_push(driver.net.drv.devices, device);
+            cdi_list_push(driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
         }
     }
 
     printf("e1000: %d Karten gefunden.\n",
-        cdi_list_size(driver.net.drv.devices));
+        cdi_list_size(driver.drv.devices));
 
     cdi_list_destroy(pci_devices);
 
@@ -87,24 +83,24 @@ static int e1000_driver_init(void)
 /**
  * Deinitialisiert die Datenstrukturen fuer den e1000-Treiber
  */
-static void e1000_driver_destroy(struct cdi_driver* driver)
+static int e1000_driver_destroy(void)
 {
-    cdi_net_driver_destroy((struct cdi_net_driver*) driver);
+    cdi_net_driver_destroy(&driver);
 
     // TODO Alle Karten deinitialisieren
+
+    return 0;
 }
 
 
-static struct e1000_driver driver = {
-    .net =  {
-        .drv = {
-            .type           = CDI_NETWORK,
-            .name           = DRIVER_NAME,
-            .init           = e1000_driver_init,
-            .destroy        = e1000_driver_destroy,
-            .init_device    = e1000_init_device,
-            .remove_device  = e1000_remove_device,
-        },
+static struct cdi_net_driver driver = {
+    .drv = {
+        .type           = CDI_NETWORK,
+        .name           = DRIVER_NAME,
+        .init           = e1000_driver_init,
+        .destroy        = e1000_driver_destroy,
+        .init_device    = e1000_init_device,
+        .remove_device  = e1000_remove_device,
     },
 };
 
