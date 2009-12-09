@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "cdi.h"
+#include "cdi-osdep.h"
 
 struct cdi_dma_handle {
     uint8_t     channel;
@@ -21,8 +22,7 @@ struct cdi_dma_handle {
     uint8_t     mode;
     void*       buffer;
 
-    // LOST-Implementation...
-    FILE*       file;
+    cdi_dma_osdep meta;
 };
 
 // Geraet => Speicher

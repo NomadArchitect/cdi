@@ -26,10 +26,34 @@
  * the driver with the CDI library.
  *
  * @param name Name of the driver
- * @param drv Pointer to a driver description (struct cdi_driver*)
+ * @param drv A driver description (struct cdi_driver)
  * @param deps List of names of other drivers on which this driver depends
  * \endenglish
  */
 #define CDI_DRIVER(name, drv, deps...) /* TODO */
+
+/**
+ * \german
+ * OS-spezifische Daten zu PCI-Geraeten
+ * \endgerman
+ * \english
+ * OS-specific PCI data.
+ * \endenglish
+ */
+typedef struct
+{
+} cdi_pci_device_osdep;
+
+/**
+ * \german
+ * OS-spezifische Daten fuer einen ISA-DMA-Zugriff
+ * \endgerman
+ * \english
+ * OS-specific DMA data.
+ * \endenglish
+ */
+typedef struct
+{
+} cdi_dma_osdep;
 
 #endif

@@ -14,6 +14,7 @@
 #include <stdint.h>
 
 #include "cdi.h"
+#include "cdi-osdep.h"
 #include "cdi/lists.h"
 
 struct cdi_pci_device {
@@ -33,6 +34,8 @@ struct cdi_pci_device {
     uint8_t     irq;
 
     cdi_list_t resources;
+
+    cdi_pci_device_osdep meta;
 };
 
 typedef enum {
