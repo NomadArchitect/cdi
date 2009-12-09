@@ -13,6 +13,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline uint16_t cdi_inw(uint16_t _port)
 {
 	uint16_t result;
@@ -50,6 +54,10 @@ static inline void cdi_outl(uint16_t _port, uint32_t _data)
 {
 	asm volatile ("outl %0, %1" : : "a"(_data), "Nd" (_port));
 }
+
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 

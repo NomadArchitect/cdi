@@ -34,6 +34,10 @@ struct cdi_dma_handle {
 #define CDI_DMA_MODE_BLOCK          (2 << 6)
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Initialisiert einen Transport per DMA
  *
@@ -62,6 +66,10 @@ int cdi_dma_write(struct cdi_dma_handle* handle);
  * @return 0 bei Erfolg, -1 im Fehlerfall
  */
 int cdi_dma_close(struct cdi_dma_handle* handle);
+
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 

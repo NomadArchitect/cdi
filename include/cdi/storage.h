@@ -57,6 +57,9 @@ struct cdi_storage_driver {
         uint64_t count, void* buffer);
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Initialisiert die Datenstrukturen fuer einen Massenspeichertreiber
@@ -80,6 +83,9 @@ void cdi_storage_driver_register(struct cdi_storage_driver* driver);
  */
 void cdi_storage_device_init(struct cdi_storage_device* device);
 
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 

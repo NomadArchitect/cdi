@@ -74,6 +74,10 @@ struct cdi_scsi_driver {
         struct cdi_scsi_packet *packet);
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Ein SCSI-Paket allozieren
  *
@@ -111,6 +115,10 @@ void cdi_scsi_driver_register(struct cdi_scsi_driver* driver);
  * Der Typ der Geraetes muss bereits gesetzt sein
  */
 void cdi_scsi_device_init(struct cdi_scsi_device* device);
+
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 

@@ -15,6 +15,10 @@
 
 #include "cdi.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Registiert einen neuen IRQ-Handler.
  *
@@ -88,6 +92,10 @@ int cdi_ioports_free(uint16_t start, uint16_t count);
  * Unterbricht die Ausfuehrung fuer mehrere Millisekunden
  */
 void cdi_sleep_ms(uint32_t ms);
+
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 

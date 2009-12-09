@@ -47,6 +47,10 @@ struct cdi_bios_memory {
     uint16_t size;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Ruft den BIOS-Interrupt 0x10 auf.
  * @param registers Pointer auf eine Register-Struktur. Diese wird beim Aufruf
@@ -58,6 +62,10 @@ struct cdi_bios_memory {
  * @return 0, wenn der Aufruf erfolgreich war, -1 bei Fehlern
  */
 int cdi_bios_int10(struct cdi_bios_registers *registers, cdi_list_t memory);
+
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 

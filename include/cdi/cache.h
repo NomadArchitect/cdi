@@ -40,6 +40,9 @@ typedef int (cdi_cache_read_block_t)(struct cdi_cache* cache, uint64_t block,
 typedef int (cdi_cache_write_block_t)(struct cdi_cache* cache, uint64_t block,
     size_t count, const void* src, void* prv);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Cache erstellen
@@ -107,5 +110,9 @@ void cdi_cache_block_release(struct cdi_cache* cache,
  */
 void cdi_cache_block_dirty(struct cdi_cache* cache,
     struct cdi_cache_block* block);
+
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif

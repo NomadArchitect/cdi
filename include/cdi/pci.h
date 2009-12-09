@@ -52,6 +52,10 @@ struct cdi_pci_resource {
 };
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Gibt alle PCI-Geraete im System zurueck. Die Geraete werden dazu
  * in die uebergebene Liste eingefuegt.
@@ -82,6 +86,10 @@ void cdi_pci_alloc_memory(struct cdi_pci_device* device);
  * Gibt den MMIO-Speicher des PCI-Geraets frei
  */
 void cdi_pci_free_memory(struct cdi_pci_device* device);
+
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 

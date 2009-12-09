@@ -617,7 +617,9 @@ struct cdi_fs_acl_entry_grp_str {
     char*                   group_name;
 };
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Dateisystemtreiber-Struktur initialisieren
@@ -670,6 +672,9 @@ size_t cdi_fs_data_read(struct cdi_fs_filesystem* fs, uint64_t start,
 size_t cdi_fs_data_write(struct cdi_fs_filesystem* fs, uint64_t start,
     size_t size, const void* buffer);
 
+#ifdef __cplusplus
+}; // extern "C"
+#endif
 
 #endif
 
