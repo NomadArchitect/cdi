@@ -2,7 +2,7 @@ SRCS = $(shell find -name '*.c')
 OBJS = $(addsuffix .o,$(basename $(SRCS)))
 
 CC = gcc
-CFLAGS = -m32 -Wall -g -I include -Werror -D_GNU_SOURCE
+CFLAGS = -m32 -Wall -g -I include -Werror -D_GNU_SOURCE -std=gnu99
 
 run_command = $(if $(V),$(2),@echo $(1);$(2))
 
@@ -12,7 +12,7 @@ all: $(OBJS)
 	$(call run_command,"CC $^",$(CC) $(CFLAGS) $(addprefix -I,$(addprefix $(dir $^),. include)) -c -o $@ $^)
 
 clean:
-	rm $(OBJS)
+	-rm $(OBJS) 2> /dev/null
 
 doc:
 	for lang in german english; do \
