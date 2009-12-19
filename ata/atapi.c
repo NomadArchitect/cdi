@@ -119,6 +119,7 @@ int atapi_request(struct cdi_scsi_device* scsi,struct cdi_scsi_packet* packet)
 
     if (ata_request(&request))
     {
+        int status;
         struct ata_request rw_request = {
             .dev = dev,
             .flags = {
@@ -138,8 +139,13 @@ int atapi_request(struct cdi_scsi_device* scsi,struct cdi_scsi_packet* packet)
         if (packet->direction==CDI_SCSI_READ) ata_protocol_pio_in(&rw_request);
         else if (packet->direction==CDI_SCSI_WRITE) ata_protocol_pio_in(&rw_request);
 
-        // Sense Key zurueck
-        return (ata_reg_inb(dev->controller,REG_ERROR)>>4);
+        // Bei Fehler den Sense Key zurueckgeben
+        status = ata_reg_inb(dev->controller, REG_STATUS);
+        if (status & STATUS_ERR) {
+            return (ata_reg_inb(dev->controller, REG_ERROR) >> 4);
+        } else {
+            return 0;
+        }
     }
 
     return 0xB;
