@@ -149,7 +149,7 @@ struct e1000_device {
 
     struct e1000_tx_descriptor  tx_desc[TX_BUFFER_NUM];
     uint8_t                     tx_buffer[TX_BUFFER_NUM * TX_BUFFER_SIZE];
-    int                         tx_cur_buffer;
+    uint32_t                    tx_cur_buffer;
 
     struct e1000_rx_descriptor  rx_desc[RX_BUFFER_NUM];
     uint8_t                     rx_buffer[RX_BUFFER_NUM * RX_BUFFER_SIZE];
