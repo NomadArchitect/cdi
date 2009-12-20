@@ -87,6 +87,126 @@ void cdi_pci_alloc_memory(struct cdi_pci_device* device);
  */
 void cdi_pci_free_memory(struct cdi_pci_device* device);
 
+/**
+ * \if german
+ * Signalisiert CDI-Treibern direkten Zugriff auf den PCI-Konfigurationsraum
+ * \elseif english
+ * Indicates direct access to the PCI configuration space to CDI drivers
+ * \endif
+ */
+#define CDI_PCI_DIRECT_ACCESS
+
+/**
+ * \if german
+ * Liest ein Byte (8 Bit) aus dem PCI-Konfigurationsraum eines PCI-Geraets
+ *
+ * @param device Das Geraet
+ * @param offset Der Offset im Konfigurationsraum
+ *
+ * @return Der Wert an diesem Offset
+ * \elseif english
+ * Reads a byte (8 bit) from the PCI configuration space of a PCI device
+ *
+ * @param device The device
+ * @param offset The offset in the configuration space
+ *
+ * @return The corresponding value
+ * \endif
+ */
+uint8_t cdi_pci_config_readb(struct cdi_pci_device* device, uint8_t offset);
+
+/**
+ * \if german
+ * Liest ein Word (16 Bit) aus dem PCI-Konfigurationsraum eines PCI-Geraets
+ *
+ * @param device Das Geraet
+ * @param offset Der Offset im Konfigurationsraum
+ *
+ * @return Der Wert an diesem Offset
+ * \elseif english
+ * Reads a word (16 bit) from the PCI configuration space of a PCI device
+ *
+ * @param device The device
+ * @param offset The offset in the configuration space
+ *
+ * @return The corresponding value
+ * \endif
+ */
+uint16_t cdi_pci_config_readw(struct cdi_pci_device* device, uint8_t offset);
+
+/**
+ * \if german
+ * Liest ein DWord (32 Bit) aus dem PCI-Konfigurationsraum eines PCI-Geraets
+ *
+ * @param device Das Geraet
+ * @param offset Der Offset im Konfigurationsraum
+ *
+ * @return Der Wert an diesem Offset
+ * \elseif english
+ * Reads a dword (32 bit) from the PCI configuration space of a PCI device
+ *
+ * @param device The device
+ * @param offset The offset in the configuration space
+ *
+ * @return The corresponding value
+ * \endif
+ */
+uint32_t cdi_pci_config_readl(struct cdi_pci_device* device, uint8_t offset);
+
+/**
+ * \if german
+ * Schreibt ein Byte (8 Bit) in den PCI-Konfigurationsraum eines PCI-Geraets
+ *
+ * @param device Das Geraet
+ * @param offset Der Offset im Konfigurationsraum
+ * @param value Der zu setzende Wert
+ * \elseif english
+ * Writes a byte (8 bit) into the PCI configuration space of a PCI device
+ *
+ * @param device The device
+ * @param offset The offset in the configuration space
+ * @param value Value to be set
+ * \endif
+ */
+void cdi_pci_config_writeb(struct cdi_pci_device* device, uint8_t offset,
+    uint8_t value);
+
+/**
+ * \if german
+ * Schreibt ein Word (16 Bit) in den PCI-Konfigurationsraum eines PCI-Geraets
+ *
+ * @param device Das Geraet
+ * @param offset Der Offset im Konfigurationsraum
+ * @param value Der zu setzende Wert
+ * \elseif english
+ * Writes a word (16 bit) into the PCI configuration space of a PCI device
+ *
+ * @param device The device
+ * @param offset The offset in the configuration space
+ * @param value Value to be set
+ * \endif
+ */
+void cdi_pci_config_writew(struct cdi_pci_device* device, uint8_t offset,
+    uint16_t value);
+
+/**
+ * \if german
+ * Schreibt ein DWord (32 Bit) in den PCI-Konfigurationsraum eines PCI-Geraets
+ *
+ * @param device Das Geraet
+ * @param offset Der Offset im Konfigurationsraum
+ * @param value Der zu setzende Wert
+ * \elseif english
+ * Writes a dword (32 bit) into the PCI configuration space of a PCI device
+ *
+ * @param device The device
+ * @param offset The offset in the configuration space
+ * @param value Value to be set
+ * \endif
+ */
+void cdi_pci_config_writel(struct cdi_pci_device* device, uint8_t offset,
+    uint32_t value);
+
 #ifdef __cplusplus
 }; // extern "C"
 #endif
