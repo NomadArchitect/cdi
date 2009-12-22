@@ -108,7 +108,6 @@ struct transmit_descriptor{
 
 struct pcnet_device {
     struct cdi_net_device       net;
-    struct cdi_pci_device*      pci;
 
     uint16_t                    port_base;
     struct receive_descriptor   *receive_descriptor;

@@ -33,7 +33,6 @@
 
 #include "cdi.h"
 #include "cdi/net.h"
-#include "cdi/pci.h"
 
 /* Register */
 
@@ -143,7 +142,6 @@ struct e1000_rx_descriptor {
 
 struct e1000_device {
     struct cdi_net_device       net;
-    struct cdi_pci_device*      pci;
 
     void*                       phys;
 

@@ -33,7 +33,6 @@
 
 #include "cdi.h"
 #include "cdi/net.h"
-#include "cdi/pci.h"
 
 #define NE_CMD      0
 #define NE_PSTART   1
@@ -84,7 +83,6 @@ typedef struct {
 
 struct ne2k_device {
     struct cdi_net_device       net;
-    struct cdi_pci_device*      pci;
 
     void*                       phys;
     uint16_t                    port_base;

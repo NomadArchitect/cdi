@@ -34,6 +34,7 @@
 
 #include "cdi.h"
 #include "cdi/misc.h"
+#include "cdi/pci.h"
 
 #include "device.h"
 #include "e1000_io.h"
@@ -148,14 +149,15 @@ static uint64_t get_mac_address(struct e1000_device* device)
 void e1000_init_device(struct cdi_device* device)
 {
     struct e1000_device* netcard = (struct e1000_device*) device;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
     netcard->net.send_packet = e1000_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
-    netcard->revision = netcard->pci->rev_id;
-    cdi_register_irq(netcard->pci->irq, e1000_handle_interrupt, device);
-    cdi_pci_alloc_ioports(netcard->pci);
+    netcard->revision = pci->rev_id;
+    cdi_register_irq(pci->irq, e1000_handle_interrupt, device);
+    cdi_pci_alloc_ioports(pci);
 
-    cdi_list_t reslist = netcard->pci->resources;
+    cdi_list_t reslist = pci->resources;
     struct cdi_pci_resource* res;
     int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
@@ -167,7 +169,7 @@ void e1000_init_device(struct cdi_device* device)
 
     // Karte initialisieren
     printf("e1000: IRQ %d, MMIO an %p  Revision:%d\n",
-        netcard->pci->irq, netcard->mem_base, netcard->revision);
+        pci->irq, netcard->mem_base, netcard->revision);
 
     printf("e1000: Fuehre Reset der Karte durch\n");
     reset_nic(netcard);

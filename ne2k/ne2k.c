@@ -80,14 +80,15 @@ static inline uint32_t read_register_dword(struct ne2k_device* netcard, uint8_t 
 void ne2k_init_device(struct cdi_device* device)
 {
     struct ne2k_device* netcard = (struct ne2k_device*) device;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
     netcard->net.send_packet = ne2k_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");
-    cdi_register_irq(netcard->pci->irq, ne2k_handle_interrupt, device);
-    cdi_pci_alloc_ioports(netcard->pci);
+    cdi_register_irq(pci->irq, ne2k_handle_interrupt, device);
+    cdi_pci_alloc_ioports(pci);
 
-    cdi_list_t reslist = netcard->pci->resources;
+    cdi_list_t reslist = pci->resources;
     struct cdi_pci_resource* res;
     int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {

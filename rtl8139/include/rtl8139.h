@@ -82,7 +82,6 @@ typedef struct {
 
 struct rtl8139_device {
     struct cdi_net_device       net;
-    struct cdi_pci_device*      pci;
 
     void*                       phys;
     uint16_t                    port_base;

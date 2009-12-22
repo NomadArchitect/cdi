@@ -55,15 +55,16 @@ static void pcnet_write_bcr(struct pcnet_device *netcard, size_t bcr, uint16_t v
 void pcnet_init_device(struct cdi_device* device)
 {
     struct pcnet_device* netcard = (struct pcnet_device*) device;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
     netcard->net.send_packet = pcnet_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");
-    cdi_register_irq(netcard->pci->irq, pcnet_handle_interrupt, device);
-    cdi_pci_alloc_ioports(netcard->pci);
+    cdi_register_irq(pci->irq, pcnet_handle_interrupt, device);
+    cdi_pci_alloc_ioports(pci);
 
     // I/O Port raussuchen
-    cdi_list_t reslist = netcard->pci->resources;
+    cdi_list_t reslist = pci->resources;
     struct cdi_pci_resource* res;
     int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
@@ -226,6 +227,9 @@ void pcnet_stop(struct pcnet_device *netcard)
 }
 void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
 {
+    struct cdi_pci_device* pci =
+        (struct cdi_pci_device*) netcard->net.dev.bus_data;
+
     // Allocate the receive & transmit descriptor buffer
     void *virt_desc_region;
     void *phys_desc_region;
@@ -307,7 +311,7 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
     pcnet_write_csr(netcard, CSR_STATUS, STATUS_INIT | STATUS_INTERRUPT_ENABLE);
     
     // Wait until initialization completed, NOTE: see pcnet_handle_interrupt()
-    int irq = cdi_wait_irq(netcard->pci->irq, 1000);
+    int irq = cdi_wait_irq(pci->irq, 1000);
     if(irq < 0 || netcard->init_wait_for_irq == 1)
         printf("pcnet: waiting for IRQ failed: %d\n", irq);
     

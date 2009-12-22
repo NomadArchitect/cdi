@@ -60,7 +60,7 @@ static int ne2k_driver_init(void)
             memset(device, 0, sizeof(*device));
 
             device->phys = phys_device;
-            device->pci = dev;
+            device->net.dev.bus_data = (struct cdi_bus_data*) dev;
             cdi_list_push(ne2k_driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);

@@ -184,14 +184,15 @@ static uint64_t get_mac_address(struct sis900_device* device)
 void sis900_init_device(struct cdi_device* device)
 {
     struct sis900_device* netcard = (struct sis900_device*) device;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
     netcard->net.send_packet = sis900_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
-    netcard->revision = netcard->pci->rev_id;
-    cdi_register_irq(netcard->pci->irq, sis900_handle_interrupt, device);
-    cdi_pci_alloc_ioports(netcard->pci);
+    netcard->revision = pci->rev_id;
+    cdi_register_irq(pci->irq, sis900_handle_interrupt, device);
+    cdi_pci_alloc_ioports(pci);
     
-    cdi_list_t reslist = netcard->pci->resources;
+    cdi_list_t reslist = pci->resources;
     struct cdi_pci_resource* res;
     int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
@@ -203,7 +204,7 @@ void sis900_init_device(struct cdi_device* device)
     // Karte initialisieren
 #ifdef DEBUG
     printf("sis900: IRQ %d, Ports an %x  Revision:%d\n",
-        netcard->pci->irq, netcard->port_base, netcard->revision);
+        pci->irq, netcard->port_base, netcard->revision);
 
     printf("sis900: Fuehre Reset der Karte durch\n");
 #endif

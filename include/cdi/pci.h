@@ -18,6 +18,8 @@
 #include "cdi/lists.h"
 
 struct cdi_pci_device {
+    struct cdi_bus_data bus_data;
+
     uint16_t    bus;
     uint16_t    dev;
     uint16_t    function;

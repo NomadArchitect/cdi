@@ -33,9 +33,15 @@ typedef enum {
 } cdi_device_type_t;
 
 struct cdi_driver;
+
+struct cdi_bus_data {
+    cdi_device_type_t   bus_type;
+};
+
 struct cdi_device {
-    const char*         name;
-    struct cdi_driver*  driver;
+    const char*             name;
+    struct cdi_driver*      driver;
+    struct cdi_bus_data*    bus_data;
 
     // tyndur-spezifisch
     void*               backdev;

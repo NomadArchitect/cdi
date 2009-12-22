@@ -128,7 +128,6 @@ struct sis900_tx_descriptor {
 
 struct sis900_device {
     struct cdi_net_device       net;
-    struct cdi_pci_device*      pci;
 
     void*                       phys;
 
