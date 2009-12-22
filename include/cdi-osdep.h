@@ -17,7 +17,7 @@
  * CDI-Bibliothek zu registrieren
  *
  * @param name Name des Treibers
- * @param drv Pointer auf eine Treiberbeschreibung (struct cdi_driver*)
+ * @param drv Treiberbeschreibung (struct cdi_driver)
  * @param deps Liste von Namen anderer Treiber, von denen der Treiber abhaengt
  * \endgerman
  *
