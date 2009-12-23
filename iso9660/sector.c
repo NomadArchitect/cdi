@@ -66,7 +66,7 @@ size_t iso9660_read(struct iso9660_fs_res *res,size_t pos,size_t size,void *buff
         break;
     }
 
-    cur_size = MIN(rem_size, res->voldesc->sector_size);
+    cur_size = MIN(rem_size, res->voldesc->sector_size - offset);
 
     memcpy(buffer,cache_block->data+offset,cur_size);
     cdi_cache_block_release(res->cache,cache_block);
