@@ -47,24 +47,6 @@ static int rtl8139_driver_init(void)
     // Konstruktor der Vaterklasse
     cdi_net_driver_init(&rtl8139_driver);
 
-    // Passende PCI-Geraete suchen
-    cdi_list_t pci_devices = cdi_list_create();
-    cdi_pci_get_all_devices(pci_devices);
-
-    struct cdi_pci_device* dev;
-    struct cdi_device* device;
-    int i;
-    for (i = 0; (dev = cdi_list_get(pci_devices, i)); i++) {
-        device = rtl8139_init_device((struct cdi_bus_data*) dev);
-        if (device != NULL) {
-            cdi_list_push(rtl8139_driver.drv.devices, device);
-        } else {
-            cdi_pci_device_destroy(dev);
-        }
-    }
-
-    cdi_list_destroy(pci_devices);
-
     return 0;
 }
 
