@@ -53,15 +53,11 @@ static int pcnet_driver_init(void)
     cdi_pci_get_all_devices(pci_devices);
 
     struct cdi_pci_device* dev;
+    struct cdi_device* device;
     int i;
     for (i = 0; (dev = cdi_list_get(pci_devices, i)); i++) {
-        if ((dev->vendor_id == VENDOR_ID) && (dev->device_id == DEVICE_ID)) {
-            struct pcnet_device* device;
-            device = malloc(sizeof(struct pcnet_device));
-
-            memset(device, 0, sizeof(struct pcnet_device));
-
-            device->net.dev.bus_data = (struct cdi_bus_data*) dev;
+        device = pcnet_init_device((struct cdi_bus_data*) dev);
+        if (device) {
             cdi_list_push(pcnet_driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
@@ -88,8 +84,9 @@ static int pcnet_driver_destroy(void)
 
 static struct cdi_net_driver pcnet_driver = {
     .drv = {
-        .type           = CDI_NETWORK,
         .name           = DRIVER_NAME,
+        .type           = CDI_NETWORK,
+        .bus            = CDI_PCI,
         .init           = pcnet_driver_init,
         .destroy        = pcnet_driver_destroy,
         .init_device    = pcnet_init_device,

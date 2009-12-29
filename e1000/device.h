@@ -157,7 +157,7 @@ struct e1000_device {
     uint8_t                     revision;
 };
 
-void e1000_init_device(struct cdi_device* device);
+struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data);
 void e1000_remove_device(struct cdi_device* device);
 
 void e1000_send_packet

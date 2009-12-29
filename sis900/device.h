@@ -143,7 +143,7 @@ struct sis900_device {
     uint8_t                     revision;
 };
 
-void sis900_init_device(struct cdi_device* device);
+struct cdi_device* sis900_init_device(struct cdi_bus_data* bus_data);
 void sis900_remove_device(struct cdi_device* device);
 
 void sis900_send_packet

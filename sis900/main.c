@@ -54,18 +54,11 @@ static int sis900_driver_init(void)
     cdi_pci_get_all_devices(pci_devices);
 
     struct cdi_pci_device* dev;
+    struct cdi_device* device;
     int i;
     for (i = 0; (dev = cdi_list_get(pci_devices, i)); i++) {
-        if ((dev->vendor_id == 0x1039) && (dev->device_id == 0x0900)) {
-            void* phys_device;
-            struct sis900_device* device;
-            
-            cdi_alloc_phys_mem(sizeof(*device), 
-                (void**) &device, &phys_device);
-            memset(device, 0, sizeof(*device));
-
-            device->phys = phys_device;
-            device->net.dev.bus_data = (struct cdi_bus_data*) dev;
+        device = sis900_init_device((struct cdi_bus_data*) dev);
+        if (device != NULL) {
             cdi_list_push(sis900_driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
@@ -95,8 +88,9 @@ static int sis900_driver_destroy(void)
 
 static struct cdi_net_driver sis900_driver = {
     .drv = {
-        .type           = CDI_NETWORK,
         .name           = DRIVER_NAME,
+        .type           = CDI_NETWORK,
+        .bus            = CDI_PCI,
         .init           = sis900_driver_init,
         .destroy        = sis900_driver_destroy,
         .init_device    = sis900_init_device,

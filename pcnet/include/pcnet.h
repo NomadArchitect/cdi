@@ -127,7 +127,7 @@ struct pcnet_device {
     volatile int                init_wait_for_irq;
 };
 
-void pcnet_init_device(struct cdi_device* device);
+struct cdi_device* pcnet_init_device(struct cdi_bus_data* bus_data);
 void pcnet_remove_device(struct cdi_device* device);
 void pcnet_send_packet
     (struct cdi_net_device* device, void* data, size_t size);

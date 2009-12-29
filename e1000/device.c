@@ -146,15 +146,26 @@ static uint64_t get_mac_address(struct e1000_device* device)
     return mac;
 }
 
-void e1000_init_device(struct cdi_device* device)
+struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
 {
-    struct e1000_device* netcard = (struct e1000_device*) device;
-    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
+    struct e1000_device* netcard;
+    void* phys_device;
+
+    if (!((pci->vendor_id == 0x8086) && (pci->device_id == 0x100e))) {
+        return NULL;
+    }
+
+    cdi_alloc_phys_mem(sizeof(*netcard), (void**) &netcard, &phys_device);
+    memset(netcard, 0, sizeof(*netcard));
+
     netcard->net.send_packet = e1000_send_packet;
+    netcard->phys = phys_device;
+    netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
 
     // PCI-bezogenes Zeug initialisieren
     netcard->revision = pci->rev_id;
-    cdi_register_irq(pci->irq, e1000_handle_interrupt, device);
+    cdi_register_irq(pci->irq, e1000_handle_interrupt, &netcard->net.dev);
     cdi_pci_alloc_ioports(pci);
 
     cdi_list_t reslist = pci->resources;
@@ -177,7 +188,9 @@ void e1000_init_device(struct cdi_device* device)
     netcard->net.mac = get_mac_address(netcard);
     printf("e1000: MAC-Adresse: %012llx\n", (uint64_t) netcard->net.mac);
 
-    cdi_net_device_init((struct cdi_net_device*) device);
+    cdi_net_device_init(&netcard->net);
+
+    return &netcard->net.dev;
 }
 
 void e1000_remove_device(struct cdi_device* device)

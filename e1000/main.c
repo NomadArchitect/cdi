@@ -53,19 +53,13 @@ static int e1000_driver_init(void)
     cdi_list_t pci_devices = cdi_list_create();
     cdi_pci_get_all_devices(pci_devices);
 
+    struct cdi_device* device;
     struct cdi_pci_device* dev;
     int i;
     for (i = 0; (dev = cdi_list_get(pci_devices, i)); i++) {
-        if ((dev->vendor_id == 0x8086) && (dev->device_id == 0x100e)) {
-            void* phys_device;
-            struct e1000_device* device;
-
-            cdi_alloc_phys_mem(sizeof(*device),
-                (void**) &device, &phys_device);
-            memset(device, 0, sizeof(*device));
-
-            device->phys = phys_device;
-            device->net.dev.bus_data = (struct cdi_bus_data*) dev;
+        device = e1000_init_device((struct cdi_bus_data*) dev);
+        if (device != NULL) {
+            // TODO
             cdi_list_push(driver.drv.devices, device);
         } else {
             cdi_pci_device_destroy(dev);
@@ -95,8 +89,9 @@ static int e1000_driver_destroy(void)
 
 static struct cdi_net_driver driver = {
     .drv = {
-        .type           = CDI_NETWORK,
         .name           = DRIVER_NAME,
+        .type           = CDI_NETWORK,
+        .bus            = CDI_PCI,
         .init           = e1000_driver_init,
         .destroy        = e1000_driver_destroy,
         .init_device    = e1000_init_device,

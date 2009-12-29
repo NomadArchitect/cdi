@@ -52,15 +52,24 @@ static void pcnet_write_bcr(struct pcnet_device *netcard, size_t bcr, uint16_t v
     #define DEBUG_MSG(s) //
 #endif
 
-void pcnet_init_device(struct cdi_device* device)
+struct cdi_device* pcnet_init_device(struct cdi_bus_data* bus_data)
 {
-    struct pcnet_device* netcard = (struct pcnet_device*) device;
-    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
+    struct pcnet_device* netcard;
+
+    if (!((pci->vendor_id == VENDOR_ID) && (pci->device_id == DEVICE_ID))) {
+        return NULL;
+    }
+
+    netcard = malloc(sizeof(struct pcnet_device));
+    memset(netcard, 0, sizeof(struct pcnet_device));
+
+    netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
     netcard->net.send_packet = pcnet_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");
-    cdi_register_irq(pci->irq, pcnet_handle_interrupt, device);
+    cdi_register_irq(pci->irq, pcnet_handle_interrupt, &netcard->net.dev);
     cdi_pci_alloc_ioports(pci);
 
     // I/O Port raussuchen
@@ -99,9 +108,11 @@ void pcnet_init_device(struct cdi_device* device)
     pcnet_start(netcard);
 
     // Netzwerkkarte registrieren
-    cdi_net_device_init((struct cdi_net_device*) device);
+    cdi_net_device_init(&netcard->net);
 
     DEBUG_MSG("Fertig initialisiert");
+
+    return &netcard->net.dev;
 }
 
 void pcnet_remove_device(struct cdi_device* device)

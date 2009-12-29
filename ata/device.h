@@ -128,7 +128,7 @@
 
 // Debug
 #ifdef DEBUG_ENABLE
-    #define DEBUG(fmt, ...) printf("ata: " fmt, __VA_ARGS__)
+    #define DEBUG(fmt, ...) printf("ata: " fmt, ## __VA_ARGS__)
 #else
     #define DEBUG(...)
 #endif
@@ -445,7 +445,7 @@ struct ata_request {
 
 void ata_init_controller(struct ata_controller* controller);
 void ata_remove_controller(struct ata_controller* controller);
-void ata_init_device(struct cdi_device* device);
+void ata_init_device(struct ata_device* dev);
 void ata_remove_device(struct cdi_device* device);
 int ata_read_blocks(struct cdi_storage_device* device, uint64_t block,
     uint64_t count, void* buffer);
@@ -468,7 +468,7 @@ int ata_drv_write_sectors(struct ata_device* dev, uint64_t start, size_t count,
 
 // ATAPI-Funktionen
 int atapi_drv_identify(struct ata_device* dev);
-void atapi_init_device(struct cdi_device* device);
+void atapi_init_device(struct ata_device* device);
 void atapi_remove_device(struct cdi_device* device);
 int atapi_request(struct cdi_scsi_device* dev,struct cdi_scsi_packet* packet);
 

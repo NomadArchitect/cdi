@@ -94,7 +94,7 @@ struct ne2k_device {
     cdi_list_t                  pending_sends;
 };
 
-void ne2k_init_device(struct cdi_device* device);
+struct cdi_device* ne2k_init_device(struct cdi_bus_data* bus_data);
 void ne2k_remove_device(struct cdi_device* device);
 
 void ne2k_send_packet

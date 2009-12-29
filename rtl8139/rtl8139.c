@@ -75,15 +75,26 @@ static inline uint32_t read_register_dword(struct rtl8139_device* netcard, uint8
     return cdi_inl(netcard->port_base + reg);
 }
 
-void rtl8139_init_device(struct cdi_device* device)
+struct cdi_device* rtl8139_init_device(struct cdi_bus_data* bus_data)
 {
-    struct rtl8139_device* netcard = (struct rtl8139_device*) device;
-    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
+    struct rtl8139_device* netcard;
+    void* phys_device;
+
+    if (!((pci->vendor_id == 0x10ec) && (pci->device_id == 0x8139))) {
+        return NULL;
+    }
+
+    cdi_alloc_phys_mem(sizeof(*netcard), (void**) &netcard, &phys_device);
+    memset(netcard, 0, sizeof(*netcard));
+
+    netcard->phys = phys_device;
+    netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
     netcard->net.send_packet = rtl8139_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");
-    cdi_register_irq(pci->irq, rtl8139_handle_interrupt, device);
+    cdi_register_irq(pci->irq, rtl8139_handle_interrupt, &netcard->net.dev);
     cdi_pci_alloc_ioports(pci);
 
     cdi_list_t reslist = pci->resources;
@@ -139,8 +150,10 @@ void rtl8139_init_device(struct cdi_device* device)
     netcard->rx_buffer_offset = 0;
     netcard->pending_sends = cdi_list_create();
 
-    cdi_net_device_init((struct cdi_net_device*) device);
+    cdi_net_device_init(&netcard->net);
     DEBUG_MSG("Fertig initialisiert");
+
+    return &netcard->net.dev;
 }
 
 void rtl8139_remove_device(struct cdi_device* device)

@@ -68,6 +68,7 @@ static int floppy_driver_init(void)
 
         // Geraet nur eintragen wenn es existiert
         if (floppy_device_probe(device) != 0) {
+            floppy_init_device((struct cdi_device*) device);
             cdi_list_push(floppy_driver.drv.devices, device);
         } else {
             free(device);
@@ -107,7 +108,6 @@ static struct cdi_storage_driver floppy_driver = {
         .name           = DRIVER_NAME,
         .init           = floppy_driver_init,
         .destroy        = floppy_driver_destroy,
-        .init_device    = floppy_init_device,
         .remove_device  = floppy_remove_device,
     },
     .read_blocks        = floppy_read_blocks,

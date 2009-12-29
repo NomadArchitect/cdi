@@ -77,7 +77,7 @@ int atapi_drv_identify(struct ata_device* dev)
     return 1;
 }
 
-void atapi_init_device(struct cdi_device* device)
+void atapi_init_device(struct ata_device* device)
 {
     struct cdi_scsi_device* scsi = (struct cdi_scsi_device*) device;
 

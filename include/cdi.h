@@ -30,6 +30,7 @@ typedef enum {
     CDI_USB_HCD         = 7,
     CDI_USB             = 8,
     CDI_FILESYSTEM      = 9,
+    CDI_PCI             = 10,
 } cdi_device_type_t;
 
 struct cdi_driver;
@@ -49,10 +50,11 @@ struct cdi_device {
 
 struct cdi_driver {
     cdi_device_type_t   type;
+    cdi_device_type_t   bus;
     const char*         name;
     cdi_list_t          devices;
 
-    void (*init_device)(struct cdi_device* device);
+    struct cdi_device* (*init_device)(struct cdi_bus_data* bus_data);
     void (*remove_device)(struct cdi_device* device);
 
     int (*init)(void);

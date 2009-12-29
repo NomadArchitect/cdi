@@ -199,6 +199,8 @@ void ata_parse_partitions(struct ata_device* dev)
                 partition_list));
 
             // Geraet registrieren
+            partition->dev.storage.dev.driver = &dev->controller->storage->drv;
+            ata_init_device((struct ata_device*) partition);
             cdi_list_push(dev->controller->storage->drv.devices, partition);
 
             // An Partitionsliste fuer das aktuelle Geraet anhaengen
@@ -298,6 +300,8 @@ void ata_init_controller(struct ata_controller* controller)
                 ata_parse_partitions(dev);
 
                 // Geraet registrieren
+                dev->dev.storage.dev.driver = &controller->storage->drv;
+                ata_init_device(dev);
                 cdi_list_push(controller->storage->drv.devices, dev);
 #ifdef ATAPI_ENABLE
             } else {
@@ -305,7 +309,9 @@ void ata_init_controller(struct ata_controller* controller)
                 asprintf((char**) &(dev->dev.scsi.dev.name),"atapi%01d%01d",
                     (uint32_t) controller->id, i);
             
-            // Geraet registrieren
+                // Geraet registrieren
+                dev->dev.scsi.dev.driver = &controller->scsi->drv;
+                atapi_init_device(dev);
                 cdi_list_push(controller->scsi->drv.devices, dev);
             }
 #endif
@@ -338,9 +344,8 @@ void ata_remove_controller(struct ata_controller* controller)
 }
 
 
-void ata_init_device(struct cdi_device* device)
+void ata_init_device(struct ata_device* dev)
 {
-    struct ata_device* dev = (struct ata_device*) device;
     cdi_storage_device_init(&dev->dev.storage);
 }
 

@@ -98,7 +98,7 @@ struct rtl8139_device {
     cdi_list_t                  pending_sends;
 };
 
-void rtl8139_init_device(struct cdi_device* device);
+struct cdi_device* rtl8139_init_device(struct cdi_bus_data* bus_data);
 void rtl8139_remove_device(struct cdi_device* device);
 
 void rtl8139_send_packet

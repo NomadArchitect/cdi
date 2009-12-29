@@ -77,15 +77,26 @@ static inline uint32_t read_register_dword(struct ne2k_device* netcard, uint8_t 
     return cdi_inl(netcard->port_base + reg);
 }
 
-void ne2k_init_device(struct cdi_device* device)
+struct cdi_device* ne2k_init_device(struct cdi_bus_data* bus_data)
 {
-    struct ne2k_device* netcard = (struct ne2k_device*) device;
-    struct cdi_pci_device* pci = (struct cdi_pci_device*) device->bus_data;
+    struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
+    struct ne2k_device* netcard;
+    void* phys_device;
+
+    if (!((pci->vendor_id == 0x10ec) && (pci->device_id == 0x8029))) {
+        return NULL;
+    }
+
+    cdi_alloc_phys_mem(sizeof(*netcard), (void**) &netcard, &phys_device);
+    memset(netcard, 0, sizeof(*netcard));
+
     netcard->net.send_packet = ne2k_send_packet;
+    netcard->phys = phys_device;
+    netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
 
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");
-    cdi_register_irq(pci->irq, ne2k_handle_interrupt, device);
+    cdi_register_irq(pci->irq, ne2k_handle_interrupt, &netcard->net.dev);
     cdi_pci_alloc_ioports(pci);
 
     cdi_list_t reslist = pci->resources;
@@ -154,8 +165,10 @@ void ne2k_init_device(struct cdi_device* device)
 
     netcard->pending_sends = cdi_list_create();
 
-    cdi_net_device_init((struct cdi_net_device*) device);
+    cdi_net_device_init(&netcard->net);
     DEBUG_MSG("Fertig initialisiert");
+
+    return &netcard->net.dev;
 }
 
 void ne2k_remove_device(struct cdi_device* device)
