@@ -90,7 +90,6 @@ struct cdi_device* rtl8139_init_device(struct cdi_bus_data* bus_data)
 
     netcard->phys = phys_device;
     netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
-    netcard->net.send_packet = rtl8139_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");

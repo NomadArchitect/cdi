@@ -75,6 +75,8 @@ static struct cdi_net_driver driver = {
         .init_device    = e1000_init_device,
         .remove_device  = e1000_remove_device,
     },
+
+    .send_packet        = e1000_send_packet,
 };
 
 CDI_DRIVER(DRIVER_NAME, driver)

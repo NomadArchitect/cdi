@@ -65,7 +65,6 @@ struct cdi_device* pcnet_init_device(struct cdi_bus_data* bus_data)
     memset(netcard, 0, sizeof(struct pcnet_device));
 
     netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
-    netcard->net.send_packet = pcnet_send_packet;
 
     // PCI-bezogenes Zeug initialisieren
     DEBUG_MSG("Interrupthandler und Ports registrieren");

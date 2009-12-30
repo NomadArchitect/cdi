@@ -90,7 +90,6 @@ struct cdi_device* ne2k_init_device(struct cdi_bus_data* bus_data)
     cdi_alloc_phys_mem(sizeof(*netcard), (void**) &netcard, &phys_device);
     memset(netcard, 0, sizeof(*netcard));
 
-    netcard->net.send_packet = ne2k_send_packet;
     netcard->phys = phys_device;
     netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
 

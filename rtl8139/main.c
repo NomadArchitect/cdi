@@ -73,6 +73,8 @@ static struct cdi_net_driver rtl8139_driver = {
         .init_device    = rtl8139_init_device,
         .remove_device  = rtl8139_remove_device,
     },
+
+    .send_packet        = rtl8139_send_packet,
 };
 
 CDI_DRIVER(DRIVER_NAME, rtl8139_driver)

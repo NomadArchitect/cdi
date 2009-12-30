@@ -26,13 +26,13 @@ struct cdi_net_device {
     struct cdi_device   dev;
     uint64_t            mac : 48;
     int                 number;
-
-    void (*send_packet)
-        (struct cdi_net_device* device, void* data, size_t size);
 };
 
 struct cdi_net_driver {
     struct cdi_driver   drv;
+
+    void (*send_packet)
+        (struct cdi_net_device* device, void* data, size_t size);
 };
 
 

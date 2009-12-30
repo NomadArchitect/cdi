@@ -70,6 +70,8 @@ static struct cdi_net_driver ne2k_driver = {
         .init_device    = ne2k_init_device,
         .remove_device  = ne2k_remove_device,
     },
+
+    .send_packet        = ne2k_send_packet,
 };
 
 CDI_DRIVER(DRIVER_NAME, ne2k_driver)

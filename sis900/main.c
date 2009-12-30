@@ -75,6 +75,8 @@ static struct cdi_net_driver sis900_driver = {
         .init_device    = sis900_init_device,
         .remove_device  = sis900_remove_device,
     },
+
+    .send_packet        = sis900_send_packet,
 };
 
 CDI_DRIVER(DRIVER_NAME, sis900_driver)

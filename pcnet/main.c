@@ -74,6 +74,8 @@ static struct cdi_net_driver pcnet_driver = {
         .init_device    = pcnet_init_device,
         .remove_device  = pcnet_remove_device,
     },
+
+    .send_packet        = pcnet_send_packet,
 };
 
 CDI_DRIVER(DRIVER_NAME, pcnet_driver)
