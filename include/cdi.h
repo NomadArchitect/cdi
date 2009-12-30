@@ -2,13 +2,99 @@
  * Copyright (c) 2007 Kevin Wolf
  *
  * This program is free software. It comes without any warranty, to
- * the extent permitted by applicable law. You can redistribute it 
- * and/or modify it under the terms of the Do What The Fuck You Want 
+ * the extent permitted by applicable law. You can redistribute it
+ * and/or modify it under the terms of the Do What The Fuck You Want
  * To Public License, Version 2, as published by Sam Hocevar. See
  * http://sam.zoy.org/projects/COPYING.WTFPL for more details.
- */  
+ */
 
-/** \addtogroup core */
+/**
+ * \german
+ * Core ist das Basismodul von CDI. Es stellt die grundlegenden Datenstrukturen
+ * und Funktionen bereit, auf die andere Module aufbauen.
+ *
+ * \section Datenstrukturen
+ * CDI basiert auf drei grundlegenden Datenstrukturen. Die einzelnen Module
+ * erweitern diese Strukturen in einer kompatiblen Weise: cdi_net_driver ist
+ * beispielsweise eine Struktur, die cdi_driver als erstes Element enthält, so
+ * dass sie auf cdi_driver gecastet werden kann. Bei den Strukturen handelt es
+ * sich um:
+ *
+ * - cdi_device beschreibt ein allgemeines Gerät. Es hat insbesondere einen
+ *   zugehörigen Treiber und eine Adresse, die es in seinem Bus eindeutig
+ *   beschreibt.
+ * - cdi_driver beschreibt einen allgemeinen Treiber. Jeder Treiber hat einen
+ *   Typ, der beschreibt, zu welchem Modul er gehört und damit auch, in
+ *   welchen Datentyp sowohl der Treiber als auch seine Geräte gecastet werden
+ *   können. Jeder Treiber hat außerdem eine Reihe von Funktionspointern, die
+ *   es der CDI-Bibliothek erlauben, Funktionen im Treiber aufzurufen (z.B. ein
+ *   Netzwerkpaket zu versenden)
+ * - cdi_bus_data enthält busspezifische Informationen zu einem Gerät wie die
+ *   Adresse des Geräts auf dem Bus (z.B. bus.dev.func für PCI-Geräte) oder
+ *   andere busbezogene Felder enthalten (z.B. Vendor/Device ID). Diese
+ *   Struktur wird zur Initialisierung von Geräten benutzt, d.h. wenn das
+ *   Gerät noch nicht existiert.
+ *
+ * \section core_init Initialisierung
+ *
+ * Die Initialisierung der Treiber läuft in folgenden Schritten ab:
+ *
+ * -# Initialisierung der Treiber: Es wird der init-Callback jedes Treibers
+ *    aufgerufen. Anschließend wird der Treiber bei CDI und dem Betriebssystem
+ *    registriert, so dass er vor und während der Ausführung von init keine
+ *    Anfragen entgegennehmen muss, aber direkt anschließend dafür bereit
+ *    sein muss.
+ * -# Suche und Initialisierung der Geräte: Für jedes verfügbare Gerät wird
+ *    init_device nacheinander für alle Treiber aufgerufen, bis ein Treiber
+ *    das Gerät akzeptiert (oder alle Treiber erfolglos versucht wurden).
+ *    \n
+ *    @todo Für jedes Gerät scan_bus aufrufen und die dabei gefundenen
+ *    Geräte wiederum initialisieren.
+ *\endgerman
+ *
+ * \english
+ * The Core module contains the fundamental CDI data structures and functions
+ * on which the other modules are based.
+ *
+ * \section Data structures
+ * CDI is based on three basic structures. The other modules extend these
+ * structures in a compatible way: For example, cdi_net_driver is a structure
+ * that contains a cdi_driver as its first element so that it can be cast to
+ * cdi_device. The structures are:
+ *
+ * - cdi_device describes a device. Amongst others, it contains fields that
+ *   reference the corresponding driver and an address that identifies the
+ *   device uniquely on its bus.
+ * - cdi_driver describes a driver. It has a type which determines to which
+ *   CDI module the driver belongs (and thus which type the struct may be cast
+ *   to). Moreover, each driver has some function points which can be used by
+ *   the CDI library to call driver functions (e.g. for sending a network
+ *   packet)
+ * - cdi_bus_data contains bus specific information on a device, like the
+ *   address of the device on the bus (e.g. bus.dev.func for PCI) or other
+ *   bus related information (e.g. device/vendor ID). This structure is used
+ *   for initialisation of devices, i.e. when the device itself doesn't exist
+ *   yet.
+ *
+ * \section core_init Initialisation
+ *
+ * Drivers are initialised in the following steps:
+ *
+ * -# Initialisation of drivers: The init() callback of each driver is called.
+ *    After the driver has returned from there, it is registered with CDI and
+ *    the operating system. The driver needs not to be able to handle requests
+ *    before it has completed its init() call, but it must be prepared for them
+ *    immediately afterwards.
+ * -# Search for and initialisation of devices: For each device init_device is
+ *    called in the available drivers until a driver accepts the device (or all
+ *    of the drivers reject it).
+ *    \n
+ *    @todo Call scan_bus for each device and initialise possible child devices
+ * \endenglish
+ *
+ *
+ * \defgroup core
+ */
 /*\@{*/
 
 #ifndef _CDI_H_
@@ -35,25 +121,108 @@ typedef enum {
 
 struct cdi_driver;
 
+/**
+ * \german
+ * Beschreibt ein Gerät in Bezug auf den Bus, an dem es hängt. Diese
+ * Informationen enthalten in der Regel eine Busadresse und zusätzliche Daten
+ * wie Device/Vendor ID
+ * \endgerman
+ *
+ * \english
+ * Describes a device in relation to its bus. This information usually contains
+ * a bus address and some additional data like device/vendor ID.
+ * \endenglish
+ *
+ */
 struct cdi_bus_data {
     cdi_device_type_t   bus_type;
 };
 
+/**
+ * \german
+ * Beschreibt ein Gerät
+ * \endgerman
+ * \english
+ * Describes a device
+ * \endenglish
+ */
 struct cdi_device {
+    /**
+     * \german
+     * Name des Geräts (eindeutig unter den Geräten desselben Treibers)
+     * \endgerman
+     * \english
+     * Name of the device (must be unique among the devices of the same driver)
+     * \endenglish
+     */
     const char*             name;
+
+    /**
+     * \german
+     * Treiber, der für das Gerät benutzt wird
+     * \endgerman
+     * \english
+     * Driver used for the device
+     * \endenglish
+     */
     struct cdi_driver*      driver;
+
+    /**
+     * \german
+     * Busspezifische Daten zum Gerät
+     * \endgerman
+     * \english
+     * Bus specific data for the device
+     * \endenglish
+     */
     struct cdi_bus_data*    bus_data;
 
     // tyndur-spezifisch
     void*               backdev;
 };
 
+/**
+ * \german
+ * Beschreibt einen CDI-Treiber
+ * \endgerman
+ * \english
+ * Describes a CDI driver
+ * \endenglish
+ */
 struct cdi_driver {
     cdi_device_type_t   type;
     cdi_device_type_t   bus;
     const char*         name;
+
+    /**
+     * \german
+     * Enthält alle Geräte (cdi_device), die den Treiber benutzen
+     * \endgerman
+     * \english
+     * Contains all devices (cdi_device) which use this driver
+     * \endenglish
+     */
     cdi_list_t          devices;
 
+    /**
+     * \german
+     * Versucht ein Gerät zu initialisieren. Die Funktion darf von der
+     * CDI-Bibliothek nur aufgerufen werden, wenn bus_data->type dem Typ des
+     * Treibers entspricht
+     *
+     * @return Ein per malloc() erzeugtes neues cdi_device, wenn der Treiber
+     * das Gerät akzeptiert. Wenn er das Gerät nicht unterstützt, gibt er
+     * NULL zurück.
+     * \endgerman
+     *
+     * \english
+     * Tries to initialise a device. The function may only be called by the CDI
+     * library if bus_data->type matches the type of the driver.
+     *
+     * @return A new cdi_device created by malloc() if the driver accepts the
+     * device. NULL if the device is not supported by this driver.
+     * \endenglish
+     */
     struct cdi_device* (*init_device)(struct cdi_bus_data* bus_data);
     void (*remove_device)(struct cdi_device* device);
 
@@ -62,30 +231,62 @@ struct cdi_driver {
 };
 
 /**
- * Muss vor dem ersten Aufruf einer anderen CDI-Funktion aufgerufen werden.
+ * \german
+ * Treiber, die ihre eigene main-Funktion implemenieren, müssen diese Funktoin
+ * vor dem ersten Aufruf einer anderen CDI-Funktion aufrufen.
  * Initialisiert interne Datenstruktur der Implementierung fuer das jeweilige
  * Betriebssystem und startet anschliessend alle Treiber.
  *
- * Ein wiederholter Aufruf bleibt ohne Effekt.
+ * Ein wiederholter Aufruf bleibt ohne Effekt. Es bleibt der Implementierung
+ * der CDI-Bibliothek überlassen, ob diese Funktion zurückkehrt.
+ * \endgerman
+ *
+ * \english
+ * Drivers which implement their own main() function must call this function
+ * before they call any other CDI function. It initialises internal data
+ * structures of the CDI implementation and starts all drivers.
+ *
+ * This function should only be called once, additional calls will have no
+ * effect. Depending on the implementation, this function may or may not
+ * return.
+ * \endenglish
  */
 void cdi_init(void);
 
 /**
- * Initialisiert die Datenstrukturen fuer einen Treiber
+ * \german
+ * Initialisiert die Datenstrukturen für einen Treiber
  * (erzeugt die devices-Liste)
+ * \endgerman
+ *
+ * \english
+ * Initialises the data structures for a driver
+ * \endenglish
  */
 void cdi_driver_init(struct cdi_driver* driver);
 
 /**
- * Deinitialisiert die Datenstrukturen fuer einen Treiber
+ * \german
+ * Deinitialisiert die Datenstrukturen für einen Treiber
  * (gibt die devices-Liste frei)
+ * \endgerman
+ *
+ * \english
+ * Deinitialises the data structures for a driver
+ * \endenglish
  */
 void cdi_driver_destroy(struct cdi_driver* driver);
 
 /**
+ * \german
  * Registriert den Treiber fuer ein neues Geraet
  *
  * @param driver Zu registierender Treiber
+ * \endgerman
+ *
+ * \english
+ * Registers a new driver with CDI
+ * \endenglish
  */
 void cdi_driver_register(struct cdi_driver* driver);
 
