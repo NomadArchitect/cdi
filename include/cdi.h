@@ -71,19 +71,6 @@ struct cdi_driver {
 void cdi_init(void);
 
 /**
- * Diese Funktion wird von Treibern aufgerufen, nachdem ein neuer Treiber
- * hinzugefuegt worden ist.
- *
- * Sie registriert typischerweise die neu hinzugefuegten Treiber und/oder
- * Geraete beim Betriebssystem und startet damit ihre Ausfuehrung.
- *
- * Nach dem Aufruf dieser Funktion duerfen vom Treiber keine weiteren Befehle
- * ausgefuehrt werden, da nicht definiert ist, ob und wann die Funktion
- * zurueckkehrt.
- */
-void cdi_run_drivers(void);
-
-/**
  * Initialisiert die Datenstrukturen fuer einen Treiber
  * (erzeugt die devices-Liste)
  */
