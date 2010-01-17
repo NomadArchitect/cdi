@@ -36,7 +36,6 @@
 #include "cdi/scsi.h"
 
 #include "device.h"
-#include "libpartition.h"
 
 // IRQ-Handler
 static inline void ata_controller_irq(struct cdi_device* dev);
@@ -157,59 +156,6 @@ int ata_wait_irq(struct ata_controller* controller, uint32_t timeout)
     return 1;
 }
 
-/**
- * Partitionstabelle auf einem ATA-Geraet verarbeiten
- */
-void ata_parse_partitions(struct ata_device* dev)
-{
-    struct partition_table partition_table;
-    uint8_t mbr[ATA_SECTOR_SIZE];
-    int i;
-
-    // Die Partitionstabelle liegt im MBR
-    if (!dev->read_sectors(dev, 0, 1, mbr)) {
-        DEBUG("Fehler beim Einlesen der Partitionstabelle");
-        return;
-    }
-
-    // Partitionstabelle Verarbeiten
-    if (!partition_table_fill(&partition_table, mbr)) {
-        DEBUG("Fehler beim Verarbeiten der Partitionstabelle");
-        return;
-    }
-
-    // Ansonsten wird die Tabelle jetzt verarbeitet
-    for (i = 0; i < 4; i++) {
-        if (partition_table.entries[i].used) {
-            // Erweiterter Eintrag => ueberspringen
-            if (partition_table.entries[i].type == PARTITION_TYPE_EXTENDED) {
-                DEBUG("TODO Erweiterte Partitionstabelleneintraege\n");
-                continue;
-            }
-            
-            struct ata_partition* partition = malloc(sizeof(*partition));
-            partition->realdev = dev;
-            partition->null = NULL;
-            partition->start = partition_table.entries[i].start;
-            partition->dev.storage.block_size = ATA_SECTOR_SIZE;
-            partition->dev.storage.block_count = partition_table.entries[i].size;
-            DEBUG("Partition von %d bis %d\n", partition->start, partition->dev.storage.block_count + partition->start - 1);
-            asprintf((char**) &(partition->dev.storage.dev.name), "ata%01d%01d_p%01d",
-                (uint32_t) dev->controller->id, dev->id, cdi_list_size(dev->
-                partition_list));
-
-            // Geraet registrieren
-            partition->dev.storage.dev.driver = &dev->controller->storage->drv;
-            ata_init_device((struct ata_device*) partition);
-            cdi_list_push(dev->controller->storage->drv.devices, partition);
-
-            // An Partitionsliste fuer das aktuelle Geraet anhaengen
-            cdi_list_push(dev->partition_list, partition);
-        }
-    }
-}
-
-
 
 
 /**
@@ -295,9 +241,6 @@ void ata_init_controller(struct ata_controller* controller)
                 // Name setzen
                 asprintf((char**) &(dev->dev.storage.dev.name), "ata%01d%01d",
                     (uint32_t) controller->id, i);
-
-                // Partitionen parsen
-                ata_parse_partitions(dev);
 
                 // Geraet registrieren
                 dev->dev.storage.dev.driver = &controller->storage->drv;
