@@ -28,6 +28,7 @@
 
 #include "pcnet.h"
 #include "cdi/io.h"
+#include "cdi/mem.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -242,14 +243,14 @@ static void pcnet_send_init_block(struct pcnet_device* netcard, int promisc)
         (struct cdi_pci_device*) netcard->net.dev.bus_data;
 
     struct initialization_block* initialization_block;
-    void* phys_initialization_block;
-
+    struct cdi_mem_area* buf;
 
     // Fill the initialization block
     // NOTE: Transmit and receive buffer contain 8 entries
-    cdi_alloc_phys_mem(sizeof(struct initialization_block),
-                       (void**) &initialization_block,
-                       &phys_initialization_block);
+    buf = cdi_mem_alloc(sizeof(struct initialization_block),
+        CDI_MEM_DMA_4G | CDI_MEM_PHYS_CONTIGUOUS);
+
+    initialization_block = buf->vaddr;
     memset(initialization_block, 0, sizeof(struct initialization_block));
     initialization_block->mode = promisc ? PROMISCUOUS_MODE : 0;
     initialization_block->receive_length = 0x30;
@@ -263,12 +264,12 @@ static void pcnet_send_init_block(struct pcnet_device* netcard, int promisc)
     #ifdef DEBUG
         printf("pcnet: initialization block at 0x%p virtual, 0x%p physical\n",
                initialization_block,
-               phys_initialization_block);
+               (void*) buf->paddr.items[0].start);
     #endif
 
     // Set the address for the initialization block
-    pcnet_write_csr(netcard, 1, (uintptr_t) phys_initialization_block);
-    pcnet_write_csr(netcard, 2, (uintptr_t) phys_initialization_block >> 16);
+    pcnet_write_csr(netcard, 1, buf->paddr.items[0].start);
+    pcnet_write_csr(netcard, 2, buf->paddr.items[0].start >> 16);
 
     // TODO BCR18.BREADE / BWRITE
 
@@ -282,41 +283,50 @@ static void pcnet_send_init_block(struct pcnet_device* netcard, int promisc)
     if(irq < 0 || netcard->init_wait_for_irq == 1)
         printf("pcnet: waiting for IRQ failed: %d\n", irq);
 
-    // FIXME Free initialization block
+    // Free initialization block
+    cdi_mem_free(buf);
 }
 
 void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
 {
     // Allocate the receive & transmit descriptor buffer
-    void *virt_desc_region;
-    void *phys_desc_region;
-    if (cdi_alloc_phys_mem(4096, &virt_desc_region, &phys_desc_region) == -1)
-    {
+    struct cdi_mem_area* desc;
+
+    desc = cdi_mem_alloc(4096, CDI_MEM_DMA_4G | CDI_MEM_PHYS_CONTIGUOUS);
+    if (desc == NULL) {
         printf("pcnet: failed to allocate descriptor region\n");
         return;
     }
 
     #ifdef DEBUG
-        printf("pcnet: descriptor region at 0x%p virtual and 0x%p physical\n", virt_desc_region, phys_desc_region);
+        printf("pcnet: descriptor region at 0x%p virtual and 0x%p physical\n",
+            desc->vaddr, (void*) desc->paddr.items[0].start);
     #endif
-    netcard->receive_descriptor = virt_desc_region;
-    netcard->transmit_descriptor = (struct transmit_descriptor*) (((char*)virt_desc_region) + 2 * 1024);
-    netcard->phys_receive_descriptor = phys_desc_region;
-    netcard->phys_transmit_descriptor = (void*) (((char*)phys_desc_region) + 2 * 1024);
+    netcard->receive_descriptor = desc->vaddr;
+    netcard->transmit_descriptor = (struct transmit_descriptor*)
+        ((char*) desc->vaddr + 2 * 1024);
+    netcard->phys_receive_descriptor = (void*) desc->paddr.items[0].start;
+    netcard->phys_transmit_descriptor = (void*)
+        ((desc->paddr.items[0].start) + 2 * 1024);
 
     
     // Allocate the buffers
     memset(netcard->transmit_descriptor, 0, 2048);
-    void *virt_buffer;
-    void *phys_buffer;
     int i = 0;
     for (;i < 4;i++)
     {
-        if (cdi_alloc_phys_mem(4096, &virt_buffer, &phys_buffer) == -1)
-        {
+        void* virt_buffer;
+        uintptr_t phys_buffer;
+        struct cdi_mem_area* buf;
+
+        buf = cdi_mem_alloc(4096, CDI_MEM_DMA_4G | CDI_MEM_PHYS_CONTIGUOUS);
+        if (buf == 0) {
             DEBUG_MSG("cdi_alloc_phys_mem failed");
             return;
         }
+        virt_buffer = buf->vaddr;
+        phys_buffer = buf->paddr.items[0].start;
+
         netcard->receive_buffer[2 * i] = virt_buffer;
         netcard->receive_buffer[2 * i + 1] = ((char*)virt_buffer) + 2048;
         netcard->receive_descriptor[2 * i].address = (uint32_t) phys_buffer;
@@ -328,11 +338,14 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
         netcard->receive_descriptor[2 * i + 1].flags2 = 0;
         netcard->receive_descriptor[2 * i + 1].res = 0;
 
-        if (cdi_alloc_phys_mem(4096, &virt_buffer, &phys_buffer) == -1)
-        {
+        buf = cdi_mem_alloc(4096, CDI_MEM_DMA_4G | CDI_MEM_PHYS_CONTIGUOUS);
+        if (buf == 0) {
             DEBUG_MSG("cdi_alloc_phys_mem failed");
             return;
         }
+        virt_buffer = buf->vaddr;
+        phys_buffer = buf->paddr.items[0].start;
+
         netcard->transmit_buffer[2 * i] = virt_buffer;
         netcard->transmit_buffer[2 * i + 1] = ((char*)virt_buffer) + 2048;
         netcard->transmit_descriptor[2 * i].address = (uint32_t) phys_buffer;

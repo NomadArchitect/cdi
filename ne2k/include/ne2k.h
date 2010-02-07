@@ -71,7 +71,7 @@
 #define NE_DATA     0x10
 
 #define PHYS(netcard, field) \
-    ((uintptr_t) netcard->phys + offsetof(struct rtl8139_device, field))
+    (netcard->phys + offsetof(struct rtl8139_device, field))
 
 #define RX_BUFFER_SIZE 0x2000
 #define TX_BUFFER_SIZE 0x1000
@@ -84,7 +84,7 @@ typedef struct {
 struct ne2k_device {
     struct cdi_net_device       net;
 
-    void*                       phys;
+    uintptr_t                   phys;
     uint16_t                    port_base;
 
     uint8_t                     next_packet;

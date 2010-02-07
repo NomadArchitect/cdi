@@ -34,6 +34,7 @@
 #include "cdi/misc.h"
 #include "cdi/io.h"
 #include "cdi/scsi.h"
+#include "cdi/mem.h"
 
 #include "device.h"
 
@@ -265,10 +266,17 @@ void ata_init_controller(struct ata_controller* controller)
 
     // Abschliessend wird noch DMA vorbereitet, wenn moeglich
     if (controller->port_bmr_base) {
-        cdi_alloc_phys_mem(sizeof(uint64_t), (void**) &controller->prdt_virt,
-            (void**) &controller->prdt_phys);
-        cdi_alloc_phys_mem(ATA_DMA_MAXSIZE, (void**) &controller->dma_buf_virt,
-            (void**) &controller->dma_buf_phys);
+        struct cdi_mem_area* buf;
+
+        buf = cdi_mem_alloc(sizeof(uint64_t),
+            CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G);
+        controller->prdt_virt = buf->vaddr;
+        controller->prdt_phys = buf->paddr.items[0].start;
+
+        buf = cdi_mem_alloc(ATA_DMA_MAXSIZE,
+            CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G);
+        controller->dma_buf_virt = buf->vaddr;
+        controller->dma_buf_phys = buf->paddr.items[0].start;
 
         controller->dma_use = 1;
     }

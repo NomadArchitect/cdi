@@ -129,7 +129,7 @@ struct sis900_tx_descriptor {
 struct sis900_device {
     struct cdi_net_device       net;
 
-    void*                       phys;
+    uintptr_t                   phys;
 
     struct sis900_tx_descriptor tx_desc[TX_BUFFER_NUM];
     uint8_t                     tx_buffer[TX_BUFFER_NUM * TX_BUFFER_SIZE];

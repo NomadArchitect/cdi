@@ -35,6 +35,7 @@
 #include "cdi/pci.h"
 #include "cdi/io.h"
 #include "cdi/misc.h"
+#include "cdi/mem.h"
 
 #include "ne2k.h"
 #include "ethernet.h"
@@ -81,16 +82,22 @@ struct cdi_device* ne2k_init_device(struct cdi_bus_data* bus_data)
 {
     struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
     struct ne2k_device* netcard;
-    void* phys_device;
+    struct cdi_mem_area* buf;
 
     if (!((pci->vendor_id == 0x10ec) && (pci->device_id == 0x8029))) {
         return NULL;
     }
 
-    cdi_alloc_phys_mem(sizeof(*netcard), (void**) &netcard, &phys_device);
+    buf = cdi_mem_alloc(sizeof(*netcard),
+        CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G | 2);
+    if (buf == NULL) {
+        return NULL;
+    }
+
+    netcard = buf->vaddr;
     memset(netcard, 0, sizeof(*netcard));
 
-    netcard->phys = phys_device;
+    netcard->phys = buf->paddr.items[0].start;
     netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
 
     // PCI-bezogenes Zeug initialisieren

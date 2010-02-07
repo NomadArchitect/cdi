@@ -35,6 +35,7 @@
 #include "cdi.h"
 #include "cdi/misc.h"
 #include "cdi/pci.h"
+#include "cdi/mem.h"
 
 #include "device.h"
 #include "e1000_io.h"
@@ -42,7 +43,7 @@
 #undef DEBUG
 
 #define PHYS(netcard, field) \
-    ((uintptr_t) netcard->phys + offsetof(struct e1000_device, field))
+    (netcard->phys + offsetof(struct e1000_device, field))
 
 static void e1000_handle_interrupt(struct cdi_device* device);
 static uint64_t get_mac_address(struct e1000_device* device);
@@ -150,16 +151,22 @@ struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
 {
     struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
     struct e1000_device* netcard;
-    void* phys_device;
+    struct cdi_mem_area* buf;
 
     if (!((pci->vendor_id == 0x8086) && (pci->device_id == 0x100e))) {
         return NULL;
     }
 
-    cdi_alloc_phys_mem(sizeof(*netcard), (void**) &netcard, &phys_device);
+    buf = cdi_mem_alloc(sizeof(*netcard),
+        CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G | 2);
+    if (buf == NULL) {
+        return NULL;
+    }
+
+    netcard = buf->vaddr;
     memset(netcard, 0, sizeof(*netcard));
 
-    netcard->phys = phys_device;
+    netcard->phys = buf->paddr.items[0].start;
     netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
 
     // PCI-bezogenes Zeug initialisieren
@@ -172,8 +179,8 @@ struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
     int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
         if (res->type == CDI_PCI_MEMORY) {
-            netcard->mem_base =
-                cdi_alloc_phys_addr(res->length, res->start);
+            struct cdi_mem_area* mmio = cdi_mem_map(res->start, res->length);
+            netcard->mem_base = mmio->vaddr;
         }
     }
 

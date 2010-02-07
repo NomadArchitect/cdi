@@ -34,6 +34,7 @@
 
 #include "cdi.h"
 #include "cdi/misc.h"
+#include "cdi/mem.h"
 
 #include "device.h"
 #include "sis900_io.h"
@@ -46,7 +47,7 @@
 #undef DEBUG
 
 #define PHYS(netcard, field) \
-    ((uintptr_t) netcard->phys + offsetof(struct sis900_device, field))
+    (netcard->phys + offsetof(struct sis900_device, field))
 
 static void sis900_handle_interrupt(struct cdi_device* device);
 
@@ -185,16 +186,22 @@ struct cdi_device* sis900_init_device(struct cdi_bus_data* bus_data)
 {
     struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
     struct sis900_device* netcard;
-    void* phys_device;
+    struct cdi_mem_area* buf;
 
     if (!((pci->vendor_id == 0x1039) && (pci->device_id == 0x0900))) {
         return NULL;
     }
 
-    cdi_alloc_phys_mem(sizeof(*netcard), (void**) &netcard, &phys_device);
+    buf = cdi_mem_alloc(sizeof(*netcard),
+        CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G | 2);
+    if (buf == NULL) {
+        return NULL;
+    }
+
+    netcard = buf->vaddr;
     memset(netcard, 0, sizeof(*netcard));
 
-    netcard->phys = phys_device;
+    netcard->phys = buf->paddr.items[0].start;
     netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
 
     // PCI-bezogenes Zeug initialisieren

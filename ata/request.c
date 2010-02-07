@@ -433,7 +433,7 @@ static int ata_request_dma_init(struct ata_request* request)
         BMR_STATUS_IRQ);
 
     // Adresse der PRDT eintragen
-    cdi_outl(ctrl->port_bmr_base + BMR_PRDT, (uint32_t) ctrl->prdt_phys);
+    cdi_outl(ctrl->port_bmr_base + BMR_PRDT, ctrl->prdt_phys);
 
     if (request->flags.direction != READ) {
         memcpy(ctrl->dma_buf_virt, request->buffer, size);

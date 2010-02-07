@@ -367,11 +367,11 @@ struct ata_controller {
 
 
     /// Physische Adresse der Physical Region Descriptor Table (fuer DMA)
-    uint64_t*                   prdt_phys;
+    uintptr_t                   prdt_phys;
     /// Virtuelle Adresse der Physical Region Descriptor Table (fuer DMA)
     uint64_t*                   prdt_virt;
     /// Physische Adresse des DMA-Puffers
-    void*                       dma_buf_phys;
+    uintptr_t                   dma_buf_phys;
     /// Virtuelle Adresse des DMA-Puffers
     void*                       dma_buf_virt;
 };
