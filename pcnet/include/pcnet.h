@@ -115,9 +115,6 @@ struct pcnet_device {
     void                        *phys_receive_descriptor;
     void                        *phys_transmit_descriptor;
 
-    struct initialization_block *initialization_block;
-    void                        *phys_initialization_block;
-
     void                        *receive_buffer[8];
     void                        *transmit_buffer[8];
     int                         last_transmit_descriptor;

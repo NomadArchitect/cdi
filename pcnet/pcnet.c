@@ -235,11 +235,58 @@ void pcnet_stop(struct pcnet_device *netcard)
 {
     pcnet_write_csr(netcard, CSR_STATUS, STATUS_STOP);
 }
-void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
+
+static void pcnet_send_init_block(struct pcnet_device* netcard, int promisc)
 {
     struct cdi_pci_device* pci =
         (struct cdi_pci_device*) netcard->net.dev.bus_data;
 
+    struct initialization_block* initialization_block;
+    void* phys_initialization_block;
+
+
+    // Fill the initialization block
+    // NOTE: Transmit and receive buffer contain 8 entries
+    cdi_alloc_phys_mem(sizeof(struct initialization_block),
+                       (void**) &initialization_block,
+                       &phys_initialization_block);
+    memset(initialization_block, 0, sizeof(struct initialization_block));
+    initialization_block->mode = promisc ? PROMISCUOUS_MODE : 0;
+    initialization_block->receive_length = 0x30;
+    initialization_block->transfer_length = 0x30;
+    initialization_block->receive_descriptor =
+        (uint32_t) netcard->phys_receive_descriptor;
+    initialization_block->transmit_descriptor =
+        (uint32_t) netcard->phys_transmit_descriptor;
+    initialization_block->physical_address = netcard->net.mac;
+
+    #ifdef DEBUG
+        printf("pcnet: initialization block at 0x%p virtual, 0x%p physical\n",
+               initialization_block,
+               phys_initialization_block);
+    #endif
+
+    // Set the address for the initialization block
+    pcnet_write_csr(netcard, 1, (uintptr_t) phys_initialization_block);
+    pcnet_write_csr(netcard, 2, (uintptr_t) phys_initialization_block >> 16);
+
+    // TODO BCR18.BREADE / BWRITE
+
+    // CSR0.INIT, Initialize
+    netcard->init_wait_for_irq = 1;
+    pcnet_write_csr(netcard, CSR_STATUS,
+        STATUS_INIT | STATUS_INTERRUPT_ENABLE);
+
+    // Wait until initialization completed, NOTE: see pcnet_handle_interrupt()
+    int irq = cdi_wait_irq(pci->irq, 1000);
+    if(irq < 0 || netcard->init_wait_for_irq == 1)
+        printf("pcnet: waiting for IRQ failed: %d\n", irq);
+
+    // FIXME Free initialization block
+}
+
+void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
+{
     // Allocate the receive & transmit descriptor buffer
     void *virt_desc_region;
     void *phys_desc_region;
@@ -257,24 +304,6 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
     netcard->phys_receive_descriptor = phys_desc_region;
     netcard->phys_transmit_descriptor = (void*) (((char*)phys_desc_region) + 2 * 1024);
 
-    // Fill the initialization block
-    // NOTE: Transmit and receive buffer contain 8 entries
-    cdi_alloc_phys_mem(sizeof(struct initialization_block),
-                       (void**) &netcard->initialization_block,
-                       &netcard->phys_initialization_block);
-    memset(netcard->initialization_block, 0, sizeof(struct initialization_block));
-    netcard->initialization_block->mode = promiscuous ? PROMISCUOUS_MODE : 0;
-    netcard->initialization_block->receive_length = 0x30;
-    netcard->initialization_block->transfer_length = 0x30;
-    netcard->initialization_block->receive_descriptor = (uint32_t) netcard->phys_receive_descriptor;
-    netcard->initialization_block->transmit_descriptor = (uint32_t) netcard->phys_transmit_descriptor;
-    netcard->initialization_block->physical_address = netcard->net.mac;
-
-    #ifdef DEBUG
-        printf("pcnet: initialization block at 0x%p virtual and 0x%p physical\n",
-               netcard->initialization_block,
-               netcard->phys_initialization_block);
-    #endif
     
     // Allocate the buffers
     memset(netcard->transmit_descriptor, 0, 2048);
@@ -310,21 +339,8 @@ void pcnet_dev_init(struct pcnet_device *netcard, int promiscuous)
         netcard->transmit_descriptor[2 * i + 1].address = (uint32_t) phys_buffer + 2048;
     }
 
-    // Set the address for the initialization block
-    pcnet_write_csr(netcard, 1, (uintptr_t) netcard->phys_initialization_block);
-    pcnet_write_csr(netcard, 2, (uintptr_t) netcard->phys_initialization_block >> 16);
-    
-    // TODO BCR18.BREADE / BWRITE
-    
-    // CSR0.INIT, Initialize
-    netcard->init_wait_for_irq = 1;
-    pcnet_write_csr(netcard, CSR_STATUS, STATUS_INIT | STATUS_INTERRUPT_ENABLE);
-    
-    // Wait until initialization completed, NOTE: see pcnet_handle_interrupt()
-    int irq = cdi_wait_irq(pci->irq, 1000);
-    if(irq < 0 || netcard->init_wait_for_irq == 1)
-        printf("pcnet: waiting for IRQ failed: %d\n", irq);
-    
+    pcnet_send_init_block(netcard, promiscuous);
+
     // CSR4 Enable transmit auto-padding and receive automatic padding removal
     // TODO DMAPLUS? 
     uint16_t tmp = pcnet_read_csr(netcard, CSR_FEATURE);
