@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#include "cdi/lists.h"
+#include <cdi/lists.h>
 
 struct cdi_bios_registers {
     uint16_t ax;

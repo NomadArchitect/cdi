@@ -19,9 +19,9 @@
 
 #include <stdio.h>
 
-#include "cdi.h"
-#include "cdi/lists.h"
-#include "cdi/cache.h"
+#include <cdi.h>
+#include <cdi/lists.h>
+#include <cdi/cache.h>
 
 #include <sys/types.h>
 

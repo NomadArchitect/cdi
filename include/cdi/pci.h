@@ -13,9 +13,9 @@
 
 #include <stdint.h>
 
-#include "cdi.h"
-#include "cdi-osdep.h"
-#include "cdi/lists.h"
+#include <cdi.h>
+#include <cdi-osdep.h>
+#include <cdi/lists.h>
 
 struct cdi_pci_device {
     struct cdi_bus_data bus_data;

@@ -19,7 +19,7 @@
 
 #include <stdint.h>
 
-#include "cdi.h"
+#include <cdi.h>
 
 struct cdi_storage_device {
     struct cdi_device   dev;

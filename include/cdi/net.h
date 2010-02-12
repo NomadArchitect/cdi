@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "cdi.h"
+#include <cdi.h>
 
 struct cdi_net_device {
     struct cdi_device   dev;

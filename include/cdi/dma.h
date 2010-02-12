@@ -13,8 +13,9 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "cdi.h"
-#include "cdi-osdep.h"
+
+#include <cdi.h>
+#include <cdi-osdep.h>
 
 struct cdi_dma_handle {
     uint8_t     channel;

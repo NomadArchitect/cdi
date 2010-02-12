@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "cdi.h"
+#include <cdi.h>
 
 /// SCSI-Paket
 struct cdi_scsi_packet {

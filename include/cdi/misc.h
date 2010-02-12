@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#include "cdi.h"
+#include <cdi.h>
 
 #ifdef __cplusplus
 extern "C" {
