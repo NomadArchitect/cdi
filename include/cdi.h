@@ -290,6 +290,62 @@ void cdi_driver_destroy(struct cdi_driver* driver);
  */
 void cdi_driver_register(struct cdi_driver* driver);
 
+/**
+ * \german
+ * Informiert dass Betriebssystem, dass ein neues Geraet angeschlossen wurde.
+ *
+ * Der Zweck dieser Funktion ist es, Bustreibern zu ermöglichen, die Geräte
+ * auf ihrem Bus anderen Treibern zur Verfügung zu stellen, die über den
+ * PCI-Bus nicht erreichbar sind (z.B. einen USB-Massenspeicher). Sie erlaubt
+ * es Geräten auch, dem OS die Verfügbarkeit anderer Geräte auch außerhalb
+ * einer Controller-Schnittstelle mitzuteilen.
+ *
+ * Das Betriebssystem kann daraufhin den passenden Treiber laden (oder einen
+ * geladenen Treiber informieren), den es anhand der Informationen in @a device
+ * finden kann. CDI definiert nicht, welche Aktionen das OS auszuführen hat
+ * oder auf welche Weise mögliche Aktionen (wie das Laden eines Treibers)
+ * umgesetzt werden.
+ *
+ * CDI-Implementierungen können diese Funktion auch intern benutzen, um
+ * während der Initialisierung die Geräte auf dem PCI-Bus bereitzustellen.
+ *
+ * @return 0 bei Erfolg, -1 im Fehlerfall
+ * \endgerman
+ * \english
+ * Allows a driver to inform the operating system that a new device has become
+ * available.
+ *
+ * The rationale behind cdi_provide_device is to allow controller interfaces
+ * to provide devices on their bus which may not be available through the
+ * conventional PCI bus (for example, a USB mass storage device). This also
+ * allows devices to inform the OS of the presence of other devices outside
+ * of the context of a controller interface, where necessary.
+ *
+ * The operating system should determine which driver to load (or inform of
+ * the new device) based on the cdi_bus_data struct passed. How the operating
+ * system decides which driver to load/inform is not defined by CDI. An example
+ * would be a simple list generated from a script which parses each driver in
+ * the source tree, finds relevant cdi_bus_data structs, and adds them to a
+ * list which maps the structs to a string. The OS can then use that string to
+ * load a driver somehow.
+ *
+ * Whilst CDI could provide a pre-defined list of mappings for operating
+ * systems to use when implementing cdi_provide_device, it was decided that
+ * this would make the interface too rigid. Whilst this method requires a
+ * little more effort from the CDI implementor, it also allows operating
+ * systems to load non-CDI drivers (eg, from a native driver interface) as
+ * defined by the OS-specific mapping list. This would be impossible if CDI
+ * rigidly enforced a specific method.
+ *
+ * Operating systems may also choose to implement cdi_provide_device and then
+ * use it when iterating over the PCI bus in order to load drivers dynamically
+ * (effectively treating coldplug devices as hotplugged before boot).
+ *
+ * @return 0 on success or -1 if an error was encountered.
+ * \endenglish
+ */
+int cdi_provide_device(struct cdi_bus_data* device);
+
 #endif
 
 /*\@}*/
