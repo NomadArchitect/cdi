@@ -17,13 +17,9 @@
 #ifndef _CDI_FS_
 #define _CDI_FS_
 
-#include <stdio.h>
-
 #include <cdi.h>
 #include <cdi/lists.h>
 #include <cdi/cache.h>
-
-#include <sys/types.h>
 
 struct cdi_fs_filesystem;
 /**
@@ -82,13 +78,13 @@ struct cdi_fs_filesystem {
      */
 
 
-    /** OS-spezifisch: Deskriptor fuer den Datentraeger */
-    FILE*                   device;
-
     /**
      * Zeiger den der Treiber fuer eigene Daten zum Dateisystem benutzen kann
      */
     void*                   opaque;
+
+    /** OS-spezifische Daten */
+    cdi_fs_osdep            osdep;
 };
 
 
@@ -541,7 +537,7 @@ struct cdi_fs_res_special {
      *
      * @return Falls die Geraeteadresse erfolgreich gelesen wurde 1, sonst 0
      */
-    int (*dev_read)(struct cdi_fs_stream* stream, dev_t* dev);
+    int (*dev_read)(struct cdi_fs_stream* stream, uint64_t* dev);
 
     /**
      * Geraeteadresse der Spezialdatei Aendern
@@ -551,7 +547,7 @@ struct cdi_fs_res_special {
      *
      * @return Falls die Geraeteadresse erfolgreich geaendert wurde 1, sonst 0
      */
-    int (*dev_write)(struct cdi_fs_stream* stream, dev_t dev);
+    int (*dev_write)(struct cdi_fs_stream* stream, uint64_t dev);
 };
 
 
@@ -593,7 +589,7 @@ struct cdi_fs_acl_entry_usr_num {
     struct cdi_fs_acl_entry entry;
 
     /** Benutzer-ID */
-    uid_t                   user_id;
+    int                     user_id;
 };
 
 struct cdi_fs_acl_entry_usr_str {
@@ -607,7 +603,7 @@ struct cdi_fs_acl_entry_grp_num {
     struct cdi_fs_acl_entry entry;
 
     /** Gruppen-ID */
-    gid_t                   group_id;
+    int                     group_id;
 };
 
 struct cdi_fs_acl_entry_grp_str {

@@ -67,4 +67,15 @@ typedef struct
 typedef struct {
 } cdi_mem_osdep;
 
+/**
+ * \german
+ * OS-spezifische Daten fuer Dateisysteme
+ * \endgerman
+ * \english
+ * OS-specific data for file systems
+ * \endenglish
+ */
+typedef struct {
+} cdi_fs_osdep;
+
 #endif

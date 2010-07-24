@@ -17,6 +17,7 @@
 */
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "cdi/fs.h"
 #include "cdi/cache.h"
