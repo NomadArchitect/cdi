@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2007 Kevin Wolf
+ * Copyright (c) 2007-2010 Kevin Wolf
  *
  * This program is free software. It comes without any warranty, to
- * the extent permitted by applicable law. You can redistribute it 
- * and/or modify it under the terms of the Do What The Fuck You Want 
+ * the extent permitted by applicable law. You can redistribute it
+ * and/or modify it under the terms of the Do What The Fuck You Want
  * To Public License, Version 2, as published by Sam Hocevar. See
  * http://sam.zoy.org/projects/COPYING.WTFPL for more details.
- */  
+ */
 
 #ifndef _CDI_PCI_H_
 #define _CDI_PCI_H_
@@ -17,6 +17,14 @@
 #include <cdi-osdep.h>
 #include <cdi/lists.h>
 
+/**
+ * \german
+ * Beschreibt ein PCI-Gerät
+ * \endgerman
+ * \english
+ * Describes a PCI device
+ * \endenglish
+ */
 struct cdi_pci_device {
     struct cdi_bus_data bus_data;
 
@@ -35,21 +43,93 @@ struct cdi_pci_device {
 
     uint8_t     irq;
 
+    /**
+     * \german
+     * Liste von I/O-Ressourcen, die zum Gerät gehören (Inhalt der BARs,
+     * struct cdi_pci_resource*)
+     * \endgerman
+     * \english
+     * List of I/O resources which belong to the device (content of the BARs,
+     * struct cdi_pci_ressource*)
+     * \endenglish
+     */
     cdi_list_t resources;
 
     cdi_pci_device_osdep meta;
 };
 
+/**
+ * \german
+ * Art der von einem BAR beschriebenen Ressource
+ * \endgerman
+ * \english
+ * Type of the resource described by a BAR
+ * \endenglish
+ */
 typedef enum {
     CDI_PCI_MEMORY,
     CDI_PCI_IOPORTS
 } cdi_res_t;
 
+/**
+ * \german
+ * Beschreibt eine I/O-Ressource eines Geräts (Inhalt eines BARs)
+ * \endgerman
+ * \english
+ * Describes an I/O resource of a device (represents a BAR)
+ * \endenglish
+ */
 struct cdi_pci_resource {
+    /**
+     * \german
+     * Typ der Ressource (Speicher oder Ports)
+     * \endgerman
+     * \english
+     * Type of the resource (memory or ports)
+     * \endenglish
+     */
     cdi_res_t    type;
+
+    /**
+     * \german
+     * Basisadresse der Ressource (physische Speicheradresse oder Portnummer)
+     * \endgerman
+     * \english
+     * Base address of the resource (physical memory address or port number)
+     * \endenglish
+     */
     uintptr_t    start;
+
+    /**
+     * \german
+     * Größe der Ressource in Bytes
+     * \endgerman
+     * \english
+     * Size of the ressource in bytes
+     * \endenglish
+     */
     size_t       length;
+
+    /**
+     * \german
+     * Index des zur Ressource gehörenden BAR, beginnend bei 0
+     * \endgerman
+     * \english
+     * Index of the BAR that belongs to the resource, starting with 0
+     * \endenglish
+     */
     unsigned int index;
+
+    /**
+     * \german
+     * Virtuelle Adresse des gemappten MMIO-Speichers (wird von
+     * cdi_pci_alloc_memory gesetzt)
+     * \endgerman
+     * \english
+     * Virtual address of the mapped MMIO memory (is set by
+     * cdi_pci_alloc_memory)
+     * \endenglish
+     */
     void*        address;
 };
 
@@ -59,33 +139,64 @@ extern "C" {
 #endif
 
 /**
- * Gibt alle PCI-Geraete im System zurueck. Die Geraete werden dazu
- * in die uebergebene Liste eingefuegt.
+ * \german
+ * Gibt alle PCI-Geräte im System zurück. Die Geräte (struct cdi_pci_device*)
+ * werden dazu in die übergebene Liste eingefügt.
+ * \endgerman
+ * \english
+ * Queries all PCI devices in the machine. The devices (struct cdi_pci_device*)
+ * are inserted into a given list.
+ * \endenglish
  */
 void cdi_pci_get_all_devices(cdi_list_t list);
 
 /**
- * Gibt die Information zu einem PCI-Geraet frei
+ * \german
+ * Gibt die Information zu einem PCI-Gerät frei
+ * \endgerman
+ * \english
+ * Frees the information for a PCI device
+ * \endenglish
  */
 void cdi_pci_device_destroy(struct cdi_pci_device* device);
 
 /**
- * Reserviert die IO-Ports des PCI-Geraets fuer den Treiber
+ * \german
+ * Reserviert die IO-Ports des PCI-Geräts für den Treiber
+ * \endgerman
+ * \english
+ * Allocates the IO ports of the PCI device for the driver
+ * \endenglish
  */
 void cdi_pci_alloc_ioports(struct cdi_pci_device* device);
 
 /**
- * Gibt die IO-Ports des PCI-Geraets frei
+ * \german
+ * Gibt die IO-Ports des PCI-Geräts frei
+ * \endgerman
+ * \english
+ * Frees the IO ports of the PCI device
+ * \endenglish
  */
 void cdi_pci_free_ioports(struct cdi_pci_device* device);
 
 /**
- * Reserviert den MMIO-Speicher des PCI-Geraets fuer den Treiber
+ * \german
+ * Mappt den MMIO-Speicher des PCI-Geräts
+ * \endgerman
+ * \english
+ * Maps the MMIO memory of the PCI device
+ * \endenglish
  */
 void cdi_pci_alloc_memory(struct cdi_pci_device* device);
 
 /**
- * Gibt den MMIO-Speicher des PCI-Geraets frei
+ * \german
+ * Gibt den MMIO-Speicher des PCI-Geräts frei
+ * \endgerman
+ * \english
+ * Frees the MMIO memory of the PCI device
+ * \endenglish
  */
 void cdi_pci_free_memory(struct cdi_pci_device* device);
 
