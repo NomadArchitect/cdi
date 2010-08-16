@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SIS900_DEVICES_H_
-#define _SIS900_DEVICES_H_
+#ifndef _E1000_DEVICE_H_
+#define _E1000_DEVICE_H_
 
 #include <stdint.h>
 
@@ -38,6 +38,8 @@
 
 enum {
     REG_CTL             =    0x0,
+    REG_STATUS          =    0x8,
+    REG_EECD            =   0x10, /* EEPROM Control */
     REG_EEPROM_READ     =   0x14, /* EERD */
     REG_VET             =   0x38, /* VLAN */
 
@@ -103,6 +105,22 @@ enum {
 
 #define EERD_START  (1 <<  0)
 #define EERD_DONE   (1 <<  4)
+
+/* EEPROM/Flash Control */
+#define E1000_EECD_SK        0x00000001 /* EEPROM Clock */
+#define E1000_EECD_CS        0x00000002 /* EEPROM Chip Select */
+#define E1000_EECD_DI        0x00000004 /* EEPROM Data In */
+#define E1000_EECD_DO        0x00000008 /* EEPROM Data Out */
+#define E1000_EECD_FWE_MASK  0x00000030
+#define E1000_EECD_FWE_DIS   0x00000010 /* Disable FLASH writes */
+#define E1000_EECD_FWE_EN    0x00000020 /* Enable FLASH writes */
+#define E1000_EECD_FWE_SHIFT 4
+#define E1000_EECD_SIZE      0x00000200 /* EEPROM Size (0=64 word 1=256 word) */
+#define E1000_EECD_REQ       0x00000040 /* EEPROM Access Request */
+#define E1000_EECD_GNT       0x00000080 /* EEPROM Access Grant */
+#define E1000_EECD_PRES      0x00000100 /* EEPROM Present */
+
+#define EEPROM_READ_OPCODE  0x6
 
 /* Allgemeine Definitionen */
 

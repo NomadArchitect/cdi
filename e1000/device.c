@@ -48,14 +48,210 @@
 static void e1000_handle_interrupt(struct cdi_device* device);
 static uint64_t get_mac_address(struct e1000_device* device);
 
-static uint16_t e1000_eeprom_read(struct e1000_device* device, uint16_t offset)
+static uint32_t e1000_reg_read(struct e1000_device *device, uint16_t offset)
 {
-    uint32_t eerd;
+    return reg_inl(device, offset);
+}
+
+static void e1000_reg_write(struct e1000_device *device, uint16_t offset, uint32_t value)
+{
+    reg_outl(device, offset, value);
+}
+
+static void e1000_write_flush(struct e1000_device *device)
+{
+    e1000_reg_read(device, REG_STATUS);
+}
+
+static void e1000_raise_eeprom_clock(struct e1000_device *device, uint32_t *eecd)
+{
+    *eecd |= E1000_EECD_SK;
+    e1000_reg_write(device, REG_EECD, *eecd);
+    e1000_write_flush(device);
+    cdi_sleep_ms(5);
+}
+
+static void e1000_lower_eeprom_clock(struct e1000_device *device, uint32_t *eecd)
+{
+    *eecd &= ~E1000_EECD_SK;
+    e1000_reg_write(device, REG_EECD, *eecd);
+    e1000_write_flush(device);
+    cdi_sleep_ms(5);
+}
+
+static void e1000_write_eeprom_bits(struct e1000_device *device, uint16_t data, uint16_t bitcount)
+{
+    uint32_t eecd, mask;
+
+    mask = 0x1 << (bitcount - 1);
+    eecd = e1000_reg_read(device, REG_EECD);
+    eecd &= ~(E1000_EECD_DO | E1000_EECD_DI);
+    do
+    {
+        eecd &= ~E1000_EECD_DI;
+        if(data & mask)
+            eecd |= E1000_EECD_DI;
+        e1000_reg_write(device, REG_EECD, eecd);
+        e1000_write_flush(device);
+
+        cdi_sleep_ms(5);
+
+        e1000_raise_eeprom_clock(device, &eecd);
+        e1000_lower_eeprom_clock(device, &eecd);
+
+        mask >>= 1;
+    }
+    while(mask);
+
+    eecd &= ~E1000_EECD_DI;
+    e1000_reg_write(device, REG_EECD, eecd);
+}
+
+static uint16_t e1000_read_eeprom_bits(struct e1000_device *device)
+{
+    uint32_t eecd, i;
+    uint16_t data;
+
+    eecd = e1000_reg_read(device, REG_EECD);
+    eecd &= ~(E1000_EECD_DO | E1000_EECD_DI);
+    data = 0;
+
+    for(i = 0; i < 16; i++)
+    {
+        data <<= 1;
+        e1000_raise_eeprom_clock(device, &eecd);
+
+        eecd = e1000_reg_read(device, REG_EECD);
+
+        eecd &= ~E1000_EECD_DI;
+        if(eecd & E1000_EECD_DO)
+            data |= 1;
+
+        e1000_lower_eeprom_clock(device, &eecd);
+    }
+
+    return data;
+}
+
+static void e1000_prep_eeprom(struct e1000_device *device)
+{
+    uint32_t eecd = e1000_reg_read(device, REG_EECD);
+
+    eecd &= ~(E1000_EECD_SK | E1000_EECD_DI);
+    e1000_reg_write(device, REG_EECD, eecd);
+
+    eecd |= E1000_EECD_CS;
+    e1000_reg_write(device, REG_EECD, eecd);
+}
+
+static void e1000_standby_eeprom(struct e1000_device *device)
+{
+    uint32_t eecd = e1000_reg_read(device, REG_EECD);
+
+    eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
+    e1000_reg_write(device, REG_EECD, eecd);
+    e1000_write_flush(device);
+    cdi_sleep_ms(5);
+
+    eecd |= E1000_EECD_SK;
+    e1000_reg_write(device, REG_EECD, eecd);
+    e1000_write_flush(device);
+    cdi_sleep_ms(5);
+
+    eecd |= E1000_EECD_CS;
+    e1000_reg_write(device, REG_EECD, eecd);
+    e1000_write_flush(device);
+    cdi_sleep_ms(5);
+
+    eecd &= ~(E1000_EECD_SK);
+    e1000_reg_write(device, REG_EECD, eecd);
+    e1000_write_flush(device);
+    cdi_sleep_ms(5);
+}
+
+static uint32_t e1000_read_uwire(struct e1000_device *device, uint16_t offset)
+{
+    uint32_t eecd, i = 0;
+    int large_eeprom = 0;
+
+    // TODO: check for post-82544 chip, only run this handling if so
+    eecd = e1000_reg_read(device, REG_EECD);
+    if(eecd & E1000_EECD_SIZE)
+        large_eeprom = 1;
+    eecd |= E1000_EECD_REQ;
+    e1000_reg_write(device, REG_EECD, eecd);
+    eecd = e1000_reg_read(device, REG_EECD);
+    while((!(eecd & E1000_EECD_GNT)) && (i++ < 100))
+    {
+        cdi_sleep_ms(1);
+        eecd = e1000_reg_read(device, REG_EECD);
+    }
+    if(!(eecd & E1000_EECD_GNT))
+    {
+        eecd &= ~E1000_EECD_REQ;
+        e1000_reg_write(device, REG_EECD, eecd);
+        return (uint32_t) -1;
+    }
+
+    e1000_prep_eeprom(device);
+
+    e1000_write_eeprom_bits(device, EEPROM_READ_OPCODE, 3);
+    if(large_eeprom)
+        e1000_write_eeprom_bits(device, offset, 8);
+    else
+        e1000_write_eeprom_bits(device, offset, 6);
+
+    uint32_t data = e1000_read_eeprom_bits(device);
+
+    e1000_standby_eeprom(device);
+
+    // TODO: check for post-82544 chip
+    eecd = e1000_reg_read(device, REG_EECD);
+    eecd &= ~E1000_EECD_REQ;
+    e1000_reg_write(device, REG_EECD, eecd);
+
+    return data;
+}
+
+static uint32_t e1000_read_eerd(struct e1000_device *device, uint16_t offset)
+{
+    uint32_t eerd, i;
 
     reg_outl(device, REG_EEPROM_READ, (offset << 8) | EERD_START);
-    while (((eerd = reg_inl(device, REG_EEPROM_READ)) & EERD_DONE) == 0);
-    printf("eerd = %8x\n", eerd);
-    return (eerd >> 16);
+    for(i = 0; i < 100; i++)
+    {
+        eerd = reg_inl(device, REG_EEPROM_READ);
+        if(eerd & EERD_DONE)
+            break;
+        cdi_sleep_ms(1);
+    }
+
+    if(eerd & EERD_DONE)
+        return (eerd >> 16) & 0xFFFF;
+    else
+        return (uint32_t) -1;
+}
+
+static uint16_t e1000_eeprom_read(struct e1000_device* device, uint16_t offset)
+{
+    static int eerd_safe = 1;
+
+    uint32_t data = 0;
+    if(eerd_safe)
+        data = e1000_read_eerd(device, offset);
+    if(!eerd_safe || (data == ((uint32_t) -1)))
+    {
+        eerd_safe = 0;
+
+        data = e1000_read_uwire(device, offset);
+        if(data == ((uint32_t) -1))
+        {
+            printf("e1000: couldn't read eeprom via EERD or uwire!");
+            return 0;
+        }
+    }
+
+    return (uint16_t) (data & 0xFFFF);
 }
 
 static void reset_nic(struct e1000_device* netcard)
@@ -106,6 +302,9 @@ static void reset_nic(struct e1000_device* netcard)
     reg_outl(netcard, REG_RECV_ADDR_LIST + 4,
         ((mac >> 32) & 0xFFFF) | RAH_VALID);
 
+    netcard->net.mac = mac;
+    printf("e1000: MAC-Adresse: %012llx\n", (uint64_t) netcard->net.mac);
+
     // Rx-Deskriptoren aufsetzen
     for (i = 0; i < RX_BUFFER_NUM; i++) {
         netcard->rx_desc[i].length = RX_BUFFER_SIZE;
@@ -122,10 +321,6 @@ static void reset_nic(struct e1000_device* netcard)
 
     netcard->tx_cur_buffer = 0;
     netcard->rx_cur_buffer = 0;
-
-    // Interrupts aktivieren
-    reg_outl(netcard, REG_INTR_MASK_CLR, 0xFFFF);
-    reg_outl(netcard, REG_INTR_MASK, 0xFFFF);
 
     // Rx/Tx aktivieren
     reg_outl(netcard, REG_RX_CTL, RCTL_ENABLE | RCTL_BROADCAST);
@@ -153,7 +348,7 @@ struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
     struct e1000_device* netcard;
     struct cdi_mem_area* buf;
 
-    if (!((pci->vendor_id == 0x8086) && (pci->device_id == 0x100e))) {
+    if (!((pci->vendor_id == 0x8086) && ((pci->device_id == 0x100e) || (pci->device_id == 0x100f)))) {
         return NULL;
     }
 
@@ -191,10 +386,11 @@ struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
     printf("e1000: Fuehre Reset der Karte durch\n");
     reset_nic(netcard);
 
-    netcard->net.mac = get_mac_address(netcard);
-    printf("e1000: MAC-Adresse: %012llx\n", (uint64_t) netcard->net.mac);
-
     cdi_net_device_init(&netcard->net);
+
+    // Interrupts aktivieren
+    reg_outl(netcard, REG_INTR_MASK_CLR, 0xFFFF);
+    reg_outl(netcard, REG_INTR_MASK, 0xFFFF);
 
     return &netcard->net.dev;
 }
