@@ -342,16 +342,34 @@ static uint64_t get_mac_address(struct e1000_device* device)
     return mac;
 }
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+
+static struct {
+    uint16_t vendor_id;
+    uint16_t device_id;
+} pci_id_list[] = {
+    { 0x8086, 0x1004 },
+    { 0x8086, 0x100f },
+    { 0x8086, 0x100e },
+};
+
 struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
 {
     struct cdi_pci_device* pci = (struct cdi_pci_device*) bus_data;
     struct e1000_device* netcard;
     struct cdi_mem_area* buf;
+    int i;
 
-    if (!((pci->vendor_id == 0x8086) && ((pci->device_id == 0x100e) || (pci->device_id == 0x100f)))) {
-        return NULL;
+    for (i = 0; i < ARRAY_SIZE(pci_id_list); i++) {
+        if (pci->vendor_id == pci_id_list[i].vendor_id
+            && pci->device_id == pci_id_list[i].device_id)
+        {
+            goto found;
+        }
     }
+    return NULL;
 
+found:
     buf = cdi_mem_alloc(sizeof(*netcard),
         CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G | 2);
     if (buf == NULL) {
@@ -371,7 +389,6 @@ struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
 
     cdi_list_t reslist = pci->resources;
     struct cdi_pci_resource* res;
-    int i;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
         if (res->type == CDI_PCI_MEMORY) {
             struct cdi_mem_area* mmio = cdi_mem_map(res->start, res->length);
