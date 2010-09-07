@@ -1,6 +1,77 @@
 /**
  * \mainpage
+ * \german
+ * Die CDI-Dokumentation ist auch auf <a target="_top"
+ * href="http://lpt.tyndur.org/cdi/english/">englisch</a> verfügbar.<br>
+ * The CDI documentation is also available in <a target="_top"
+ * href="http://lpt.tyndur.org/cdi/english/">English</a>.
+ *
+ * \section main_introduction Einführung
+ * Das Common Driver Interface (oder kurz CDI) ist ein Standardinterface,
+ * das es ermöglicht, betriebssystemunabhängige Treiber zu schreiben.
+ *
+ * Dies funktioniert mithilfe einer Bibliothek, die die Brücke zwischen
+ * Treiber und Betriebssystem bildet. CDI definiert die Datenstrukturen und
+ * Funktionsprotoypen dieser Bibliothek, während ihre Implementierung
+ * OS-spezifisch ist. CDI-komforme Treiber können ohne Änderungen gegen diese
+ * Bibliothek gebaut werden und stehen damit jedem Betriebssystem zur
+ * Verfügung, das CDI implementiert.
+ *
+ * Die folgenden Seiten seien zum Einstieg in die technischen Details
+ * empfohlen:
  * - \ref general_interface
+ * - \ref core "Das Modul Core"
+ *
+ * \section main_resources Ressourcen
+ * Der Quellcode der Treiber und die Headerdatei des Interfaces können aus dem
+ * git-Repository heruntergeladen werden:
+ * - http://git.tyndur.org/?p=cdi.git;a=tree
+ * - git://git.tyndur.org/cdi.git
+ *
+ * Für CDI existiert eine Mailingliste, auf der die Weiterentwicklung
+ * diskutiert wird. Patches können ebenfalls an diese Mailingliste gesendet
+ * werden. Für die Mailingliste bitte bevorzugt Englisch verwenden.
+ * - cdi-devel@tyndur.org
+ * - http://list.tyndur.org/cgi-bin/mailman/listinfo/cdi-devel
+ *
+ * Auch im IRC sind CDI-Entwickler und -Benutzer vertreten:
+ * - \#tyndur auf irc.euirc.net
+ * \endgerman
+ * \english
+ * Die CDI-Dokumentation ist auch auf <a target="_top"
+ * href="http://lpt.tyndur.org/cdi/">deutsch</a> verfügbar.<br>
+ * The CDI documentation is also available in <a target="_top"
+ * href="http://lpt.tyndur.org/cdi/">German</a>.
+ *
+ * \section main_introduction Introduction
+ * The Common Driver Interface (or CDI) is a standard interface that allows to
+ * write OS independent drivers.
+ *
+ * To achieve this it employs a library that works as a bridge between
+ * drivers and the OS. CDI defines things like data structures and function
+ * prototypes of this library, whereas its implementation is OS specific.
+ * Drivers conforming to the CDI can be built against this library without any
+ * changes, so they can be used in any operating system implementing CDI.
+ *
+ * The following pages are recommended for an introduction into the technical
+ * details:
+ * - \ref general_interface
+ * - \ref core "The module Core"
+ *
+ * \section main_resources Resources
+ * The source code of drivers and the header files of the interface can be
+ * downloaded from the git repository:
+ * - http://git.tyndur.org/?p=cdi.git;a=tree
+ * - git://git.tyndur.org/cdi.git
+ *
+ * For CDI there is a mailing list on which the further development is
+ * discussed. It's also the right place to send patches to.
+ * - cdi-devel@tyndur.org
+ * - http://list.tyndur.org/cgi-bin/mailman/listinfo/cdi-devel
+ *
+ * You'll also find CDI developers and users on IRC:
+ * - \#tyndur on irc.euirc.net
+ * \endenglish
  */
 
 /**
