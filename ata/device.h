@@ -116,7 +116,7 @@
 
 // Bits im Busmaster Command Register
 #define BMR_CMD_START           (1 << 0)
-#define BMR_CMD_WRITE           (1 << 3)
+#define BMR_CMD_READ            (1 << 3)
 
 // Bits im Busmaster Status Register
 #define BMR_STATUS_ERROR        (1 << 1)

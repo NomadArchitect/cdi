@@ -461,10 +461,11 @@ static int ata_protocol_dma(struct ata_request* request)
     // aus, dass es notwendig ist.
     cdi_inb(ctrl->port_bmr_base + BMR_COMMAND);
     cdi_inb(ctrl->port_bmr_base + BMR_STATUS);
+
     // Busmastering starten
-    if (request->flags.direction != READ) {
-        cdi_outb(ctrl->port_bmr_base + BMR_COMMAND, BMR_CMD_START |
-            BMR_CMD_WRITE);
+    if (request->flags.direction == READ) {
+        cdi_outb(ctrl->port_bmr_base + BMR_COMMAND,
+            BMR_CMD_START | BMR_CMD_READ);
     } else {
         cdi_outb(ctrl->port_bmr_base + BMR_COMMAND, BMR_CMD_START);
     }
