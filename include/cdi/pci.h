@@ -17,6 +17,10 @@
 #include <cdi-osdep.h>
 #include <cdi/lists.h>
 
+#define PCI_CLASS_MULTIMEDIA      0x04
+#define PCI_SUBCLASS_MM_HDAUDIO   0x03
+
+
 /**
  * \german
  * Beschreibt ein PCI-Gerät
