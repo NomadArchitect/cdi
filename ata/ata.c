@@ -121,6 +121,7 @@ static int ata_drv_rw_sectors(struct ata_device* dev, int direction,
     void* current_buffer = buffer;
     uint64_t lba = start;
     int max_count;
+    int again = 2;
     // Anzahl der Sektoren die noch uebrig sind
     size_t count_left = count;
 
@@ -192,6 +193,10 @@ static int ata_drv_rw_sectors(struct ata_device* dev, int direction,
         
         // Request ausfuehren
         if (!ata_request(&request)) {
+            if (again) {
+                again--;
+                continue;
+            }
             result = 0;
             break;
         }
@@ -200,6 +205,7 @@ static int ata_drv_rw_sectors(struct ata_device* dev, int direction,
         current_buffer += current_count * ATA_SECTOR_SIZE;
         count_left -= current_count;
         lba += current_count;
+        again = 2;
     }
 
     return result;
