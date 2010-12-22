@@ -274,7 +274,7 @@ void ata_init_controller(struct ata_controller* controller)
         controller->prdt_phys = buf->paddr.items[0].start;
 
         buf = cdi_mem_alloc(ATA_DMA_MAXSIZE,
-            CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G);
+            CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G | 16);
         controller->dma_buf_virt = buf->vaddr;
         controller->dma_buf_phys = buf->paddr.items[0].start;
 
