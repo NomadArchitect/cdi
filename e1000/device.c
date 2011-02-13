@@ -323,7 +323,8 @@ static void reset_nic(struct e1000_device* netcard)
     netcard->rx_cur_buffer = 0;
 
     // Rx/Tx aktivieren
-    reg_outl(netcard, REG_RX_CTL, RCTL_ENABLE | RCTL_BROADCAST);
+    reg_outl(netcard, REG_RX_CTL, RCTL_ENABLE | RCTL_BROADCAST
+        | RCTL_2K_BUFSIZE);
     reg_outl(netcard, REG_TX_CTL, TCTL_ENABLE | TCTL_PADDING
         | TCTL_COLL_TSH | TCTL_COLL_DIST);
 }

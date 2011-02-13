@@ -83,6 +83,7 @@ enum {
 enum {
     RCTL_ENABLE     = (1 <<  1),
     RCTL_BROADCAST  = (1 << 15), /* BAM */
+    RCTL_2K_BUFSIZE = (0 << 16), /* BSIZE */
 };
 
 enum {
@@ -127,7 +128,7 @@ enum {
 #define TX_BUFFER_SIZE  2048
 //#define TX_BUFFER_NUM   64
 
-#define RX_BUFFER_SIZE  1536
+#define RX_BUFFER_SIZE  2048
 //#define RX_BUFFER_NUM   64
 
 // Die Anzahl von Deskriptoren muss jeweils ein vielfaches von 8 sein
