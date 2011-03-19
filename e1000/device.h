@@ -164,11 +164,11 @@ struct e1000_device {
 
     uintptr_t                   phys;
 
-    struct e1000_tx_descriptor  tx_desc[TX_BUFFER_NUM];
+    struct e1000_tx_descriptor  tx_desc[TX_BUFFER_NUM] __attribute__((aligned(16)));
     uint8_t                     tx_buffer[TX_BUFFER_NUM * TX_BUFFER_SIZE];
     uint32_t                    tx_cur_buffer;
 
-    struct e1000_rx_descriptor  rx_desc[RX_BUFFER_NUM];
+    struct e1000_rx_descriptor  rx_desc[RX_BUFFER_NUM] __attribute__((aligned(16)));
     uint8_t                     rx_buffer[RX_BUFFER_NUM * RX_BUFFER_SIZE];
     uint32_t                    rx_cur_buffer;
 

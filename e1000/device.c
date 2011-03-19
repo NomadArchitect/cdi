@@ -277,6 +277,7 @@ static void reset_nic(struct e1000_device* netcard)
     // Rx/Tx-Ring initialisieren
     reg_outl(netcard, REG_RXDESC_ADDR_HI, 0);
     reg_outl(netcard, REG_RXDESC_ADDR_LO, PHYS(netcard, rx_desc[0]));
+    printf("e1000: RX descriptors at %x\n", PHYS(netcard, rx_desc[0]));
     reg_outl(netcard, REG_RXDESC_LEN,
         RX_BUFFER_NUM * sizeof(struct e1000_rx_descriptor));
     reg_outl(netcard, REG_RXDESC_HEAD, 0);
@@ -308,13 +309,12 @@ static void reset_nic(struct e1000_device* netcard)
     // Rx-Deskriptoren aufsetzen
     for (i = 0; i < RX_BUFFER_NUM; i++) {
         netcard->rx_desc[i].length = RX_BUFFER_SIZE;
-        netcard->rx_desc[i].buffer =
-            PHYS(netcard, rx_buffer[i * RX_BUFFER_SIZE]);
+        netcard->rx_desc[i].buffer = PHYS(netcard, rx_buffer[i * RX_BUFFER_SIZE]);
 
 #ifdef DEBUG
         printf("e1000: [%d] Rx: Buffer @ phys %08x, Desc @ phys %08x\n",
             i,
-            netcard->rx_desc[i].buffer, 
+            netcard->rx_desc[i].buffer,
             PHYS(netcard, rx_desc[i]));
 #endif
     }
