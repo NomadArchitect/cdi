@@ -68,7 +68,7 @@ static int floppy_driver_init(void)
 
         // Geraet nur eintragen wenn es existiert
         if (floppy_device_probe(device) != 0) {
-            floppy_init_device((struct cdi_device*) device);
+            device->dev.dev.driver = &floppy_driver.drv;
             cdi_list_push(floppy_driver.drv.devices, device);
         } else {
             free(device);
@@ -84,6 +84,10 @@ static int floppy_driver_init(void)
     // Treiber gleich wieder beendet werden
     if (floppy_init_controller(&floppy_controller) != 0) {
         return -1;
+    }
+
+    for (i = 0; (device = cdi_list_get(floppy_driver.drv.devices, i)); i++) {
+        floppy_init_device(&device->dev.dev);
     }
 
     return 0;
