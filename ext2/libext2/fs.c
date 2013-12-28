@@ -66,11 +66,18 @@ static int fs_check_fast(ext2_fs_t* fs)
 int ext2_fs_mount(ext2_fs_t* fs)
 {
     fs->sb = malloc(sizeof(ext2_superblock_t));
+    fs->boot_sectors = malloc(1024);
+
+    if (!fs->sb || !fs->boot_sectors) {
+        goto fail;
+    }
 
     if (!ext2_sb_read(fs, fs->sb)) {
-        free(fs->sb);
-        fs->sb = NULL;
-        return 0;
+        goto fail;
+    }
+
+    if (!fs->dev_read(0, 1024, fs->boot_sectors, fs->dev_private)) {
+        goto fail;
     }
 
     fs->cache_handle = fs->cache_create(fs, ext2_sb_blocksize(fs->sb));
@@ -88,6 +95,12 @@ int ext2_fs_mount(ext2_fs_t* fs)
     }
 #endif
     return 1;
+
+fail:
+    free(fs->boot_sectors);
+    free(fs->sb);
+    fs->sb = NULL;
+    return 0;
 }
 
 int ext2_fs_unmount(ext2_fs_t* fs)
@@ -97,6 +110,7 @@ int ext2_fs_unmount(ext2_fs_t* fs)
         return 0;
     }
 
+    free(fs->boot_sectors);
     free(fs->sb);
     fs->cache_destroy(fs->cache_handle);
     fs->sb = fs->cache_handle = NULL;
@@ -107,4 +121,3 @@ void ext2_fs_sync(ext2_fs_t* fs)
 {
     fs->cache_sync(fs->cache_handle);
 }
-

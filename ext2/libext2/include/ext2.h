@@ -158,6 +158,9 @@ typedef struct ext2_fs {
 
     /// Letzte allozierte Blocknummer
     uint64_t block_prev_alloc;
+
+    /// Der Inhalt der ersten 1024 Bytes auf dem Gerät
+    void* boot_sectors;
 } ext2_fs_t;
 
 /**

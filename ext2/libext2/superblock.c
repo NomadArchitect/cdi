@@ -130,8 +130,18 @@ int ext2_sb_update(ext2_fs_t* fs, ext2_superblock_t* sb)
             blocks_per_group) * block_size;
 
         block = fs->cache_block(fs->cache_handle, start / block_size, 1);
-        memcpy(block->data + (start % block_size), sb,
-            sizeof(ext2_superblock_t));
+        if (i == 0 && block_size > 1024) {
+            memcpy(block->data, fs->boot_sectors, 1024);
+            memcpy(block->data + 1024, sb, sizeof(ext2_superblock_t));
+            memset(block->data + 1024 + sizeof(ext2_superblock_t), 0,
+                   block_size - 1024 - sizeof(ext2_superblock_t));
+        } else if (i == 0) {
+            memcpy(block->data, sb, sizeof(ext2_superblock_t));
+        } else {
+            memcpy(block->data, sb, sizeof(ext2_superblock_t));
+            memset(block->data + sizeof(ext2_superblock_t), 0,
+                   block_size - sizeof(ext2_superblock_t));
+        }
         fs->cache_block_free(block, 1);
     }
 
