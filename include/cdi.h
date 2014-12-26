@@ -118,6 +118,7 @@ typedef enum {
     CDI_USB             = 8,
     CDI_FILESYSTEM      = 9,
     CDI_PCI             = 10,
+    CDI_AHCI            = 11,
 } cdi_device_type_t;
 
 struct cdi_driver;
