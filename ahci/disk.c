@@ -33,6 +33,7 @@
 #include "ahci.h"
 
 #define DISK_DRIVER_NAME "ahci-disk"
+#define ATAPI_DRIVER_NAME "ahci-cd"
 
 /**
  * This function is called for any requests (even succeeding ones). Its job is
@@ -72,7 +73,7 @@ static int ahci_request_handle_error(struct ahci_disk* disk, uint32_t is)
 }
 
 static int ahci_request(struct ahci_disk* disk, int cmd, uint64_t lba,
-                        uint64_t bytes, struct cdi_mem_area* buf)
+                        uint64_t bytes, struct cdi_mem_area* buf, void* acmd)
 {
     struct ahci_port *port = &disk->ahci->port[disk->port];
     uint32_t flags, device;
@@ -106,9 +107,16 @@ static int ahci_request(struct ahci_disk* disk, int cmd, uint64_t lba,
         .dbc        = bytes - 1,
     };
 
+    if (acmd != NULL) {
+        memcpy(port->cmd_table->acmd, acmd, 16);
+    }
+
     flags = CMD_HEADER_F_FIS_LENGTH_5_DW;
     if (cmd == ATA_CMD_WRITE_DMA || cmd == ATA_CMD_WRITE_DMA_EXT) {
         flags |= CMD_HEADER_F_WRITE;
+    }
+    if (cmd == ATA_CMD_PACKET) {
+        flags |= CMD_HEADER_F_ATAPI;
     }
 
     port->cmd_list[0] = (struct cmd_header) {
@@ -147,7 +155,7 @@ static int ahci_identify(struct ahci_disk* disk)
         return -1;
     }
 
-    ret = ahci_request(disk, ATA_CMD_IDENTIFY_DEVICE, 0, 512, buf);
+    ret = ahci_request(disk, ATA_CMD_IDENTIFY_DEVICE, 0, 512, buf, NULL);
     if (ret == 0) {
         words = buf->vaddr;
         disk->lba48 = !!(words[86] & (1 << 10));
@@ -186,7 +194,7 @@ static int ahci_rw_blocks(struct cdi_storage_device* device, uint64_t start,
         memcpy(buf->vaddr, buffer, bs * count);
     }
 
-    ret = ahci_request(disk, cmd, start, bs * count, buf);
+    ret = ahci_request(disk, cmd, start, bs * count, buf, NULL);
 
     if (ret == 0 && read) {
         memcpy(buffer, buf->vaddr, bs * count);
@@ -348,6 +356,88 @@ static int ahci_disk_driver_destroy(void)
     return 0;
 }
 
+static struct cdi_device* atapi_init_device(struct cdi_bus_data* bus_data)
+{
+    struct ahci_bus_data* ahci_bus_data = (struct ahci_bus_data*) bus_data;
+    struct ahci_atapi* atapi;
+    struct ahci_disk* disk;
+
+    if (bus_data->bus_type != CDI_AHCI) {
+        return NULL;
+    }
+
+    atapi = calloc(1, sizeof(*atapi));
+    disk = &atapi->disk;
+    disk->ahci = ahci_bus_data->ahci;
+    disk->port = ahci_bus_data->port;
+    disk->storage.block_size = 2048;
+
+    if (ahci_disk_init(disk) < 0) {
+        goto fail;
+    }
+
+    atapi->scsi.type = CDI_STORAGE;
+    atapi->scsi.dev.driver = &ahci_atapi_driver.drv;
+    asprintf((char**) &atapi->scsi.dev.name, "atapi%d", disk->port);
+
+    cdi_scsi_device_init(&atapi->scsi);
+
+    return &atapi->scsi.dev;
+
+fail:
+    free(atapi);
+    return NULL;
+}
+
+static void atapi_remove_device(struct cdi_device* device)
+{
+    /* TODO */
+}
+
+/**
+ * Initialises the AHCI ATAPI driver
+ */
+static int ahci_atapi_driver_init(void)
+{
+    cdi_scsi_driver_init(&ahci_atapi_driver);
+    return 0;
+}
+
+/**
+ * Deinitialises the AHCI ATAPI driver
+ */
+static int ahci_atapi_driver_destroy(void)
+{
+    cdi_scsi_driver_destroy(&ahci_atapi_driver);
+
+    /* TODO Deinitialise all devices */
+
+    return 0;
+}
+
+int ahci_scsi_request(struct cdi_scsi_device* scsi,
+                      struct cdi_scsi_packet* packet)
+{
+    struct ahci_atapi* atapi = (struct ahci_atapi*) scsi;
+    struct ahci_disk* disk = &atapi->disk;
+    struct cdi_mem_area* buf;
+    int ret;
+
+    buf = cdi_mem_alloc(packet->bufsize,
+                        CDI_MEM_PHYS_CONTIGUOUS | CDI_MEM_DMA_4G | 1);
+    if (buf == NULL) {
+        return -1;
+    }
+
+    memcpy(buf->vaddr, packet->buffer, packet->bufsize);
+    ret = ahci_request(disk, ATA_CMD_PACKET, 0, packet->bufsize, buf,
+                       packet->command);
+    memcpy(packet->buffer, buf->vaddr, packet->bufsize);
+
+    cdi_mem_free(buf);
+    return ret;
+}
+
 
 struct cdi_storage_driver ahci_disk_driver = {
     .drv = {
@@ -363,4 +453,18 @@ struct cdi_storage_driver ahci_disk_driver = {
     .write_blocks       = ahci_write_blocks,
 };
 
+struct cdi_scsi_driver ahci_atapi_driver = {
+    .drv = {
+        .type           = CDI_SCSI,
+        .bus            = CDI_AHCI,
+        .name           = ATAPI_DRIVER_NAME,
+        .init           = ahci_atapi_driver_init,
+        .destroy        = ahci_atapi_driver_destroy,
+        .init_device    = atapi_init_device,
+        .remove_device  = atapi_remove_device,
+    },
+    .request            = ahci_scsi_request,
+};
+
 CDI_DRIVER(DISK_DRIVER_NAME, ahci_disk_driver)
+CDI_DRIVER(ATAPI_DRIVER_NAME, ahci_atapi_driver)

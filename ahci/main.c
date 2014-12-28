@@ -120,6 +120,19 @@ static int ahci_init_hardware(struct ahci_device* ahci)
                                                 &ahci_disk_driver.drv);
                 break;
             }
+            case SATA_SIG_QEMU_CD:
+            case SATA_SIG_PACKET: {
+                struct ahci_bus_data bus_data = {
+                    .cdi = {
+                        .bus_type   = CDI_AHCI,
+                    },
+                    .ahci = ahci,
+                    .port = port,
+                };
+                cdi_provide_device_internal_drv(&bus_data.cdi,
+                                                &ahci_atapi_driver.drv);
+                break;
+            }
             default:
                 printf("ahci: Can't handle device with signature %x", sig);
                 break;

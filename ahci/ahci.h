@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 #include "cdi/storage.h"
+#include "cdi/scsi.h"
 #include "cdi/mem.h"
 
 #define BIT(x) (1 << x)
@@ -45,6 +46,7 @@ enum {
     ATA_CMD_READ_DMA_EXT        = 0x25,
     ATA_CMD_WRITE_DMA           = 0xca,
     ATA_CMD_WRITE_DMA_EXT       = 0x35,
+    ATA_CMD_PACKET              = 0xa0,
     ATA_CMD_IDENTIFY_DEVICE     = 0xec,
 };
 
@@ -119,6 +121,7 @@ enum {
 enum {
     SATA_SIG_DISK       = 0x00000101,
     SATA_SIG_PACKET     = 0xeb140101,
+    SATA_SIG_QEMU_CD    = 0xeb140000, /* Broken value in qemu < 2.2 */
 };
 
 struct ahci_port {
@@ -160,6 +163,11 @@ struct ahci_disk {
     int                         port;
 
     bool                        lba48;
+};
+
+struct ahci_atapi {
+    struct cdi_scsi_device      scsi;
+    struct ahci_disk            disk;
 };
 
 enum {
@@ -276,6 +284,7 @@ struct ahci_prd {
 enum {
     CMD_HEADER_F_FIS_LENGTH_5_DW    = (5 << 0),
     CMD_HEADER_F_WRITE              = (1 << 6),
+    CMD_HEADER_F_ATAPI              = (1 << 5),
 };
 
 struct cmd_header {
@@ -331,6 +340,7 @@ void ahci_port_comreset(struct ahci_device* ahci, int port);
 
 /* ahci/disk.c */
 extern struct cdi_storage_driver ahci_disk_driver;
+extern struct cdi_scsi_driver ahci_atapi_driver;
 
 
 #endif
