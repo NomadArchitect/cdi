@@ -101,6 +101,7 @@
 #define _CDI_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include <cdi-osdep.h>
 #include <cdi/lists.h>
@@ -193,6 +194,17 @@ struct cdi_driver {
     cdi_device_type_t   type;
     cdi_device_type_t   bus;
     const char*         name;
+
+    /**
+     * \german
+     * Wird von der CDI-Implementierung auf true gesetzt, sobald .init()
+     * aufgerufen wurde.
+     * \endgerman
+     * \english
+     * Set by the CDI implementation to true as soon as .init() was called.
+     * \endenglish
+     */
+    bool                initialised;
 
     /**
      * \german
