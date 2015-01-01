@@ -286,10 +286,10 @@ static void floppy_drive_specify(struct floppy_device* device)
     // Der hier einzustellende Wert ist genau wie die vorderen 2 abhaengig von
     // der Datenrate.
     // Aus dem OSdev-Wiki stammt die folgende Formel fuer die Berechnung:
-    //      step_rate_time = 16 - seconds * data_rate / 500000
+    //      SRT_value = 16 - (milliseconds * data_rate / 500000)
     // Fuer die Zeit wird 8ms empfohlen.
-    step_rate_time = 16 - 8 * FLOPPY_DATA_RATE(device) / 500000 / 1000;
-    
+    step_rate_time = 16 - 8 * FLOPPY_DATA_RATE(device) / 500 / 1000;
+
     // Befehl und Argumente Senden
     // Byte 0:  FLOPPY_CMD_SPECIFY
     // Byte 1:  Bits 0 - 3: Head unload time
