@@ -141,8 +141,11 @@ int atapi_request(struct cdi_scsi_device* scsi,struct cdi_scsi_packet* packet)
 
         // Lesen bzw. Schreiben der Daten
         // TODO: DMA
-        if (packet->direction==CDI_SCSI_READ) ata_protocol_pio_in(&rw_request);
-        else if (packet->direction==CDI_SCSI_WRITE) ata_protocol_pio_in(&rw_request);
+        if (packet->direction == CDI_SCSI_READ) {
+            ata_protocol_pio_in(&rw_request);
+        } else if (packet->direction == CDI_SCSI_WRITE) {
+            ata_protocol_pio_out(&rw_request);
+        }
 
         // Bei Fehler den Sense Key zurueckgeben
         status = ata_reg_inb(dev->controller, REG_STATUS);
