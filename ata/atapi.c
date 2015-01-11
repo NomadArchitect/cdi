@@ -127,12 +127,17 @@ int atapi_request(struct cdi_scsi_device* scsi,struct cdi_scsi_packet* packet)
                 .lba = 1,
                 .ata = 1
             },
-            .block_count = 1,
-            .block_size = packet->bufsize,
+            .block_count = packet->bufsize / 2048,
+            .block_size = 2048,
             .blocks_done = 0,
             .buffer = packet->buffer,
             .error = 0
         };
+
+        if (packet->bufsize < 2048) {
+            rw_request.block_count = 1;
+            rw_request.block_size = packet->bufsize;
+        }
 
         // Lesen bzw. Schreiben der Daten
         // TODO: DMA
