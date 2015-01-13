@@ -87,6 +87,7 @@ int iso9660_fs_res_destroy(struct iso9660_fs_res *res) {
     for (i=0;(child = cdi_list_get(res->res.children,i));i++) iso9660_fs_res_destroy(child);
     cdi_list_destroy(res->res.children);
   }
+  free(res);
   return 0;
 }
 
