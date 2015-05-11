@@ -87,6 +87,93 @@ void cdi_sleep_ms(uint32_t ms);
 
 /**
  * \german
+ * Gibt die Anzahl der vergangenen Millisekunden seit einem
+ * implementationsspezifischen Zeitpunkt zurück, mindestens aber seit dem ersten
+ * Aufruf dieser Funktion. Die Auflösung ist ebenfalls
+ * implementationsspezifisch. Der Rückgabewert muss monoton wachsen (bis er
+ * wegen der Begrenzung des Rückgabetyps überläuft).
+ * \endgerman
+ * \english
+ * Returns the number of milliseconds elapsed since an implementation specific
+ * point in time, not later than the first call of this function. The resolution
+ * too is implementation specific. The return value must grow monotonically
+ * (until it overflows due to the return type's limit).
+ * \endenglish
+ * \thuringiansaxonian
+ * Dud zurückgehm, wie lange (in Millisegundn) ä imblämändazschjounsspäzifschr
+ * Zeitbunkt nu schon her is. Diesr Zeitbunkt muss oor vorm erstn Uffruf diesr
+ * Fungzschjoun lieschn. De Ufflösung is ooch imblämändazschjounsspäzifsch. Dr
+ * Rückgabewert muss monodohn wachsn (bissr wäschn dä Begrenzung vondn
+ * Rückgabedühp übrloofn dud).
+ * \endthuringiansaxonian
+ * \french
+ * Rend le nombre des millisecondes qui ont passé depuis un instant défini par
+ * implémentation, au plus tard depuis le premier appel de cette fonction. La
+ * résolution aussi est défini par implémentation. La valeur rendue doit grandir
+ * monotonement (jusqu'elle dépasse par la limitation du type rendu).
+ * \endfrench
+ * \japanese
+ * 実現の特有な時点からミリ秒の総数を返す。その時点はこのファンクションを
+ * 呼び出すことの後だめ。分解能も実現の特有。返される数値は単調に弥増す
+ * （返されるタイプの限界因ってオーバーフローまで）。
+ * \endjapanese
+ */
+uint64_t cdi_elapsed_ms(void);
+
+/**
+ * \german
+ * Wartet, bis die Bedingung @cond erfüllt ist oder mehr als @timeout
+ * Millisekunden vergangen sind.
+ * \endgerman
+ * \english
+ * Waits until the condition @cond yields true or more than @timeout
+ * milliseconds have passed.
+ * \endenglish
+ * \thuringiansaxonian
+ * Dud wortn, bisde Bedingung @cond erfüllt is oodr über @timeout Millisekundn
+ * vorbei sin.
+ * \endthuringiansaxonian
+ * \french
+ * Attend que la condition @cond est satisfaite ou plus que @timeout
+ * millisecondes sont passées.
+ * \endgerman
+ * \japanese
+ * 条件@condの該当までか@timeoutミリ秒間待つ。
+ * \endjapanese
+ */
+#define CDI_CONDITION_WAIT(cond, timeout) \
+    do { \
+        uint64_t start = cdi_elapsed_ms(); \
+        while (!(cond) && cdi_elapsed_ms() - start < timeout); \
+    } while (0)
+
+/**
+ * \german
+ * CDI_CONDITION_WAIT() mit cdi_sleep_ms(@sleep) zwischen jeder Auswertung.
+ * \endgerman
+ * \english
+ * CDI_CONDITION_WAIT() with cdi_sleep_ms(@sleep) between each evaluation.
+ * \endenglish
+ * \thuringiansaxonian
+ * CDI_CONDITION_WAIT() mittä cdi_sleep_ms(@sleep) zwischn jädr Auswärdungn.
+ * \endthuringiansaxonian
+ * \french
+ * CDI_CONDITION_WAIT() avec cdi_sleep_ms(@sleep) entre toutes les évaluations.
+ * \endfrench
+ * \japanese
+ * 全ての検査の間にcdi_sleep_ms(@sleep)を呼び出すCDI_CONDITION_WAIT()。
+ * \endjapanese
+ */
+#define CDI_CONDITION_WAIT_SLEEP(cond, timeout, sleep) \
+    do { \
+        uint64_t start = cdi_elapsed_ms(); \
+        while (!(cond) && cdi_elapsed_ms() - start < timeout) { \
+            cdi_sleep_ms(sleep); \
+        } \
+    } while (0)
+
+/**
+ * \german
  * Castet @object (muss ein Pointer sein) zu einem Pointer auf ein Objekt des
  * Typs @to, welcher eine Unterklasse vom Typ von @object sein muss. @field ist
  * das Feld von @to, das @object enthält.
