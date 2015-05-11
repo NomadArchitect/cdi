@@ -9,7 +9,9 @@ run_command = $(if $(V),$(2),@echo $(1);$(2))
 all: $(OBJS)
 
 %.o: %.c
-	$(call run_command,"CC $^",$(CC) $(CFLAGS) $(addprefix -I,$(addprefix $(dir $^),. include)) -c -o $@ $^)
+	$(call run_command,"CC $^",$(CC) $(CFLAGS) \
+		$(if $(shell if [ -f $(dir $^)/Makefile.conf ]; then echo .; fi),$(shell cd $(dir $^); echo -e "$$(< Makefile.conf)\necho \$$CC_FLAGS" | sh -s),) \
+		$(addprefix -I,$(addprefix $(dir $^),. include)) -c -o $@ $^)
 
 clean:
 	-rm $(OBJS) 2> /dev/null
