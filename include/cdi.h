@@ -178,9 +178,6 @@ struct cdi_device {
      * \endenglish
      */
     struct cdi_bus_data*    bus_data;
-
-    // tyndur-spezifisch
-    void*               backdev;
 };
 
 /**
