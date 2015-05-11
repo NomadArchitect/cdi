@@ -24,6 +24,9 @@
 
 /// SCSI-Paket
 struct cdi_scsi_packet {
+    /// LUN to address
+    int lun;
+
     /// Buffer zum Senden oder Empfangen von Daten
     void *buffer;
 
@@ -51,6 +54,9 @@ struct cdi_scsi_device {
 
     /// Geraetetyp, der ueber SCSI angesteuert wird
     cdi_device_type_t type;
+
+    /// Number of LUNs
+    int lun_count;
 };
 
 /// SCSI-Treiber
