@@ -57,6 +57,7 @@ struct ext2_fs_res {
 
 
 // CDI-IF
+int ext2_fs_probe(struct cdi_fs_filesystem* cdi_fs, char** volname);
 int ext2_fs_init(struct cdi_fs_filesystem* fs);
 int ext2_fs_destroy(struct cdi_fs_filesystem* fs);
 

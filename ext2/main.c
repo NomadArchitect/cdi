@@ -72,6 +72,7 @@ static struct cdi_fs_driver ext2_driver = {
         .init       = ext2_driver_init,
         .destroy    = ext2_driver_destroy,
     },
+    .fs_probe       = ext2_fs_probe,
     .fs_init        = ext2_fs_init,
     .fs_destroy     = ext2_fs_destroy,
 };

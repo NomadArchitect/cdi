@@ -51,6 +51,28 @@ static int dev_write(uint64_t start, size_t size, const void* data, void* prv)
     return cdi_fs_data_write(fs, start, size, data);
 }
 
+int ext2_fs_probe(struct cdi_fs_filesystem* cdi_fs, char** volname)
+{
+    ext2_superblock_t sb;
+    int ret;
+
+    ext2_fs_t fs = {
+        .dev_read = dev_read,
+        .dev_private = cdi_fs,
+    };
+
+    ret = ext2_sb_read(&fs, &sb);
+    if (ret == 0) {
+        return 0;
+    }
+
+    *volname = malloc(sizeof(sb.volume_name) + 1);
+    memcpy(*volname, sb.volume_name, sizeof(sb.volume_name));
+    (*volname)[sizeof(sb.volume_name)] = '\0';
+
+    return 1;
+}
+
 int ext2_fs_init(struct cdi_fs_filesystem* cdi_fs)
 {
     struct ext2_fs_res* root_res;
