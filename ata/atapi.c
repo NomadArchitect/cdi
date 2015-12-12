@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "cdi.h"
 #include "cdi/storage.h"
@@ -92,6 +93,12 @@ void atapi_remove_device(struct cdi_device* device)
 
 int atapi_request(struct cdi_scsi_device* scsi,struct cdi_scsi_packet* packet)
 {
+    uint8_t atapi_request[12] = { 0 };
+    if (packet->cmdsize > 12) {
+        return -1;
+    }
+    memcpy(atapi_request, packet->command, packet->cmdsize);
+
     struct ata_device *dev = (struct ata_device*)scsi;
     struct ata_request request = {
         .dev = dev,
@@ -111,9 +118,9 @@ int atapi_request(struct cdi_scsi_device* scsi,struct cdi_scsi_packet* packet)
             }
         },
         .block_count = 1,
-        .block_size = packet->cmdsize,
+        .block_size = sizeof(atapi_request),
         .blocks_done = 0,
-        .buffer = packet->command,
+        .buffer = atapi_request,
         .error = 0
     };
 
