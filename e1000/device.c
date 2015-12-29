@@ -345,10 +345,7 @@ static uint64_t get_mac_address(struct e1000_device* device)
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
-static struct {
-    uint16_t vendor_id;
-    uint16_t device_id;
-} pci_id_list[] = {
+static struct e1000_model models[] = {
     { 0x8086, 0x1004 },
     { 0x8086, 0x100f },
     { 0x8086, 0x100e },
@@ -361,9 +358,9 @@ struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)
     struct cdi_mem_area* buf;
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(pci_id_list); i++) {
-        if (pci->vendor_id == pci_id_list[i].vendor_id
-            && pci->device_id == pci_id_list[i].device_id)
+    for (i = 0; i < ARRAY_SIZE(models); i++) {
+        if (pci->vendor_id == models[i].vendor_id
+            && pci->device_id == models[i].device_id)
         {
             goto found;
         }
@@ -380,6 +377,7 @@ found:
     netcard = buf->vaddr;
     memset(netcard, 0, sizeof(*netcard));
 
+    netcard->model = &models[i];
     netcard->phys = buf->paddr.items[0].start;
     netcard->net.dev.bus_data = (struct cdi_bus_data*) pci;
 

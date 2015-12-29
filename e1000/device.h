@@ -161,6 +161,11 @@ struct e1000_rx_descriptor {
 } __attribute__((packed)) __attribute__((aligned (4)));
 CDI_BUILD_BUG_ON((sizeof(struct e1000_rx_descriptor) * RX_BUFFER_NUM) % 128);
 
+struct e1000_model {
+    uint16_t vendor_id;
+    uint16_t device_id;
+};
+
 struct e1000_device {
     struct cdi_net_device       net;
 
@@ -176,6 +181,8 @@ struct e1000_device {
 
     void*                       mem_base;
     uint8_t                     revision;
+
+    struct e1000_model*         model;
 };
 
 struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data);
