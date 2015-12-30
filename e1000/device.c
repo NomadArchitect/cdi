@@ -213,32 +213,48 @@ static uint32_t e1000_read_uwire(struct e1000_device *device, uint16_t offset)
     return data;
 }
 
-static uint32_t e1000_read_eerd(struct e1000_device *device, uint16_t offset)
+static uint32_t do_read_eerd(struct e1000_device *device, uint16_t offset,
+                             uint32_t start_flag, uint32_t done_flag)
 {
     uint32_t eerd, i;
 
-    reg_outl(device, REG_EEPROM_READ, (offset << 8) | EERD_START);
+    reg_outl(device, REG_EEPROM_READ, (offset << 8) | start_flag);
     for(i = 0; i < 100; i++)
     {
         eerd = reg_inl(device, REG_EEPROM_READ);
-        if(eerd & EERD_DONE)
+        if (eerd & done_flag) {
             break;
+        }
         cdi_sleep_ms(1);
     }
 
-    if(eerd & EERD_DONE)
+    if (eerd & done_flag) {
         return (eerd >> 16) & 0xFFFF;
-    else
+    } else {
         return (uint32_t) -1;
+    }
 }
+
+static uint32_t e1000_read_eerd(struct e1000_device *device, uint16_t offset)
+{
+    return do_read_eerd(device, offset, EERD_E1000_START, EERD_E1000_DONE);
+}
+
+#if 0
+static uint32_t e1000e_read_eerd(struct e1000_device *device, uint16_t offset)
+{
+    return do_read_eerd(device, offset, EERD_E1000E_START, EERD_E1000E_DONE);
+}
+#endif
 
 static uint16_t e1000_eeprom_read(struct e1000_device* device, uint16_t offset)
 {
     static int eerd_safe = 1;
 
     uint32_t data = 0;
-    if(eerd_safe)
-        data = e1000_read_eerd(device, offset);
+    if (eerd_safe) {
+        data = device->model->eeprom_read(device, offset);
+    }
     if(!eerd_safe || (data == ((uint32_t) -1)))
     {
         eerd_safe = 0;
@@ -326,7 +342,7 @@ static void reset_nic(struct e1000_device* netcard)
     reg_outl(netcard, REG_RX_CTL, RCTL_ENABLE | RCTL_BROADCAST
         | RCTL_2K_BUFSIZE);
     reg_outl(netcard, REG_TX_CTL, TCTL_ENABLE | TCTL_PADDING
-        | TCTL_COLL_TSH | TCTL_COLL_DIST);
+        | TCTL_COLL_TSH | netcard->model->tctl_flags);
 }
 
 
@@ -346,9 +362,22 @@ static uint64_t get_mac_address(struct e1000_device* device)
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 static struct e1000_model models[] = {
-    { 0x8086, 0x1004 },
-    { 0x8086, 0x100f },
-    { 0x8086, 0x100e },
+    {
+        .vendor_id      = 0x8086,
+        .device_id      = 0x1004,
+        .tctl_flags     = TCTL_COLL_DIST_E1000,
+        .eeprom_read    = e1000_read_eerd,
+    }, {
+        .vendor_id      = 0x8086,
+        .device_id      = 0x100e,
+        .tctl_flags     = TCTL_COLL_DIST_E1000,
+        .eeprom_read    = e1000_read_eerd,
+    }, {
+        .vendor_id      = 0x8086,
+        .device_id      = 0x100f,
+        .tctl_flags     = TCTL_COLL_DIST_E1000,
+        .eeprom_read    = e1000_read_eerd,
+    }
 };
 
 struct cdi_device* e1000_init_device(struct cdi_bus_data* bus_data)

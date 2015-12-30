@@ -90,7 +90,9 @@ enum {
     TCTL_ENABLE     = (1 <<  1),
     TCTL_PADDING    = (1 <<  3),
     TCTL_COLL_TSH   = (0x0f <<  4), /* CT - Collision Threshold */
-    TCTL_COLL_DIST  = (0x40 << 12), /* COLD - Collision Distance */    
+
+    /* e1000 specific values */
+    TCTL_COLL_DIST_E1000    = (0x40 << 12), /* COLD - Collision Distance */
 };
 
 enum {
@@ -104,8 +106,11 @@ enum {
 
 #define RAH_VALID   (1 << 31) /* AV */
 
-#define EERD_START  (1 <<  0)
-#define EERD_DONE   (1 <<  4)
+#define EERD_E1000_START    (1 <<  0)
+#define EERD_E1000_DONE     (1 <<  4)
+
+#define EERD_E1000E_START   (1 <<  0)
+#define EERD_E1000E_DONE    (1 <<  1)
 
 /* EEPROM/Flash Control */
 #define E1000_EECD_SK        0x00000001 /* EEPROM Clock */
@@ -161,9 +166,14 @@ struct e1000_rx_descriptor {
 } __attribute__((packed)) __attribute__((aligned (4)));
 CDI_BUILD_BUG_ON((sizeof(struct e1000_rx_descriptor) * RX_BUFFER_NUM) % 128);
 
+struct e1000_device;
+
 struct e1000_model {
     uint16_t vendor_id;
     uint16_t device_id;
+
+    uint32_t tctl_flags;
+    uint32_t (*eeprom_read)(struct e1000_device *device, uint16_t offset);
 };
 
 struct e1000_device {
