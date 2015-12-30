@@ -88,7 +88,7 @@ enum {
 
 enum {
     TCTL_ENABLE     = (1 <<  1),
-    TCTL_PADDING    = (1 <<  2),
+    TCTL_PADDING    = (1 <<  3),
     TCTL_COLL_TSH   = (0x0f <<  4), /* CT - Collision Threshold */
     TCTL_COLL_DIST  = (0x40 << 12), /* COLD - Collision Distance */    
 };
