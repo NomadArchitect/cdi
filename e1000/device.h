@@ -81,6 +81,10 @@ enum {
 };
 
 enum {
+    STATUS_LINK_UP  = (1 <<  1), /* LU */
+};
+
+enum {
     RCTL_ENABLE     = (1 <<  1),
     RCTL_BROADCAST  = (1 << 15), /* BAM */
     RCTL_2K_BUFSIZE = (0 << 16), /* BSIZE */
@@ -101,6 +105,7 @@ enum {
 
 enum {
     ICR_TRANSMIT    = (1 <<  0),
+    ICR_LINK_CHANGE = (1 <<  2),
     ICR_RECEIVE     = (1 <<  7),
 };
 

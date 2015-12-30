@@ -508,6 +508,13 @@ found:
     printf("e1000: Fuehre Reset der Karte durch\n");
     reset_nic(netcard);
 
+    printf("e1000: Warte auf Link\n");
+    CDI_CONDITION_WAIT_SLEEP(reg_inl(netcard, REG_STATUS) & STATUS_LINK_UP,
+                             3000, 10);
+    if ((reg_inl(netcard, REG_STATUS) & STATUS_LINK_UP) == 0) {
+        printf("e1000: Kein Link\n");
+    }
+
     cdi_net_device_init(&netcard->net);
 
     // Interrupts aktivieren
@@ -634,6 +641,9 @@ static void e1000_handle_interrupt(struct cdi_device* device)
 
     } else if (icr & ICR_TRANSMIT) {
         // Nichts zu tun
+    } else if (icr & ICR_LINK_CHANGE) {
+        printf("e1000: Link %s\n",
+               reg_inl(netcard, REG_STATUS) & STATUS_LINK_UP ? "up" : "down");
     } else {
 #ifdef DEBUG
         printf("e1000: Unerwarteter Interrupt.\n");
