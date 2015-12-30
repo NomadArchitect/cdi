@@ -74,4 +74,33 @@ static inline uint32_t reg_inl(struct e1000_device* netcard, uint16_t reg)
     return *mmio;
 }
 
+
+/* Flash register access */
+
+static inline void flash_reg_outw
+    (struct e1000_device* netcard, uint16_t reg, uint16_t value)
+{
+    volatile uint16_t* mmio = (uint16_t*) (((char*)netcard->flash_base) + reg);
+    *mmio = value;
+}
+
+static inline void flash_reg_outl
+    (struct e1000_device* netcard, uint16_t reg, uint32_t value)
+{
+    volatile uint32_t* mmio = (uint32_t*) (((char*)netcard->flash_base) + reg);
+    *mmio = value;
+}
+
+static inline uint16_t flash_reg_inw(struct e1000_device* netcard, uint16_t reg)
+{
+    volatile uint16_t* mmio = (uint16_t*) (((char*)netcard->flash_base) + reg);
+    return *mmio;
+}
+
+static inline uint32_t flash_reg_inl(struct e1000_device* netcard, uint16_t reg)
+{
+    volatile uint32_t* mmio = (uint32_t*) (((char*)netcard->flash_base) + reg);
+    return *mmio;
+}
+
 #endif

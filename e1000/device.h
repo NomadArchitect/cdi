@@ -93,11 +93,40 @@ enum {
 
     /* e1000 specific values */
     TCTL_COLL_DIST_E1000    = (0x40 << 12), /* COLD - Collision Distance */
+
+    /* e1000e specific values */
+    TCTL_COLL_DIST_E1000E   = (0x3f << 12), /* COLD - Collision Distance */
+    TCTL_RRTHRESH           = (0x03 << 28), /* Read Request Threshold */
 };
 
 enum {
     ICR_TRANSMIT    = (1 <<  0),
     ICR_RECEIVE     = (1 <<  7),
+};
+
+enum {
+    FLASH_REG_GLFPR     =   0x0, /* Gigabit LAN Flash Primary Region */
+    FLASH_REG_HSFSTS    =   0x4, /* Hardware Sequencing Flash Status */
+    FLASH_REG_HSFCTL    =   0x6, /* Hardware Sequencing Flash Control */
+    FLASH_REG_FADDR     =   0x8, /* Flash Address Register */
+    FLASH_REG_FDATA0    =  0x10, /* Flash Data 0 Register */
+};
+
+enum {
+    HSFSTS_FDONE        = (1 <<  0),
+    HSFSTS_FCERR        = (1 <<  1),
+    HSFSTS_AEL          = (1 <<  2),
+    HSFSTS_SCIP         = (1 <<  5),
+    HSFSTS_FDV          = (1 << 14),
+};
+
+enum {
+    HSFCTL_FGO          = (1 <<  0),
+    HSFCTL_FCYCLE_READ  = (0 <<  1),
+    /*HSFCTL_FCYCLE_WRITE = (2 <<  1),*/
+    HSFCTL_FDBC_BYTE    = (0 <<  8),
+    HSFCTL_FDBC_WORD    = (1 <<  8),
+    HSFCTL_FDBC_DWORD   = (3 <<  8),
 };
 
 enum {
@@ -190,6 +219,9 @@ struct e1000_device {
     uint32_t                    rx_cur_buffer;
 
     void*                       mem_base;
+    void*                       flash_base;
+    uint32_t                    flash_base_offset;
+    uint32_t                    flash_size;
     uint8_t                     revision;
 
     struct e1000_model*         model;

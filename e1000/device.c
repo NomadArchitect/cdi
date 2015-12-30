@@ -247,6 +247,63 @@ static uint32_t e1000e_read_eerd(struct e1000_device *device, uint16_t offset)
 }
 #endif
 
+static uint32_t e1000e_read_flash(struct e1000_device *device, uint16_t offset)
+{
+    uint16_t hsfsts;
+    uint32_t linear_address;
+
+    /* Convert from words to bytes */
+    offset *= 2;
+
+    if (device->flash_base == NULL) {
+        printf("e1000: Cannot read from flash without flash BAR\n");
+        return (uint32_t) -1;
+    }
+
+    if (offset + 2 > device->flash_size) {
+        printf("e1000: Cannot read from flash offset %d (size %d)\n",
+               offset, device->flash_size);
+        return (uint32_t) -1;
+    }
+
+    /* Check that hardware sequencing is supported */
+    hsfsts = flash_reg_inw(device, FLASH_REG_HSFSTS);
+    if ((hsfsts & HSFSTS_FDV) == 0) {
+        /* TODO Implement access using Software Sequencing registers */
+        printf("e1000: Cannot read from flash without hardware sequencing\n");
+        return (uint32_t) -1;
+    }
+
+    /* Check that no SPI cycle is in progress */
+    if (hsfsts & HSFSTS_SCIP) {
+        printf("e1000: Cannot read from flash while SPI cycle in progress\n");
+        return (uint32_t) -1;
+    }
+
+    /* Start a new cycle */
+    linear_address = device->flash_base_offset + offset;
+    flash_reg_outl(device, FLASH_REG_FADDR, linear_address);
+
+    flash_reg_outw(device, FLASH_REG_HSFSTS,
+                   HSFSTS_FDONE | HSFSTS_FCERR | HSFSTS_AEL);
+    flash_reg_outw(device, FLASH_REG_HSFCTL,
+                   HSFCTL_FGO | HSFCTL_FCYCLE_READ | HSFCTL_FDBC_WORD);
+
+    CDI_CONDITION_WAIT_SLEEP(
+        flash_reg_inw(device, FLASH_REG_HSFSTS) & HSFSTS_FDONE, 100, 1);
+
+    hsfsts = flash_reg_inw(device, FLASH_REG_HSFSTS);
+    if ((hsfsts & (HSFSTS_FDONE | HSFSTS_FCERR)) == HSFSTS_FDONE) {
+        return flash_reg_inl(device, FLASH_REG_FDATA0);
+    } else if ((hsfsts & HSFSTS_FDONE) == 0){
+        printf("e1000: Timeout while reading from flash\n");
+    } else {
+        printf("e1000: Error while reading from flash\n");
+    }
+
+    return (uint32_t) -1;
+}
+
 static uint16_t e1000_eeprom_read(struct e1000_device* device, uint16_t offset)
 {
     static int eerd_safe = 1;
@@ -286,6 +343,18 @@ static void reset_nic(struct e1000_device* netcard)
     reg_outl(netcard, REG_CTL, CTL_RESET);
     cdi_sleep_ms(10);
     while (reg_inl(netcard, REG_CTL) & CTL_RESET);
+
+    // Flash-Basisadresse
+    if (netcard->flash_base) {
+        uint32_t glfpr = flash_reg_inl(netcard, FLASH_REG_GLFPR);
+        uint32_t base = (glfpr & 0x1fff) << 12;
+        uint32_t limit = ((glfpr >> 16) & 0x1fff) << 12;
+
+        netcard->flash_base_offset = base;
+        netcard->flash_size = limit - base;
+
+        printf("e1000: Flash base offset %x; size %x\n", base, limit - base);
+    }
 
     // Kontrollregister initialisieren
     reg_outl(netcard, REG_CTL, CTL_AUTO_SPEED | CTL_LINK_UP);
@@ -377,6 +446,11 @@ static struct e1000_model models[] = {
         .device_id      = 0x100f,
         .tctl_flags     = TCTL_COLL_DIST_E1000,
         .eeprom_read    = e1000_read_eerd,
+    }, {
+        .vendor_id      = 0x8086,
+        .device_id      = 0x10f5,
+        .tctl_flags     = TCTL_COLL_DIST_E1000E | TCTL_RRTHRESH,
+        .eeprom_read    = e1000e_read_flash,
     }
 };
 
@@ -418,9 +492,12 @@ found:
     cdi_list_t reslist = pci->resources;
     struct cdi_pci_resource* res;
     for (i = 0; (res = cdi_list_get(reslist, i)); i++) {
-        if (res->type == CDI_PCI_MEMORY) {
+        if (res->type == CDI_PCI_MEMORY && res->index == 0) {
             struct cdi_mem_area* mmio = cdi_mem_map(res->start, res->length);
             netcard->mem_base = mmio->vaddr;
+        } else if (res->type == CDI_PCI_MEMORY && res->index == 1) {
+            struct cdi_mem_area* mmio = cdi_mem_map(res->start, res->length);
+            netcard->flash_base = mmio->vaddr;
         }
     }
 
