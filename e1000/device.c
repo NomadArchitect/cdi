@@ -447,6 +447,7 @@ void e1000_send_packet(struct cdi_net_device* device, void* data, size_t size)
     head = reg_inl(netcard, REG_TXDESC_HEAD);
     if (netcard->tx_cur_buffer == head) {
         printf("e1000: Kein Platz in der Sendewarteschlange!\n");
+        netcard->tx_cur_buffer = cur;
         return;
     }
 
