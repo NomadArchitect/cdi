@@ -144,6 +144,7 @@ struct e1000_tx_descriptor {
     uint8_t             checksum_start;
     uint16_t            special;
 } __attribute__((packed)) __attribute__((aligned (4)));
+CDI_BUILD_BUG_ON((sizeof(struct e1000_tx_descriptor) * TX_BUFFER_NUM) % 128);
 
 enum {
     TX_CMD_EOP  = 0x01,
@@ -158,17 +159,18 @@ struct e1000_rx_descriptor {
     uint8_t             error;
     uint16_t            padding2;
 } __attribute__((packed)) __attribute__((aligned (4)));
+CDI_BUILD_BUG_ON((sizeof(struct e1000_rx_descriptor) * RX_BUFFER_NUM) % 128);
 
 struct e1000_device {
     struct cdi_net_device       net;
 
     uintptr_t                   phys;
 
-    struct e1000_tx_descriptor  tx_desc[TX_BUFFER_NUM] __attribute__((aligned(16)));
+    volatile struct e1000_tx_descriptor  tx_desc[TX_BUFFER_NUM] __attribute__((aligned(16)));
     uint8_t                     tx_buffer[TX_BUFFER_NUM * TX_BUFFER_SIZE];
     uint32_t                    tx_cur_buffer;
 
-    struct e1000_rx_descriptor  rx_desc[RX_BUFFER_NUM] __attribute__((aligned(16)));
+    volatile struct e1000_rx_descriptor  rx_desc[RX_BUFFER_NUM] __attribute__((aligned(16)));
     uint8_t                     rx_buffer[RX_BUFFER_NUM * RX_BUFFER_SIZE];
     uint32_t                    rx_cur_buffer;
 
