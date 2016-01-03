@@ -73,6 +73,7 @@ enum hda_reg {
     REG_O0_STS      = 0x103,    ///< Output 0 - Status
     REG_O0_CBL      = 0x108,    ///< Output 0 - Cyclic Buffer Length
     REG_O0_STLVI    = 0x10c,    ///< Output 0 - Last Valid Index
+    REG_O0_FMT      = 0x112,    ///< Output 0 - Format
     REG_O0_BDLPL    = 0x118,    ///< Output 0 - BDL Pointer Lower
     REG_O0_BDLPU    = 0x11c,    ///< Output 0 - BDL Pointer Upper
 };
@@ -181,7 +182,12 @@ enum codec_verbs {
 
 enum codec_parameters {
     PARAM_NODE_COUNT        = 0x04,
+    PARAM_FN_GROUP_TYPE     = 0x05,
     PARAM_AUDIO_WID_CAP     = 0x09,
+};
+
+enum fn_group_type {
+    FN_GROUP_AUDIO          = 0x01,
 };
 
 enum sample_format {
