@@ -107,6 +107,7 @@ struct hda_output {
     uint16_t    nid;
 
     uint32_t    sample_rate;
+    int         amp_gain_steps;
     int         num_channels;
 };
 

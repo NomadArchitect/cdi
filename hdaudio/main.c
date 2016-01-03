@@ -266,6 +266,7 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
 {
     uint32_t widget_cap;
     enum widget_type type;
+    uint32_t amp_cap;
 
     widget_cap = codec_query(hda, codec, nid,
                              VERB_GET_PARAMETER | PARAM_AUDIO_WID_CAP);
@@ -275,10 +276,12 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
 
     type = (widget_cap & WIDGET_CAP_TYPE_MASK) >> WIDGET_CAP_TYPE_SHIFT;
 
+    amp_cap = codec_query(hda, codec, nid,
+                          VERB_GET_PARAMETER | PARAM_OUT_AMP_CAP);
+
 #ifdef DEBUG
     uint32_t eapd_btl;
     uint32_t amp_gain;
-    uint32_t amp_cap;
     const char* s;
 
     switch (type) {
@@ -297,8 +300,6 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
     amp_gain = codec_query(hda, codec, nid,
                            VERB_GET_AMP_GAIN_MUTE | 0x8000) << 8;
     amp_gain |= codec_query(hda, codec, nid, VERB_GET_AMP_GAIN_MUTE | 0xa000);
-    amp_cap = codec_query(hda, codec, nid,
-                          VERB_GET_PARAMETER | PARAM_OUT_AMP_CAP);
     eapd_btl = codec_query(hda, codec, nid, VERB_GET_EAPD_BTL);
 
     DPRINTF("    %s at ID %d; cap %x, eapd %x, amp %x/%x\n",
@@ -338,6 +339,7 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
                 DPRINTF("    * Using output at ID %d!\n", nid);
                 hda->output.codec = codec;
                 hda->output.nid = nid;
+                hda->output.amp_gain_steps = (amp_cap >> 8) & 0x7f;
             }
             break;
         }
@@ -583,12 +585,14 @@ static void hda_set_volume(struct cdi_audio_stream* stream, uint8_t volume)
     struct hda_device* hda = (struct hda_device*) stream->device;
     int meta = 0xb000; /* Output Amp, Left and Right */
 
+    DPRINTF("hda_set_volume: %d\n", volume);
+
     if (volume == 0) {
         /* Set the mute bit */
         volume = 0x80;
     } else {
-        /* Scale to 7-bit value */
-        volume >>= 1;
+        /* Scale to NumSteps */
+        volume = volume * hda->output.amp_gain_steps / 255;
     }
 
     codec_query(hda, hda->output.codec, hda->output.nid,
