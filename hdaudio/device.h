@@ -179,8 +179,11 @@ enum codec_verbs {
     VERB_SET_FORMAT         = 0x20000,
     VERB_GET_AMP_GAIN_MUTE  = 0xb0000,
     VERB_SET_AMP_GAIN_MUTE  = 0x30000,
+    VERB_GET_CONFIG_DEFAULT = 0xf1c00,
     VERB_GET_CONN_LIST      = 0xf0200,
     VERB_GET_CONN_SELECT    = 0xf0100,
+    VERB_GET_PIN_CONTROL    = 0xf0700,
+    VERB_SET_PIN_CONTROL    = 0x70700,
     VERB_GET_EAPD_BTL       = 0xf0c00,
 };
 
@@ -188,6 +191,7 @@ enum codec_parameters {
     PARAM_NODE_COUNT        = 0x04,
     PARAM_FN_GROUP_TYPE     = 0x05,
     PARAM_AUDIO_WID_CAP     = 0x09,
+    PARAM_PIN_CAP           = 0x0c,
     PARAM_CONN_LIST_LEN     = 0x0e,
     PARAM_OUT_AMP_CAP       = 0x12,
 };
@@ -213,6 +217,15 @@ enum widget_capabilities {
 
     WIDGET_CAP_TYPE_SHIFT   = 20,
     WIDGET_CAP_TYPE_MASK    = (0xf << 20),
+};
+
+enum pin_capabilities {
+    PIN_CAP_OUTPUT          = (1 << 4),
+    PIN_CAP_INPUT           = (1 << 5),
+};
+
+enum pin_ctl_flags {
+    PIN_CTL_ENABLE_OUTPUT   = (1 << 6),
 };
 
 enum sample_format {

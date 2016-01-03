@@ -265,6 +265,7 @@ static void widget_dump_connections(struct hda_device* hda, int codec, int nid)
 static void widget_init(struct hda_device* hda, int codec, int nid)
 {
     uint32_t widget_cap;
+    enum widget_type type;
 
     widget_cap = codec_query(hda, codec, nid,
                              VERB_GET_PARAMETER | PARAM_AUDIO_WID_CAP);
@@ -272,14 +273,13 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
         return;
     }
 
+    type = (widget_cap & WIDGET_CAP_TYPE_MASK) >> WIDGET_CAP_TYPE_SHIFT;
+
 #ifdef DEBUG
-    enum widget_type type;
     uint32_t eapd_btl;
     uint32_t amp_gain;
     uint32_t amp_cap;
     const char* s;
-
-    type = (widget_cap & WIDGET_CAP_TYPE_MASK) >> WIDGET_CAP_TYPE_SHIFT;
 
     switch (type) {
         case 0:     s = "output"; break;
@@ -307,12 +307,43 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
     widget_dump_connections(hda, codec, nid);
 #endif
 
-    if ((widget_cap & 0xf00000) == 0) {
-        if (!hda->output.nid) {
-            DPRINTF("    * Using output at ID %d!\n", nid);
-            hda->output.codec = codec;
-            hda->output.nid = nid;
+    switch (type) {
+        case WIDGET_PIN:
+        {
+            uint32_t pin_cap, ctl;
+
+#ifdef DEBUG
+            uint32_t conf = codec_query(hda, codec, nid,
+                                        VERB_GET_CONFIG_DEFAULT);
+            DPRINTF("        pin config: %x\n", conf);
+#endif
+
+            pin_cap = codec_query(hda, codec, nid,
+                                  VERB_GET_PARAMETER | PARAM_PIN_CAP);
+            if ((pin_cap & PIN_CAP_OUTPUT) == 0) {
+                return;
+            }
+
+            ctl = codec_query(hda, codec, nid, VERB_GET_PIN_CONTROL);
+            DPRINTF("        ctl: %x\n", ctl);
+
+            ctl |= PIN_CTL_ENABLE_OUTPUT;
+            codec_query(hda, codec, nid, VERB_SET_PIN_CONTROL | ctl);
+            break;
         }
+
+        case WIDGET_OUTPUT:
+        {
+            if (!hda->output.nid) {
+                DPRINTF("    * Using output at ID %d!\n", nid);
+                hda->output.codec = codec;
+                hda->output.nid = nid;
+            }
+            break;
+        }
+
+        default:
+            return;
     }
 }
 
