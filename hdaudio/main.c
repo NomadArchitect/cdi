@@ -347,6 +347,10 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
         default:
             return;
     }
+
+    if (widget_cap & WIDGET_CAP_POWER_CNTRL) {
+        codec_query(hda, codec, nid, VERB_SET_POWER_STATE | 0x0);
+    }
 }
 
 static int codec_enumerate_widgets(struct hda_device* hda, int codec)
@@ -380,6 +384,8 @@ static int codec_enumerate_widgets(struct hda_device* hda, int codec)
             DPRINTF("    Function group type %x\n", param);
             continue;
         }
+
+        codec_query(hda, codec, fg_start + i, VERB_SET_POWER_STATE | 0x0);
 
         for (j = 0; j < num_widgets; j++) {
             widget_init(hda, codec, widgets_start + j);

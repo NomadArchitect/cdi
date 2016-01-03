@@ -186,6 +186,8 @@ enum codec_verbs {
     VERB_GET_PIN_CONTROL    = 0xf0700,
     VERB_SET_PIN_CONTROL    = 0x70700,
     VERB_GET_EAPD_BTL       = 0xf0c00,
+    VERB_GET_POWER_STATE    = 0xf0500,
+    VERB_SET_POWER_STATE    = 0x70500,
 };
 
 enum codec_parameters {
