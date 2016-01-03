@@ -267,6 +267,7 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
     uint32_t widget_cap;
     enum widget_type type;
     uint32_t amp_cap;
+    uint32_t eapd_btl;
 
     widget_cap = codec_query(hda, codec, nid,
                              VERB_GET_PARAMETER | PARAM_AUDIO_WID_CAP);
@@ -278,9 +279,9 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
 
     amp_cap = codec_query(hda, codec, nid,
                           VERB_GET_PARAMETER | PARAM_OUT_AMP_CAP);
+    eapd_btl = codec_query(hda, codec, nid, VERB_GET_EAPD_BTL);
 
 #ifdef DEBUG
-    uint32_t eapd_btl;
     uint32_t amp_gain;
     const char* s;
 
@@ -300,7 +301,6 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
     amp_gain = codec_query(hda, codec, nid,
                            VERB_GET_AMP_GAIN_MUTE | 0x8000) << 8;
     amp_gain |= codec_query(hda, codec, nid, VERB_GET_AMP_GAIN_MUTE | 0xa000);
-    eapd_btl = codec_query(hda, codec, nid, VERB_GET_EAPD_BTL);
 
     DPRINTF("    %s at ID %d; cap %x, eapd %x, amp %x/%x\n",
             s, nid, widget_cap, eapd_btl, amp_gain, amp_cap);
@@ -330,6 +330,7 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
 
             ctl |= PIN_CTL_ENABLE_OUTPUT;
             codec_query(hda, codec, nid, VERB_SET_PIN_CONTROL | ctl);
+            codec_query(hda, codec, nid, VERB_SET_EAPD_BTL | eapd_btl | 0x2);
             break;
         }
 
@@ -341,6 +342,8 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
                 hda->output.nid = nid;
                 hda->output.amp_gain_steps = (amp_cap >> 8) & 0x7f;
             }
+
+            codec_query(hda, codec, nid, VERB_SET_EAPD_BTL | eapd_btl | 0x2);
             break;
         }
 
