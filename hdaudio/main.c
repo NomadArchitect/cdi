@@ -215,7 +215,27 @@ static void init_output_widget(struct hda_device* hda)
     configure_output_widget(hda);
 }
 
-static int find_output_widget(struct hda_device* hda, int codec)
+static void widget_init(struct hda_device* hda, int codec, int nid)
+{
+    uint32_t widget_cap;
+
+    widget_cap = codec_query(hda, codec, nid,
+                             VERB_GET_PARAMETER | PARAM_AUDIO_WID_CAP);
+    if (widget_cap == 0) {
+        return;
+    }
+
+    if ((widget_cap & 0xf00000) == 0) {
+        DPRINTF("    Audio output at ID %d!\n", nid);
+        if (!hda->output.nid) {
+            DPRINTF("    * Using output at ID %d!\n", nid);
+            hda->output.codec = codec;
+            hda->output.nid = nid;
+        }
+    }
+}
+
+static int codec_enumerate_widgets(struct hda_device* hda, int codec)
 {
     uint32_t param;
     int num_fg, num_widgets;
@@ -248,20 +268,11 @@ static int find_output_widget(struct hda_device* hda, int codec)
         }
 
         for (j = 0; j < num_widgets; j++) {
-            param = codec_query(hda, codec, widgets_start + j,
-                VERB_GET_PARAMETER | PARAM_AUDIO_WID_CAP);
-            if ((param != 0) && ((param & 0xf00000) == 0)) {
-                DPRINTF("    Audio output at ID %d!\n", widgets_start + j);
-
-                hda->output.codec = codec;
-                hda->output.nid = widgets_start + j;
-
-                return 0;
-            }
+            widget_init(hda, codec, widgets_start + j);
         }
     }
 
-    return -1;
+    return hda->output.nid ? 0 : -1;
 }
 
 static void hda_enumerate_codecs(struct hda_device* hda)
@@ -283,7 +294,7 @@ static void hda_enumerate_codecs(struct hda_device* hda)
     for (i = 0; i < 15; i++) {
         if ((statests & (1 << i))) {
             DPRINTF("   Found codec at %d\n", i);
-            if (find_output_widget(hda, i)) {
+            if (codec_enumerate_widgets(hda, i)) {
                 return;
             }
         }
