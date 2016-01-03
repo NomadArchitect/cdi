@@ -238,7 +238,7 @@ static int find_output_widget(struct hda_device* hda, int codec)
 
         DPRINTF("    %d widgets starting at ID %d\n",
             num_widgets, widgets_start);
-        for (j = 0; i < num_widgets; j++) {
+        for (j = 0; j < num_widgets; j++) {
             param = codec_query(hda, codec, widgets_start + j,
                 VERB_GET_PARAMETER | PARAM_AUDIO_WID_CAP);
             if ((param != 0) && ((param & 0xf00000) == 0)) {
