@@ -191,10 +191,12 @@ static uint32_t codec_query(struct hda_device* hda, int codec, int nid,
 static void configure_output_widget(struct hda_device* hda)
 {
     /* Set sample format */
+    uint16_t format = BITS_16 | hda->output.sample_rate |
+                      (hda->output.num_channels - 1);
+
     codec_query(hda, hda->output.codec, hda->output.nid,
-        VERB_SET_FORMAT |
-        BITS_16 | hda->output.sample_rate |
-        (hda->output.num_channels - 1));
+        VERB_SET_FORMAT | format);
+    reg_outl(hda, REG_O0_FMT, format);
 }
 
 static void init_output_widget(struct hda_device* hda)
