@@ -215,6 +215,53 @@ static void init_output_widget(struct hda_device* hda)
     configure_output_widget(hda);
 }
 
+#ifdef DEBUG
+static void widget_dump_connections(struct hda_device* hda, int codec, int nid)
+{
+    uint32_t num_conn;
+    uint32_t sel;
+    int i;
+
+    num_conn = codec_query(hda, codec, nid,
+                           VERB_GET_PARAMETER | PARAM_CONN_LIST_LEN);
+    if (!num_conn) {
+        return;
+    }
+
+    DPRINTF("        conn:");
+
+    for (i = 0; i < (num_conn & 0x7f); i++) {
+        uint32_t conn;
+        bool range;
+        int idx, shift;
+
+        if (num_conn & 0x80) {
+            idx = i & ~3;
+            shift = 8 * (i & 3);
+        } else {
+            idx = i & ~1;
+            shift = 8 * (i & 1);
+        }
+
+        conn = codec_query(hda, codec, nid, VERB_GET_CONN_LIST | idx);
+        conn >>= shift;
+
+        if (num_conn & 0x80) {
+            range = conn & 0x8000;
+            conn &= 0x7fff;
+        } else {
+            range = conn & 0x80;
+            conn &= 0x7f;
+        }
+
+        printf("%c%d", range ? '-' : ' ', conn);
+    }
+
+    sel = codec_query(hda, codec, nid, VERB_GET_CONN_SELECT);
+    printf(" [current: %d]\n", sel);
+}
+#endif
+
 static void widget_init(struct hda_device* hda, int codec, int nid)
 {
     uint32_t widget_cap;
@@ -225,8 +272,42 @@ static void widget_init(struct hda_device* hda, int codec, int nid)
         return;
     }
 
+#ifdef DEBUG
+    enum widget_type type;
+    uint32_t eapd_btl;
+    uint32_t amp_gain;
+    uint32_t amp_cap;
+    const char* s;
+
+    type = (widget_cap & WIDGET_CAP_TYPE_MASK) >> WIDGET_CAP_TYPE_SHIFT;
+
+    switch (type) {
+        case 0:     s = "output"; break;
+        case 1:     s = "input"; break;
+        case 2:     s = "mixer"; break;
+        case 3:     s = "selector"; break;
+        case 4:     s = "pin complex"; break;
+        case 5:     s = "power"; break;
+        case 6:     s = "volume knob"; break;
+        case 7:     s = "beep generator"; break;
+        case 15:    s = "vendor defined"; break;
+        default:    s = "unknown"; break;
+    }
+
+    amp_gain = codec_query(hda, codec, nid,
+                           VERB_GET_AMP_GAIN_MUTE | 0x8000) << 8;
+    amp_gain |= codec_query(hda, codec, nid, VERB_GET_AMP_GAIN_MUTE | 0xa000);
+    amp_cap = codec_query(hda, codec, nid,
+                          VERB_GET_PARAMETER | PARAM_OUT_AMP_CAP);
+    eapd_btl = codec_query(hda, codec, nid, VERB_GET_EAPD_BTL);
+
+    DPRINTF("    %s at ID %d; cap %x, eapd %x, amp %x/%x\n",
+            s, nid, widget_cap, eapd_btl, amp_gain, amp_cap);
+
+    widget_dump_connections(hda, codec, nid);
+#endif
+
     if ((widget_cap & 0xf00000) == 0) {
-        DPRINTF("    Audio output at ID %d!\n", nid);
         if (!hda->output.nid) {
             DPRINTF("    * Using output at ID %d!\n", nid);
             hda->output.codec = codec;
@@ -270,6 +351,7 @@ static int codec_enumerate_widgets(struct hda_device* hda, int codec)
         for (j = 0; j < num_widgets; j++) {
             widget_init(hda, codec, widgets_start + j);
         }
+        DPRINTF("\n");
     }
 
     return hda->output.nid ? 0 : -1;

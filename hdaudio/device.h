@@ -177,17 +177,42 @@ enum codec_verbs {
     VERB_GET_PARAMETER      = 0xf0000,
     VERB_SET_STREAM_CHANNEL = 0x70600,
     VERB_SET_FORMAT         = 0x20000,
+    VERB_GET_AMP_GAIN_MUTE  = 0xb0000,
     VERB_SET_AMP_GAIN_MUTE  = 0x30000,
+    VERB_GET_CONN_LIST      = 0xf0200,
+    VERB_GET_CONN_SELECT    = 0xf0100,
+    VERB_GET_EAPD_BTL       = 0xf0c00,
 };
 
 enum codec_parameters {
     PARAM_NODE_COUNT        = 0x04,
     PARAM_FN_GROUP_TYPE     = 0x05,
     PARAM_AUDIO_WID_CAP     = 0x09,
+    PARAM_CONN_LIST_LEN     = 0x0e,
+    PARAM_OUT_AMP_CAP       = 0x12,
 };
 
 enum fn_group_type {
     FN_GROUP_AUDIO          = 0x01,
+};
+
+enum widget_type {
+    WIDGET_OUTPUT           = 0x0,
+    WIDGET_INPUT            = 0x1,
+    WIDGET_MIXER            = 0x2,
+    WIDGET_SELECTOR         = 0x3,
+    WIDGET_PIN              = 0x4,
+    WIDGET_POWER            = 0x5,
+    WIDGET_VOLUME_KNOB      = 0x6,
+    WIDGET_BEEP_GEN         = 0x7,
+    WIDGET_VENDOR_DEFINED   = 0xf,
+};
+
+enum widget_capabilities {
+    WIDGET_CAP_POWER_CNTRL  = (1 << 10),
+
+    WIDGET_CAP_TYPE_SHIFT   = 20,
+    WIDGET_CAP_TYPE_MASK    = (0xf << 20),
 };
 
 enum sample_format {
