@@ -213,39 +213,28 @@ static uint32_t e1000_read_uwire(struct e1000_device *device, uint16_t offset)
     return data;
 }
 
-static uint32_t do_read_eerd(struct e1000_device *device, uint16_t offset,
-                             uint32_t start_flag, uint32_t done_flag)
+static uint32_t e1000_read_eerd(struct e1000_device* device, uint16_t offset)
 {
+    struct e1000_model* m = device->model;
     uint32_t eerd, i;
 
-    reg_outl(device, REG_EEPROM_READ, (offset << 8) | start_flag);
+    reg_outl(device, REG_EEPROM_READ,
+             (offset << m->eerd_addr_sh) | m->eerd_start);
     for(i = 0; i < 100; i++)
     {
         eerd = reg_inl(device, REG_EEPROM_READ);
-        if (eerd & done_flag) {
+        if (eerd & m->eerd_done) {
             break;
         }
         cdi_sleep_ms(1);
     }
 
-    if (eerd & done_flag) {
+    if (eerd & m->eerd_done) {
         return (eerd >> 16) & 0xFFFF;
     } else {
         return (uint32_t) -1;
     }
 }
-
-static uint32_t e1000_read_eerd(struct e1000_device *device, uint16_t offset)
-{
-    return do_read_eerd(device, offset, EERD_E1000_START, EERD_E1000_DONE);
-}
-
-#if 0
-static uint32_t e1000e_read_eerd(struct e1000_device *device, uint16_t offset)
-{
-    return do_read_eerd(device, offset, EERD_E1000E_START, EERD_E1000E_DONE);
-}
-#endif
 
 static uint32_t e1000e_read_flash(struct e1000_device *device, uint16_t offset)
 {
@@ -436,16 +425,25 @@ static struct e1000_model models[] = {
         .device_id      = 0x1004,
         .tctl_flags     = TCTL_COLL_DIST_E1000,
         .eeprom_read    = e1000_read_eerd,
+        .eerd_start     = EERD_E1000_START,
+        .eerd_done      = EERD_E1000_DONE,
+        .eerd_addr_sh   = EERD_E1000_ADDR_SHIFT,
     }, {
         .vendor_id      = 0x8086,
         .device_id      = 0x100e,
         .tctl_flags     = TCTL_COLL_DIST_E1000,
         .eeprom_read    = e1000_read_eerd,
+        .eerd_start     = EERD_E1000_START,
+        .eerd_done      = EERD_E1000_DONE,
+        .eerd_addr_sh   = EERD_E1000_ADDR_SHIFT,
     }, {
         .vendor_id      = 0x8086,
         .device_id      = 0x100f,
         .tctl_flags     = TCTL_COLL_DIST_E1000,
         .eeprom_read    = e1000_read_eerd,
+        .eerd_start     = EERD_E1000_START,
+        .eerd_done      = EERD_E1000_DONE,
+        .eerd_addr_sh   = EERD_E1000_ADDR_SHIFT,
     }, {
         .vendor_id      = 0x8086,
         .device_id      = 0x10f5,

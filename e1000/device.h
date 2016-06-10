@@ -142,9 +142,11 @@ enum {
 
 #define EERD_E1000_START    (1 <<  0)
 #define EERD_E1000_DONE     (1 <<  4)
+#define EERD_E1000_ADDR_SHIFT 8
 
 #define EERD_E1000E_START   (1 <<  0)
 #define EERD_E1000E_DONE    (1 <<  1)
+#define EERD_E1000E_ADDR_SHIFT 2
 
 /* EEPROM/Flash Control */
 #define E1000_EECD_SK        0x00000001 /* EEPROM Clock */
@@ -207,6 +209,10 @@ struct e1000_model {
     uint16_t device_id;
 
     uint32_t tctl_flags;
+
+    uint32_t eerd_start;
+    uint32_t eerd_done;
+    uint32_t eerd_addr_sh;
     uint32_t (*eeprom_read)(struct e1000_device *device, uint16_t offset);
 };
 
