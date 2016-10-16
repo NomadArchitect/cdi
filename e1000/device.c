@@ -447,6 +447,14 @@ static struct e1000_model models[] = {
         .eerd_addr_sh   = EERD_E1000_ADDR_SHIFT,
     }, {
         .vendor_id      = 0x8086,
+        .device_id      = 0x10d3,
+        .tctl_flags     = TCTL_COLL_DIST_E1000E | TCTL_RRTHRESH,
+        .eeprom_read    = e1000_read_eerd,
+        .eerd_start     = EERD_E1000E_START,
+        .eerd_done      = EERD_E1000E_DONE,
+        .eerd_addr_sh   = EERD_E1000E_ADDR_SHIFT,
+    }, {
+        .vendor_id      = 0x8086,
         .device_id      = 0x10f5,
         .tctl_flags     = TCTL_COLL_DIST_E1000E | TCTL_RRTHRESH,
         .eeprom_read    = e1000e_read_flash,
