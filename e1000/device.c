@@ -384,6 +384,7 @@ static void reset_nic(struct e1000_device* netcard)
     for (i = 0; i < RX_BUFFER_NUM; i++) {
         netcard->rx_desc[i].length = RX_BUFFER_SIZE;
         netcard->rx_desc[i].buffer = PHYS(netcard, rx_buffer[i * RX_BUFFER_SIZE]);
+        netcard->rx_desc[i].status = 0;
 
 #ifdef DEBUG
         printf("e1000: [%d] Rx: Buffer @ phys %08llx, Desc @ phys %08x\n",
@@ -625,6 +626,9 @@ static void e1000_handle_interrupt(struct cdi_device* device)
                 (struct cdi_net_device*) netcard,
                 &netcard->rx_buffer[netcard->rx_cur_buffer * RX_BUFFER_SIZE],
                 size);
+
+            cdi_barrier();
+            netcard->rx_desc[netcard->rx_cur_buffer].status = 0;
 
             netcard->rx_cur_buffer++;
             netcard->rx_cur_buffer %= RX_BUFFER_NUM;

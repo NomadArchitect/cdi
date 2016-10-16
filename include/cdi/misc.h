@@ -25,6 +25,8 @@
 extern "C" {
 #endif
 
+#define cdi_barrier() do { asm volatile("" ::: "memory"); } while(0)
+
 /**
  * Registiert einen neuen IRQ-Handler.
  *
