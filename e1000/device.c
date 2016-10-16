@@ -584,6 +584,7 @@ static void e1000_handle_interrupt(struct cdi_device* device)
     struct e1000_device* netcard = (struct e1000_device*) device;
 
     uint32_t icr = reg_inl(netcard, REG_INTR_CAUSE);
+    reg_outl(netcard, REG_INTR_CAUSE, icr);
 
 #ifdef DEBUG
     printf("e1000: Interrupt, ICR = %08x\n", icr);
