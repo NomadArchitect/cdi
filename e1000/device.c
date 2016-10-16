@@ -386,7 +386,7 @@ static void reset_nic(struct e1000_device* netcard)
         netcard->rx_desc[i].buffer = PHYS(netcard, rx_buffer[i * RX_BUFFER_SIZE]);
 
 #ifdef DEBUG
-        printf("e1000: [%d] Rx: Buffer @ phys %08x, Desc @ phys %08x\n",
+        printf("e1000: [%d] Rx: Buffer @ phys %08llx, Desc @ phys %08x\n",
             i,
             netcard->rx_desc[i].buffer,
             PHYS(netcard, rx_desc[i]));
@@ -637,7 +637,7 @@ static void e1000_handle_interrupt(struct cdi_device* device)
             reg_outl(netcard, REG_RXDESC_TAIL, netcard->rx_cur_buffer);
         }
 
-    } else if (icr & ICR_TRANSMIT) {
+    } else if (icr & (ICR_TRANSMIT | ICR_TXQE)) {
         // Nichts zu tun
     } else if (icr & ICR_LINK_CHANGE) {
         printf("e1000: Link %s\n",

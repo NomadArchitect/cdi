@@ -105,6 +105,7 @@ enum {
 
 enum {
     ICR_TRANSMIT    = (1 <<  0),
+    ICR_TXQE        = (1 <<  1), /* TX Queue Empty */
     ICR_LINK_CHANGE = (1 <<  2),
     ICR_RECEIVE     = (1 <<  7),
 };
