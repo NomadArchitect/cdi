@@ -241,7 +241,7 @@ int ext2_dir_unlink(ext2_inode_t* dir, const char* name)
     uint32_t bgnum;
 
     ext2_inode_readdata(dir, 0, dir->raw->size, buf);
-    while (pos < dir->raw->size) {
+    while (!ret && pos < dir->raw->size) {
         entry = (ext2_dirent_t*) &buf[pos];
 
         // Eintrag als unbenutzt markieren
