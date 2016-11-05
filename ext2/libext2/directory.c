@@ -38,7 +38,7 @@
 #include <stdio.h>
 
 struct private_dir_get {
-    char* name;
+    const char* name;
     size_t name_len;
     ext2_dirent_t* result;
     int found;
@@ -88,7 +88,7 @@ static int dir_get_handler(ext2_dirent_t* dirent, void* prv)
     return 0;
 }
 
-ext2_dirent_t* ext2_dir_get(ext2_inode_t* inode, char* name)
+ext2_dirent_t* ext2_dir_get(ext2_inode_t* inode, const char* name)
 {
     struct private_dir_get prv = {
         .name = name,
@@ -171,6 +171,13 @@ int ext2_dir_link(ext2_inode_t* dir, ext2_inode_t* inode, const char* name)
         EXT2_FEATURE_INCOMP_FILETYPE)))
     {
         type = ext2_inode_type(inode);
+    }
+
+    /* Don't create a second dir entry with the same name */
+    entry = ext2_dir_get(dir, name);
+    if (entry != NULL) {
+        free(entry);
+        return 0;
     }
 
     if (dir->raw->size) {
@@ -302,8 +309,10 @@ int ext2_dir_create(ext2_inode_t* parent, const char* name, ext2_inode_t* newi)
     newi->raw->mode = EXT2_INODE_MODE_DIR | 0777;
 
     // Verzeichniseintraege anlegen
-    if (!ext2_dir_link(parent, newi, name) ||
-        !ext2_dir_link(newi, newi, ".") ||
+    if (!ext2_dir_link(parent, newi, name)) {
+        goto fail;
+    }
+    if (!ext2_dir_link(newi, newi, ".") ||
         !ext2_dir_link(newi, parent, ".."))
     {
         return 0;
@@ -321,5 +330,9 @@ int ext2_dir_create(ext2_inode_t* parent, const char* name, ext2_inode_t* newi)
     ext2_bg_update(parent->fs, bgnum, &bg);
 
     return 1;
+
+fail:
+    ext2_inode_free(newi);
+    return 0;
 }
 
