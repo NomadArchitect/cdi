@@ -32,10 +32,10 @@
 #include <stdint.h>
 
 // Basisadressen.
-uint16_t COM1_BASE;
-uint16_t COM2_BASE;
-uint16_t COM3_BASE;
-uint16_t COM4_BASE;
+extern uint16_t COM1_BASE;
+extern uint16_t COM2_BASE;
+extern uint16_t COM3_BASE;
+extern uint16_t COM4_BASE;
 
 // Register-Port-Offsets
 #define REG_TR  0x00 // Bei nicht gesetztem DLAB
